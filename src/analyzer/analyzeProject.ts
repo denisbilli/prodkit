@@ -53,8 +53,14 @@ function parsePyproject(text: string | null): string[] {
   return deps;
 }
 
+function isTestOrExamplePath(file: string): boolean {
+  return /(^|\/)(__tests__|tests?|test-data|fixtures|frontend-example)(\/|$)/i.test(file)
+    || /(^|\/)test[-_][^/]+\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
+    || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file);
+}
+
 function pickSource(files: string[]): string[] {
-  return files.filter((f) => /\.(ts|tsx|js|jsx|mjs|cjs|py)$/.test(f));
+  return files.filter((f) => /\.(ts|tsx|js|jsx|mjs|cjs|py)$/.test(f) && !isTestOrExamplePath(f));
 }
 
 function pickConfig(files: string[]): string[] {

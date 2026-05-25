@@ -17,7 +17,7 @@ exports[`real report snapshots > matches structured snapshot for movie-generator
     {
       "id": "billing.webhook-signature",
       "severity": "medium",
-      "status": "partial",
+      "status": "missing",
     },
     {
       "id": "deployment.readiness",

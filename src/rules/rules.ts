@@ -219,9 +219,13 @@ export const rules: Rule[] = [
         category: 'security',
         status,
         severity: status === 'passed' ? 'info' : 'critical',
-        description: debugTrue ? 'Django settings contain DEBUG=True.' : 'No DEBUG=True signal found.',
+        description: !isDjango
+          ? 'Django stack not detected.'
+          : debugTrue
+            ? 'Django settings contain DEBUG=True.'
+            : 'No DEBUG=True signal found.',
         recommendation: 'Set DEBUG=False for non-local environments and enforce via environment variables.',
-        evidence: sec?.evidence ?? [],
+        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : sec?.evidence ?? [],
       });
     },
   },
@@ -241,9 +245,13 @@ export const rules: Rule[] = [
         category: 'security',
         status,
         severity: sevForStatus(status, 'high'),
-        description: ok ? 'Secure cookie settings appear configured.' : 'SESSION/CSRF secure cookie flags are weak.',
+        description: !isDjango
+          ? 'Django stack not detected.'
+          : ok
+            ? 'Secure cookie settings appear configured.'
+            : 'SESSION/CSRF secure cookie flags are weak.',
         recommendation: 'Enable SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE in production.',
-        evidence: sec?.evidence ?? [],
+        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : sec?.evidence ?? [],
       });
     },
   },

@@ -11,9 +11,9 @@ type OutputFormat = 'markdown' | 'json';
 
 function summarize(report: ReturnType<typeof buildReport>): string {
   const counts = {
-    critical: report.findings.filter((f) => f.severity === 'critical' && f.status !== 'passed').length,
-    high: report.findings.filter((f) => f.severity === 'high' && f.status !== 'passed').length,
-    medium: report.findings.filter((f) => f.severity === 'medium' && f.status !== 'passed').length,
+    critical: report.findings.filter((f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown').length,
+    high: report.findings.filter((f) => f.severity === 'high' && f.status !== 'passed' && f.status !== 'unknown').length,
+    medium: report.findings.filter((f) => f.severity === 'medium' && f.status !== 'passed' && f.status !== 'unknown').length,
   };
 
   const top = report.findings

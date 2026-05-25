@@ -9,39 +9,72 @@ function toEvidence(matches: Array<{ snippet: string; file: string; line: number
 
 export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[]> {
   const evidence: DetectorEvidence[] = [];
-  const hasStripe = hasDep(ctx, 'stripe');
-  if (hasStripe) evidence.push({ type: 'dependency', value: 'stripe' });
+  const hasStripeDep = hasDep(ctx, 'stripe');
+  if (hasStripeDep) evidence.push({ type: 'dependency', value: 'stripe' });
 
-  const webhookRouteHits = await searchInFiles(
+  const stripeContextHits = await searchInFiles(
     ctx.root,
     ctx.files.source,
     [
-      /\/webhooks?\b/i,
-      /app\.post\(\s*['\"][^'\"]*webhook/i,
-      /router\.post\(\s*['\"][^'\"]*webhook/i,
+      /\bstripe\b/i,
+      /STRIPE_[A-Z0-9_]+/,
+      /stripeCustomerId/i,
+      /stripeSubscriptionId/i,
+      /\/webhooks?\/stripe/i,
+      /\/stripe\/webhooks?/i,
     ],
-    40
-  );
-  const rawBodyHits = await searchInFiles(ctx.root, ctx.files.source, [/express\.raw\(/i, /req\.rawBody/i], 20);
-  const secretHits = await searchInFiles(ctx.root, ctx.files.source, [/STRIPE_WEBHOOK_SECRET/i, /webhookSecret/i], 20);
-  const signatureHits = await searchInFiles(
-    ctx.root,
-    ctx.files.source,
-    [/constructEvent\(/i, /stripe\.webhooks\.constructEvent/i, /signature/i, /validateSignature/i],
-    25
+    30
   );
 
-  for (const m of [...webhookRouteHits, ...rawBodyHits, ...secretHits, ...signatureHits]) {
+  const hasStrongStripeSignal = hasStripeDep || stripeContextHits.length > 0;
+
+  const webhookRouteHits = hasStrongStripeSignal
+    ? await searchInFiles(
+      ctx.root,
+      ctx.files.source,
+      [
+        /\/webhooks?\b/i,
+        /\/webhooks?\/stripe/i,
+        /app\.post\(\s*['\"][^'\"]*webhook/i,
+        /router\.post\(\s*['\"][^'\"]*webhook/i,
+      ],
+      40
+    )
+    : [];
+
+  const rawBodyHits = hasStrongStripeSignal
+    ? await searchInFiles(ctx.root, ctx.files.source, [/express\.raw\(/i, /req\.rawBody/i], 20)
+    : [];
+
+  const secretHits = hasStrongStripeSignal
+    ? await searchInFiles(ctx.root, ctx.files.source, [/STRIPE_WEBHOOK_SECRET/i, /stripeWebhookSecret/i], 20)
+    : [];
+
+  const signatureHits = hasStrongStripeSignal
+    ? await searchInFiles(
+      ctx.root,
+      ctx.files.source,
+      [
+        /stripe\.webhooks\.constructEvent/i,
+        /constructEvent\(/i,
+        /['\"]stripe-signature['\"]/i,
+        /validateSignature/i,
+      ],
+      25
+    )
+    : [];
+
+  for (const m of [...stripeContextHits, ...webhookRouteHits, ...rawBodyHits, ...secretHits, ...signatureHits]) {
     evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
   }
 
   return [
     {
       key: 'billing.stripe',
-      present: hasStripe || webhookRouteHits.length > 0 || signatureHits.length > 0,
+      present: hasStrongStripeSignal,
       evidence,
       details: {
-        stripe: hasStripe,
+        stripe: hasStrongStripeSignal,
       },
     },
     {
