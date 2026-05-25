@@ -88,13 +88,15 @@ prodkit analyze <path-to-project>
 
 Options:
 
-- `--format markdown|json` output format for report payload (`markdown` default)
+- `--format markdown|json` output format for report payload (when explicitly provided)
+- `--summary` print summary only
 - `--output <path>` write report to file
 
 ## Examples
 
 ```bash
 prodkit analyze ../my-app
+prodkit analyze ../my-app --summary
 prodkit analyze ../my-app --format markdown
 prodkit analyze ../my-app --format json
 prodkit analyze ../my-app --output prodkit-report.md

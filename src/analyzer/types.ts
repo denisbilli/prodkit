@@ -7,12 +7,16 @@ export type PackageManager =
   | 'python'
   | 'unknown';
 
+export type PackageManagerConfidence = 'lockfile' | 'manifest' | 'inferred' | 'unknown';
+
 export interface StackInfo {
   frontend: string[]; // e.g. ['react', 'vite', 'tailwind']
   backend: string[]; // e.g. ['express'] or ['django']
   databases: string[]; // ['postgres', 'redis']
   languages: string[]; // ['typescript', 'javascript', 'python']
   packageManager: PackageManager;
+  packageManagerConfidence: PackageManagerConfidence;
+  warnings: string[];
 }
 
 export interface DetectorEvidence {

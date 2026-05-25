@@ -11,7 +11,9 @@ describe('analyzer fixtures', () => {
     const report = buildReport(analysis);
 
     expect(analysis.stack.backend).toContain('express');
-    expect(analysis.stack.packageManager).toBe('unknown');
+    expect(analysis.stack.packageManager).toBe('npm');
+    expect(analysis.stack.packageManagerConfidence).toBe('manifest');
+    expect(analysis.stack.warnings).toContain('package-lock missing');
 
     const weak = report.findings.find((f) => f.id === 'security.weak-secret');
     const uploads = report.findings.find((f) => f.id === 'uploads.public-exposure');
@@ -62,5 +64,62 @@ describe('analyzer fixtures', () => {
     expect(debug?.status).toBe('missing');
     expect(cookies?.severity).toBe('high');
     expect(cookies?.status).toBe('missing');
+  });
+
+  it('flags public uploads even if auth exists elsewhere', async () => {
+    const analysis = await analyzeProject(fixture('express-public-uploads-with-auth-elsewhere'));
+    const report = buildReport(analysis);
+    const uploads = report.findings.find((f) => f.id === 'uploads.public-exposure');
+
+    expect(uploads?.status).toBe('missing');
+    expect(uploads?.severity).toBe('high');
+  });
+
+  it('accepts protected uploads on the same route declaration', async () => {
+    const analysis = await analyzeProject(fixture('express-protected-uploads-same-route'));
+    const report = buildReport(analysis);
+    const uploads = report.findings.find((f) => f.id === 'uploads.public-exposure');
+
+    expect(uploads?.status).toBe('passed');
+  });
+
+  it('detects strict CORS when options object is passed by variable', async () => {
+    const analysis = await analyzeProject(fixture('express-cors-options-variable'));
+    const report = buildReport(analysis);
+    const cors = report.findings.find((f) => f.id === 'security.cors-origin');
+
+    expect(cors?.status).toBe('passed');
+  });
+
+  it('detects Stripe webhook hardening with custom signature flow', async () => {
+    const analysis = await analyzeProject(fixture('express-stripe-custom-signature'));
+    const report = buildReport(analysis);
+    const billing = report.findings.find((f) => f.id === 'billing.webhook-signature');
+
+    expect(billing?.status).toBe('passed');
+  });
+
+  it('does not flag DEBUG missing when Django debug is env-driven', async () => {
+    const analysis = await analyzeProject(fixture('django-debug-from-env'));
+    const report = buildReport(analysis);
+    const debug = report.findings.find((f) => f.id === 'security.django-debug');
+
+    expect(debug?.status).toBe('passed');
+  });
+
+  it('does not flag secure cookies missing on conditional Django config', async () => {
+    const analysis = await analyzeProject(fixture('django-secure-cookies-conditional'));
+    const report = buildReport(analysis);
+    const cookies = report.findings.find((f) => f.id === 'security.django-secure-cookies');
+
+    expect(cookies?.status).toBe('passed');
+  });
+
+  it('detects frontend and backend in monorepo with subfolders', async () => {
+    const analysis = await analyzeProject(fixture('monorepo-with-frontend-and-backend-subfolders'));
+
+    expect(analysis.stack.frontend).toContain('react');
+    expect(analysis.stack.frontend).toContain('vite');
+    expect(analysis.stack.backend).toContain('express');
   });
 });

@@ -29,6 +29,17 @@ Il documento è organizzato in fasi sequenziali. Ogni fase ha: obiettivo, file d
 - [x] Fase 20 — README e packaging
 - [x] Fase 21 — Accettazione finale
 
+## Milestone 0.2 (deterministic hardening)
+
+- [x] Detector auth/authz/tenancy separati
+- [x] Upload route protection nello stesso blocco route
+- [x] CORS multiline/variable detection
+- [x] Secret fallback detection più aggressiva
+- [x] Package manager inferred da package.json con confidence/warnings
+- [x] CLI: summary separato da --format markdown
+- [x] Fixture e test su falsi positivi/falsi negativi
+- [ ] Snapshot report su repository reali
+
 ---
 
 ## Fase 0 — Setup repository

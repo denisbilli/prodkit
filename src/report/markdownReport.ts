@@ -66,6 +66,8 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     `- Databases: ${report.detectedStack.databases.join(', ') || 'unknown'}`,
     `- Languages: ${report.detectedStack.languages.join(', ') || 'unknown'}`,
     `- Package manager: ${report.detectedStack.packageManager}`,
+    `- Package manager confidence: ${report.detectedStack.packageManagerConfidence}`,
+    `- Package manager warnings: ${report.detectedStack.warnings.join(', ') || 'none'}`,
     '',
     '## Score',
     '',

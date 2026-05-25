@@ -28,7 +28,8 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     `Detected frontend: ${report.detectedStack.frontend.join(', ') || 'unknown'}`,
     `Detected backend: ${report.detectedStack.backend.join(', ') || 'unknown'}`,
     `Detected databases: ${report.detectedStack.databases.join(', ') || 'unknown'}`,
-    `Package manager: ${report.detectedStack.packageManager}`,
+    `Package manager: ${report.detectedStack.packageManager} (${report.detectedStack.packageManagerConfidence})`,
+    report.detectedStack.warnings.length > 0 ? `Warnings: ${report.detectedStack.warnings.join('; ')}` : 'Warnings: none',
     `Score: ${report.overallScore}/100`,
     `Maturity: ${report.maturityLevel}`,
     `Critical/High/Medium: ${counts.critical}/${counts.high}/${counts.medium}`,
@@ -48,15 +49,17 @@ export async function runCli(argv = process.argv): Promise<void> {
   program
     .name('prodkit')
     .description('Analyze web application repositories for production-readiness.')
-    .version('0.1.0');
+    .version('0.2.0');
 
   program
     .command('analyze')
     .argument('<path-to-project>', 'Path to target repository')
-    .option('--format <format>', 'Output format: markdown|json', 'markdown')
+    .option('--format <format>', 'Output format: markdown|json')
+    .option('--summary', 'Print summary only')
     .option('--output <path>', 'Output file path (optional)')
-    .action(async (targetPath: string, options: { format: OutputFormat; output?: string }) => {
+    .action(async (targetPath: string, options: { format?: OutputFormat; summary?: boolean; output?: string }) => {
       const format = options.format === 'json' ? 'json' : 'markdown';
+      const formatSpecified = typeof options.format === 'string';
       const resolved = resolveProjectPath(targetPath);
       const analysis = await analyzeProject(resolved);
       const report = buildReport(analysis);
@@ -70,11 +73,12 @@ export async function runCli(argv = process.argv): Promise<void> {
         return;
       }
 
-      if (format === 'json') {
-        console.log(payload);
-      } else {
+      if (options.summary || !formatSpecified) {
         console.log(summarize(report));
+        return;
       }
+
+      console.log(payload);
     });
 
   await program.parseAsync(argv);

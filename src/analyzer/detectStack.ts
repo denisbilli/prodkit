@@ -17,6 +17,8 @@ export function buildStackInfo(input: {
   backend: string[];
   databases: string[];
   packageManager: StackInfo['packageManager'];
+  packageManagerConfidence: StackInfo['packageManagerConfidence'];
+  warnings: string[];
   files: string[];
 }): StackInfo {
   return {
@@ -24,6 +26,8 @@ export function buildStackInfo(input: {
     backend: unique(input.backend),
     databases: unique(input.databases),
     packageManager: input.packageManager,
+    packageManagerConfidence: input.packageManagerConfidence,
+    warnings: unique(input.warnings),
     languages: deriveLanguages(input.files),
   };
 }

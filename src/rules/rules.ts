@@ -143,7 +143,7 @@ export const rules: Rule[] = [
       const isExpress = analysis.stack.backend.includes('express');
       const auth = analysis.detectors['auth.core'];
       const sec = analysis.detectors['security.core'];
-      const hasAuth = Boolean(auth?.details?.hasAuth);
+      const hasAuth = Boolean(auth?.present);
       const hasRate = Boolean(sec?.details?.rateLimit);
       const status: FindingStatus = !isExpress || !hasAuth ? 'unknown' : hasRate ? 'passed' : 'missing';
       return mkFinding({
@@ -237,8 +237,8 @@ export const rules: Rule[] = [
     evaluate: ({ analysis }) => {
       const up = analysis.detectors['uploads.exposure'];
       const exposed = Boolean(up?.details?.publicExposure);
-      const protectedUploads = Boolean(up?.details?.protectedUploads);
-      const status: FindingStatus = !exposed ? up?.present ? 'passed' : 'unknown' : protectedUploads ? 'partial' : 'missing';
+      const unprotectedRoutes = Number(up?.details?.unprotectedUploadRoutes ?? 0);
+      const status: FindingStatus = !exposed ? up?.present ? 'passed' : 'unknown' : unprotectedRoutes > 0 ? 'missing' : 'partial';
       return mkFinding({
         id: 'uploads.public-exposure',
         title: 'Upload access control',
@@ -283,10 +283,20 @@ export const rules: Rule[] = [
     severity: 'medium',
     evaluate: ({ analysis }) => {
       const auth = analysis.detectors['auth.core'];
-      const hasAuth = Boolean(auth?.details?.hasAuth);
-      const hasAuthz = Boolean(auth?.details?.hasAuthz);
-      const roleOnly = Boolean(auth?.details?.roleOnly);
-      const status: FindingStatus = !hasAuth ? 'unknown' : hasAuthz ? 'passed' : roleOnly ? 'partial' : 'missing';
+      const roles = analysis.detectors['authz.roles'];
+      const permissions = analysis.detectors['authz.permissions'];
+      const resourceLevel = analysis.detectors['authz.resourceLevel'];
+      const hasAuth = Boolean(auth?.present);
+      const hasRoles = Boolean(roles?.present);
+      const hasPermissions = Boolean(permissions?.present);
+      const hasResourceLevel = Boolean(resourceLevel?.present);
+      const status: FindingStatus = !hasAuth
+        ? 'unknown'
+        : hasPermissions || hasResourceLevel
+          ? 'passed'
+          : hasRoles
+            ? 'partial'
+            : 'missing';
       return mkFinding({
         id: 'authz.resource-level',
         title: 'Authorization depth',
@@ -300,7 +310,7 @@ export const rules: Rule[] = [
               ? 'Only basic role checks detected.'
               : 'No resource-level authorization signals detected.',
         recommendation: 'Add policy/resource-level checks beyond coarse role gates.',
-        evidence: auth?.evidence ?? [],
+        evidence: [...(roles?.evidence ?? []), ...(permissions?.evidence ?? []), ...(resourceLevel?.evidence ?? [])],
       });
     },
   },
@@ -310,20 +320,25 @@ export const rules: Rule[] = [
     category: 'tenancy',
     severity: 'high',
     evaluate: ({ analysis }) => {
-      const auth = analysis.detectors['auth.core'];
-      const missingTenantRisk = Boolean(auth?.details?.missingTenantRisk);
-      const status: FindingStatus = missingTenantRisk ? 'missing' : 'passed';
+      const organization = analysis.detectors['tenancy.organization'];
+      const membership = analysis.detectors['tenancy.membership'];
+      const b2bHint = Boolean(organization?.details?.b2bHint);
+      const missingTenantRisk = Boolean(organization?.details?.missingTenantRisk);
+      const hasMembership = Boolean(membership?.present);
+      const status: FindingStatus = !b2bHint ? 'unknown' : missingTenantRisk ? 'missing' : hasMembership ? 'passed' : 'partial';
       return mkFinding({
         id: 'tenancy.b2b',
         title: 'Tenant and organization boundaries',
         category: 'tenancy',
         status,
-        severity: status === 'passed' ? 'info' : 'high',
+        severity: status === 'passed' ? 'info' : status === 'partial' ? 'medium' : 'high',
         description: missingTenantRisk
           ? 'B2B/SaaS signals detected but no clear tenant/organization concept found.'
-          : 'No multi-tenant risk signal detected.',
+          : hasMembership
+            ? 'Tenant organization and membership signals detected.'
+            : 'Organization signals exist but membership boundaries are unclear.',
         recommendation: 'Model tenant/org membership explicitly and scope data access by tenant.',
-        evidence: auth?.evidence ?? [],
+        evidence: [...(organization?.evidence ?? []), ...(membership?.evidence ?? [])],
       });
     },
   },
@@ -333,10 +348,13 @@ export const rules: Rule[] = [
     category: 'gdpr',
     severity: 'medium',
     evaluate: ({ analysis }) => {
-      const gdpr = analysis.detectors['gdpr.privacy'];
       const auth = analysis.detectors['auth.core'];
-      const hasUsers = Boolean(auth?.details?.hasAuth);
-      const hasGdpr = Boolean(gdpr?.present);
+      const consent = analysis.detectors['gdpr.consent.route'];
+      const dataExport = analysis.detectors['gdpr.export.route'];
+      const erasure = analysis.detectors['gdpr.erasure.route'];
+      const retention = analysis.detectors['gdpr.retention.job'];
+      const hasUsers = Boolean(auth?.present);
+      const hasGdpr = Boolean(consent?.present || dataExport?.present || erasure?.present || retention?.present);
       const status: FindingStatus = hasUsers && !hasGdpr ? 'missing' : hasGdpr ? 'passed' : 'unknown';
       return mkFinding({
         id: 'gdpr.privacy',
@@ -348,7 +366,12 @@ export const rules: Rule[] = [
           ? 'Auth/users signals found but no GDPR/privacy controls detected.'
           : 'Privacy/GDPR signals detected or not applicable from available evidence.',
         recommendation: 'Implement consent, export/erasure workflows, and retention policies.',
-        evidence: gdpr?.evidence ?? [],
+        evidence: [
+          ...(consent?.evidence ?? []),
+          ...(dataExport?.evidence ?? []),
+          ...(erasure?.evidence ?? []),
+          ...(retention?.evidence ?? []),
+        ],
       });
     },
   },
@@ -360,8 +383,10 @@ export const rules: Rule[] = [
     evaluate: ({ analysis }) => {
       const billing = analysis.detectors['billing.stripe'];
       const stripe = Boolean(billing?.details?.stripe);
+      const hasWebhook = Boolean(billing?.details?.hasWebhook);
+      const hasWebhookSecret = Boolean(billing?.details?.hasWebhookSecret);
       const sig = Boolean(billing?.details?.webhookSignatureValidation);
-      const status: FindingStatus = !stripe ? 'unknown' : sig ? 'passed' : 'missing';
+      const status: FindingStatus = !stripe ? 'unknown' : sig ? 'passed' : hasWebhook && !hasWebhookSecret ? 'partial' : 'missing';
       return mkFinding({
         id: 'billing.webhook-signature',
         title: 'Billing webhook hardening',
@@ -369,7 +394,9 @@ export const rules: Rule[] = [
         status,
         severity: sevForStatus(status, 'medium'),
         description: stripe && !sig
-          ? 'Stripe integration appears present but webhook signature validation was not detected.'
+          ? hasWebhook && !hasWebhookSecret
+            ? 'Stripe webhook route found but webhook secret/signature handling looks incomplete.'
+            : 'Stripe integration appears present but webhook signature validation was not detected.'
           : 'Stripe webhook signature validation detected or billing not present.',
         recommendation: 'Verify webhook signatures using provider SDK before processing events.',
         evidence: billing?.evidence ?? [],

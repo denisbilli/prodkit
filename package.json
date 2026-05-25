@@ -1,6 +1,6 @@
 {
   "name": "prodkit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local CLI that analyzes a web app and produces a production-readiness report.",
   "license": "MIT",
   "bin": {
