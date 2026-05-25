@@ -3,47 +3,67 @@ import type { DetectContext } from './detectContext';
 import { hasDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 
-export async function detectBilling(ctx: DetectContext): Promise<DetectorResult> {
+function toEvidence(matches: Array<{ snippet: string; file: string; line: number }>): DetectorEvidence[] {
+  return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
+}
+
+export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[]> {
   const evidence: DetectorEvidence[] = [];
   const hasStripe = hasDep(ctx, 'stripe');
   if (hasStripe) evidence.push({ type: 'dependency', value: 'stripe' });
 
-  const hits = await searchInFiles(
+  const webhookRouteHits = await searchInFiles(
     ctx.root,
     ctx.files.source,
     [
-      /STRIPE_SECRET_KEY/,
-      /STRIPE_WEBHOOK_SECRET/,
-      /checkout/i,
-      /subscription/i,
-      /customerId/i,
-      /plan/i,
-      /tier/i,
+      /\/webhook/i,
       /webhook/i,
-      /constructEvent\(/,
-      /stripe\.webhooks\.constructEvent/i,
-      /express\.raw\(/i,
-      /req\.rawBody/i,
-      /signature/i,
-      /webhookSecret/i,
+      /app\.post\(/i,
+      /router\.post\(/i,
     ],
     40
   );
-  for (const m of hits) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  const rawBodyHits = await searchInFiles(ctx.root, ctx.files.source, [/express\.raw\(/i, /req\.rawBody/i], 20);
+  const secretHits = await searchInFiles(ctx.root, ctx.files.source, [/STRIPE_WEBHOOK_SECRET/i, /webhookSecret/i], 20);
+  const signatureHits = await searchInFiles(
+    ctx.root,
+    ctx.files.source,
+    [/constructEvent\(/i, /stripe\.webhooks\.constructEvent/i, /signature/i, /validateSignature/i],
+    25
+  );
 
-  const hasWebhook = hits.some((m) => /webhook/i.test(m.snippet));
-  const hasWebhookSecret = hits.some((m) => /STRIPE_WEBHOOK_SECRET|webhookSecret/i.test(m.snippet));
-  const hasSignature = hits.some((m) => /constructEvent\(|signature|rawBody|express\.raw/i.test(m.snippet));
+  for (const m of [...webhookRouteHits, ...rawBodyHits, ...secretHits, ...signatureHits]) {
+    evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  }
 
-  return {
-    key: 'billing.stripe',
-    present: hasStripe || hits.length > 0,
-    evidence,
-    details: {
-      stripe: hasStripe,
-      hasWebhook,
-      hasWebhookSecret,
-      webhookSignatureValidation: hasSignature,
+  return [
+    {
+      key: 'billing.stripe',
+      present: hasStripe || webhookRouteHits.length > 0 || signatureHits.length > 0,
+      evidence,
+      details: {
+        stripe: hasStripe,
+      },
     },
-  };
+    {
+      key: 'billing.webhook.route',
+      present: webhookRouteHits.length > 0,
+      evidence: toEvidence(webhookRouteHits),
+    },
+    {
+      key: 'billing.webhook.rawBody',
+      present: rawBodyHits.length > 0,
+      evidence: toEvidence(rawBodyHits),
+    },
+    {
+      key: 'billing.webhook.secret',
+      present: secretHits.length > 0,
+      evidence: toEvidence(secretHits),
+    },
+    {
+      key: 'billing.webhook.signatureValidation',
+      present: signatureHits.length > 0,
+      evidence: toEvidence(signatureHits),
+    },
+  ];
 }

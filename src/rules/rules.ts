@@ -96,11 +96,25 @@ export const rules: Rule[] = [
     category: 'security',
     severity: 'critical',
     evaluate: ({ analysis }) => {
-      const det = analysis.detectors['env.config'];
-      const weak = Boolean(det?.details?.weakSecretFallback);
-      const weakEvidence = Array.isArray(det?.details?.weakSecretEvidence)
-        ? (det?.details?.weakSecretEvidence as DetectorEvidence[])
-        : [];
+      const jwt = analysis.detectors['env.secretFallback.jwt'];
+      const session = analysis.detectors['env.secretFallback.session'];
+      const app = analysis.detectors['env.secretFallback.app'];
+      const apiKey = analysis.detectors['env.secretFallback.apiKey'];
+      const unknown = analysis.detectors['env.secretFallback.unknown'];
+      const weak = Boolean(jwt?.present || session?.present || app?.present || apiKey?.present || unknown?.present);
+      const weakEvidence = [
+        ...(jwt?.evidence ?? []),
+        ...(session?.evidence ?? []),
+        ...(app?.evidence ?? []),
+        ...(apiKey?.evidence ?? []),
+        ...(unknown?.evidence ?? []),
+      ];
+      const weakTypes = [
+        jwt?.present ? 'jwt' : null,
+        session?.present ? 'session' : null,
+        app?.present ? 'app' : null,
+        apiKey?.present ? 'apiKey' : null,
+      ].filter(Boolean).join(', ');
       const status: FindingStatus = weak ? 'missing' : 'passed';
       return mkFinding({
         id: 'security.weak-secret',
@@ -109,9 +123,10 @@ export const rules: Rule[] = [
         status,
         severity: weak ? 'critical' : 'info',
         description: weak
-          ? 'Hardcoded fallback secrets detected (e.g. changeme/secret).' : 'No weak fallback secret patterns detected.',
+          ? `Hardcoded fallback secrets detected (${weakTypes || 'unknown'} key context).`
+          : 'No weak fallback secret patterns detected.',
         recommendation: 'Require strong secrets through environment variables with strict startup validation.',
-        evidence: weakEvidence.length > 0 ? weakEvidence : det?.evidence ?? [],
+        evidence: weakEvidence,
       });
     },
   },
@@ -384,25 +399,49 @@ export const rules: Rule[] = [
     category: 'billing',
     severity: 'medium',
     evaluate: ({ analysis }) => {
-      const billing = analysis.detectors['billing.stripe'];
-      const stripe = Boolean(billing?.details?.stripe);
-      const hasWebhook = Boolean(billing?.details?.hasWebhook);
-      const hasWebhookSecret = Boolean(billing?.details?.hasWebhookSecret);
-      const sig = Boolean(billing?.details?.webhookSignatureValidation);
-      const status: FindingStatus = !stripe ? 'unknown' : sig ? 'passed' : hasWebhook && !hasWebhookSecret ? 'partial' : 'missing';
+      const stripe = analysis.detectors['billing.stripe'];
+      const webhookRoute = analysis.detectors['billing.webhook.route'];
+      const rawBody = analysis.detectors['billing.webhook.rawBody'];
+      const secret = analysis.detectors['billing.webhook.secret'];
+      const signatureValidation = analysis.detectors['billing.webhook.signatureValidation'];
+      const hasStripe = Boolean(stripe?.present);
+      const hasRoute = Boolean(webhookRoute?.present);
+      const hasRawBody = Boolean(rawBody?.present);
+      const hasSecret = Boolean(secret?.present);
+      const hasSignatureValidation = Boolean(signatureValidation?.present);
+
+      let status: FindingStatus;
+      if (!hasStripe && !hasRoute) {
+        status = 'unknown';
+      } else if (hasRoute && hasRawBody && hasSecret && hasSignatureValidation) {
+        status = 'passed';
+      } else if (hasRoute && (hasRawBody || hasSecret || hasSignatureValidation)) {
+        status = 'partial';
+      } else {
+        status = 'missing';
+      }
+
       return mkFinding({
         id: 'billing.webhook-signature',
         title: 'Billing webhook hardening',
         category: 'billing',
         status,
         severity: sevForStatus(status, 'medium'),
-        description: stripe && !sig
-          ? hasWebhook && !hasWebhookSecret
-            ? 'Stripe webhook route found but webhook secret/signature handling looks incomplete.'
-            : 'Stripe integration appears present but webhook signature validation was not detected.'
-          : 'Stripe webhook signature validation detected or billing not present.',
+        description: status === 'passed'
+          ? 'Stripe webhook route, raw body handling, secret, and signature validation detected.'
+          : status === 'partial'
+            ? 'Stripe webhook hardening is partially implemented (some controls detected, not all).'
+            : status === 'missing'
+              ? 'Stripe/webhook signals detected but no reliable webhook hardening controls found.'
+              : 'Stripe/webhook integration not detected.',
         recommendation: 'Verify webhook signatures using provider SDK before processing events.',
-        evidence: billing?.evidence ?? [],
+        evidence: [
+          ...(stripe?.evidence ?? []),
+          ...(webhookRoute?.evidence ?? []),
+          ...(rawBody?.evidence ?? []),
+          ...(secret?.evidence ?? []),
+          ...(signatureValidation?.evidence ?? []),
+        ],
       });
     },
   },

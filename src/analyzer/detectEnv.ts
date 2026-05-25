@@ -13,9 +13,24 @@ const ENV_FALLBACK_RE =
 
 const GENERIC_SECRET_ASSIGNMENT_RE = /(JWT_SECRET|SECRET_KEY|SESSION_SECRET|API_KEY)\s*[:=]\s*['\"][^'\"]+['\"]/i;
 
-export async function detectEnv(ctx: DetectContext): Promise<DetectorResult> {
+function classifySecretFallback(snippet: string): 'jwt' | 'session' | 'app' | 'apiKey' | 'unknown' {
+  if (/JWT_SECRET/i.test(snippet)) return 'jwt';
+  if (/SESSION_SECRET/i.test(snippet)) return 'session';
+  if (/SECRET_KEY/i.test(snippet)) return 'app';
+  if (/API_KEY/i.test(snippet)) return 'apiKey';
+  return 'unknown';
+}
+
+export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
   const evidence: DetectorEvidence[] = [];
   const weakSecretEvidence: DetectorEvidence[] = [];
+  const weakSecretByType: Record<'jwt' | 'session' | 'app' | 'apiKey' | 'unknown', DetectorEvidence[]> = {
+    jwt: [],
+    session: [],
+    app: [],
+    apiKey: [],
+    unknown: [],
+  };
   const hasEnvExample = ctx.files.all.includes('.env.example');
   const hasEnv = ctx.files.all.includes('.env');
 
@@ -44,20 +59,47 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult> {
     const hitEvidence = { type: 'snippet', value: m.snippet, file: m.file, line: m.line } as const;
     evidence.push(hitEvidence);
     weakSecretEvidence.push(hitEvidence);
+    weakSecretByType[classifySecretFallback(m.snippet)].push(hitEvidence);
   }
 
-  return {
-    key: 'env.config',
-    present: envReads.length > 0 || hasEnvExample || hasEnv,
-    complete: hasEnvExample,
-    evidence,
-    details: {
-      hasEnvExample,
-      hasEnv,
-      readsEnv: envReads.length > 0,
-      missingEnvExampleWarning: envReads.length > 0 && !hasEnvExample,
-      weakSecretFallback: weakHits.length > 0,
-      weakSecretEvidence,
+  return [
+    {
+      key: 'env.config',
+      present: envReads.length > 0 || hasEnvExample || hasEnv,
+      complete: hasEnvExample,
+      evidence,
+      details: {
+        hasEnvExample,
+        hasEnv,
+        readsEnv: envReads.length > 0,
+        missingEnvExampleWarning: envReads.length > 0 && !hasEnvExample,
+      },
     },
-  };
+    {
+      key: 'env.secretFallback.jwt',
+      present: weakSecretByType.jwt.length > 0,
+      evidence: weakSecretByType.jwt,
+    },
+    {
+      key: 'env.secretFallback.session',
+      present: weakSecretByType.session.length > 0,
+      evidence: weakSecretByType.session,
+    },
+    {
+      key: 'env.secretFallback.app',
+      present: weakSecretByType.app.length > 0,
+      evidence: weakSecretByType.app,
+    },
+    {
+      key: 'env.secretFallback.apiKey',
+      present: weakSecretByType.apiKey.length > 0,
+      evidence: weakSecretByType.apiKey,
+    },
+    {
+      key: 'env.secretFallback.unknown',
+      present: weakSecretByType.unknown.length > 0,
+      evidence: weakSecretByType.unknown,
+      details: { weakSecretEvidence },
+    },
+  ];
 }

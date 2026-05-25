@@ -1,0 +1,215 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`real report snapshots > matches structured snapshot for movie-generator report 1`] = `
+{
+  "criticalCount": 1,
+  "findings": [
+    {
+      "id": "auth.core",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "authz.resource-level",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "billing.webhook-signature",
+      "severity": "medium",
+      "status": "partial",
+    },
+    {
+      "id": "deployment.readiness",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "docker.presence",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "env.example",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "gdpr.privacy",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "observability.health",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "observability.logging",
+      "severity": "low",
+      "status": "missing",
+    },
+    {
+      "id": "security.cors-origin",
+      "severity": "high",
+      "status": "partial",
+    },
+    {
+      "id": "security.django-debug",
+      "severity": "critical",
+      "status": "unknown",
+    },
+    {
+      "id": "security.django-secure-cookies",
+      "severity": "high",
+      "status": "unknown",
+    },
+    {
+      "id": "security.helmet",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "security.rate-limit-auth",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "security.weak-secret",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "security.weak-secret",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "stack.detected",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "tenancy.b2b",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "uploads.public-exposure",
+      "severity": "high",
+      "status": "missing",
+    },
+  ],
+  "highCount": 3,
+  "maturity": "prototype",
+  "mediumCount": 4,
+  "score": 33,
+}
+`;
+
+exports[`real report snapshots > matches structured snapshot for transcribeai report 1`] = `
+{
+  "criticalCount": 1,
+  "findings": [
+    {
+      "id": "auth.core",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "authz.resource-level",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "billing.webhook-signature",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "deployment.readiness",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "docker.presence",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "env.example",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "gdpr.privacy",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "observability.health",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "observability.logging",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.cors-origin",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.django-debug",
+      "severity": "critical",
+      "status": "unknown",
+    },
+    {
+      "id": "security.django-secure-cookies",
+      "severity": "high",
+      "status": "unknown",
+    },
+    {
+      "id": "security.helmet",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.rate-limit-auth",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.weak-secret",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "security.weak-secret",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "stack.detected",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "tenancy.b2b",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "uploads.public-exposure",
+      "severity": "info",
+      "status": "passed",
+    },
+  ],
+  "highCount": 0,
+  "maturity": "production_ready",
+  "mediumCount": 0,
+  "score": 85,
+}
+`;
