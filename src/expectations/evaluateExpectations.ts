@@ -10,6 +10,7 @@ import type {
   ProductProfile,
 } from './types';
 import { getProductProfile } from './productProfiles';
+import type { EvidenceQuality, FindingConfidence } from '../report/types';
 
 function detector(analysis: ProjectAnalysis, key: string): DetectorResult | undefined {
   return analysis.detectors[key];
@@ -187,6 +188,36 @@ function evidenceFor(analysis: ProjectAnalysis, capability: ExpectedCapability):
     .filter(Boolean) as DetectorResult[];
 }
 
+function evidenceQualityFor(detectors: DetectorResult[]): EvidenceQuality {
+  if (detectors.some((detectorResult) => detectorResult.evidence.some((item) => item.type === 'file' && typeof item.line === 'number'))) {
+    return 'strong';
+  }
+
+  if (detectors.some((detectorResult) => detectorResult.evidence.some((item) => item.type === 'file' || item.type === 'snippet'))) {
+    return 'strong';
+  }
+
+  if (detectors.some((detectorResult) => detectorResult.evidence.some((item) => item.type === 'dependency'))) {
+    return 'medium';
+  }
+
+  return 'weak';
+}
+
+function confidenceFor(status: CapabilityStatus, profileMode: ProductProfile, evidenceQuality: EvidenceQuality): FindingConfidence {
+  if (profileMode !== 'observed-only' && profileMode !== 'auto' && status !== 'unknown') {
+    return 'high';
+  }
+
+  if (profileMode === 'auto') {
+    return evidenceQuality === 'strong' ? 'medium' : 'low';
+  }
+
+  if (evidenceQuality === 'strong') return 'high';
+  if (evidenceQuality === 'medium') return 'medium';
+  return 'low';
+}
+
 export function evaluateExpectedCapabilities(args: {
   analysis: ProjectAnalysis;
   selectedProfile: Exclude<ProductProfile, 'auto' | 'observed-only'>;
@@ -218,6 +249,8 @@ export function evaluateExpectedCapabilities(args: {
     const findingId = toFindingId(cap, effectiveImportance);
     const severity = severityFor(cap, status, effectiveImportance);
     const detectorEvidence = evidenceFor(args.analysis, cap).flatMap((d) => d.evidence);
+    const quality = evidenceQualityFor(evidenceFor(args.analysis, cap));
+    const confidence = confidenceFor(status, args.requestedProfile, quality);
 
     const evaluation: CapabilityEvaluation = {
       capabilityId: cap.id,
@@ -236,6 +269,10 @@ export function evaluateExpectedCapabilities(args: {
     score -= scorePenalty(effectiveImportance, status);
 
     if (shouldCreateFinding(effectiveImportance, status)) {
+      if (args.requestedProfile === 'auto' && args.inferenceConfidence === 'low') {
+        continue;
+      }
+
       findings.push({
         id: findingId,
         title: `${cap.title} (${effectiveImportance})`,
@@ -245,6 +282,8 @@ export function evaluateExpectedCapabilities(args: {
         description: `${cap.description} Current status: ${status}.`,
         recommendation: cap.recommendation,
         evidence: detectorEvidence.length > 0 ? detectorEvidence : [{ type: 'note', value: 'no direct evidence captured' }],
+        confidence,
+        evidenceQuality: quality,
       });
     }
   }

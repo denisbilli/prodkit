@@ -50,6 +50,7 @@ describe('product profile expectations', () => {
     expect(report.productProfile?.selectedProfile).toBe('auto');
     expect(report.productProfile?.inferenceConfidence).toBe('low');
     expect(report.overallScore).toBe(report.observedScore);
+    expect(report.findings.some((finding) => finding.id.startsWith('expectation.'))).toBe(false);
   });
 
   it('applies inferred expectations in auto mode when confidence is not low', async () => {

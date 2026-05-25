@@ -3,6 +3,8 @@ import type { ProductExpectationResult, ProductProfile } from '../expectations/t
 
 export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 export type FindingStatus = 'passed' | 'missing' | 'partial' | 'unknown';
+export type FindingConfidence = 'low' | 'medium' | 'high';
+export type EvidenceQuality = 'weak' | 'medium' | 'strong';
 
 export type Category =
   | 'meta'
@@ -29,6 +31,8 @@ export interface Finding {
   description: string;
   evidence: DetectorEvidence[];
   recommendation: string;
+  confidence: FindingConfidence;
+  evidenceQuality: EvidenceQuality;
 }
 
 export type MaturityLevel = 'prototype' | 'early' | 'partial' | 'production_ready';
@@ -40,6 +44,11 @@ export interface ReportDiagnostics {
   skippedFileCount: number;
   workspaceCount: number;
   detectorCount: number;
+  detectors: Array<{
+    id: string;
+    status: 'completed' | 'skipped';
+    reason?: string;
+  }>;
   selectedProfile: ProductProfile;
   inferredProfile?: ProductProfile;
   inferenceConfidence?: 'low' | 'medium' | 'high';

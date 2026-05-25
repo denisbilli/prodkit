@@ -4,11 +4,11 @@ import { computeMaturity, computeScore } from '../src/report/score';
 describe('score', () => {
   it('applies deterministic penalties and clamp', () => {
     const score = computeScore([
-      { id: 'a', title: 'a', category: 'security', severity: 'critical', status: 'missing', description: '', evidence: [], recommendation: '' },
-      { id: 'b', title: 'b', category: 'security', severity: 'high', status: 'missing', description: '', evidence: [], recommendation: '' },
-      { id: 'c', title: 'c', category: 'security', severity: 'medium', status: 'partial', description: '', evidence: [], recommendation: '' },
-      { id: 'd', title: 'd', category: 'security', severity: 'low', status: 'missing', description: '', evidence: [], recommendation: '' },
-      { id: 'e', title: 'e', category: 'security', severity: 'info', status: 'missing', description: '', evidence: [], recommendation: '' },
+      { id: 'a', title: 'a', category: 'security', severity: 'critical', status: 'missing', description: '', evidence: [], recommendation: '', confidence: 'low', evidenceQuality: 'weak' },
+      { id: 'b', title: 'b', category: 'security', severity: 'high', status: 'missing', description: '', evidence: [], recommendation: '', confidence: 'low', evidenceQuality: 'weak' },
+      { id: 'c', title: 'c', category: 'security', severity: 'medium', status: 'partial', description: '', evidence: [], recommendation: '', confidence: 'low', evidenceQuality: 'weak' },
+      { id: 'd', title: 'd', category: 'security', severity: 'low', status: 'missing', description: '', evidence: [], recommendation: '', confidence: 'low', evidenceQuality: 'weak' },
+      { id: 'e', title: 'e', category: 'security', severity: 'info', status: 'missing', description: '', evidence: [], recommendation: '', confidence: 'low', evidenceQuality: 'weak' },
     ]);
     expect(score).toBe(68);
   });

@@ -1,5 +1,5 @@
 import type { DetectorEvidence } from '../analyzer/types';
-import type { Finding, FindingStatus, Severity } from '../report/types';
+import type { EvidenceQuality, Finding, FindingConfidence, FindingStatus, Severity } from '../report/types';
 import type { Rule } from './types';
 
 function statusFromFlags(present: boolean, complete?: boolean): FindingStatus {
@@ -17,6 +17,38 @@ function detectorEvidence(evidence: DetectorEvidence[] | undefined): DetectorEvi
   return evidence && evidence.length > 0 ? evidence : [{ type: 'note', value: 'no direct evidence captured' }];
 }
 
+function evidenceQualityFor(evidence: DetectorEvidence[]): EvidenceQuality {
+  if (evidence.some((item) => item.type === 'file' && typeof item.line === 'number')) {
+    return 'strong';
+  }
+
+  if (evidence.some((item) => item.type === 'file' || item.type === 'snippet')) {
+    return 'strong';
+  }
+
+  if (evidence.some((item) => item.type === 'dependency')) {
+    return 'medium';
+  }
+
+  return 'weak';
+}
+
+function confidenceFor(status: FindingStatus, evidenceQuality: EvidenceQuality): FindingConfidence {
+  if (status === 'passed' && evidenceQuality === 'strong') {
+    return 'high';
+  }
+
+  if (evidenceQuality === 'strong') {
+    return 'high';
+  }
+
+  if (evidenceQuality === 'medium') {
+    return 'medium';
+  }
+
+  return 'low';
+}
+
 function mkFinding(args: {
   id: string;
   title: string;
@@ -27,6 +59,7 @@ function mkFinding(args: {
   recommendation: string;
   evidence: DetectorEvidence[];
 }): Finding {
+  const evidenceQuality = evidenceQualityFor(args.evidence);
   return {
     id: args.id,
     title: args.title,
@@ -36,6 +69,8 @@ function mkFinding(args: {
     description: args.description,
     recommendation: args.recommendation,
     evidence: detectorEvidence(args.evidence),
+    confidence: confidenceFor(args.status, evidenceQuality),
+    evidenceQuality,
   };
 }
 

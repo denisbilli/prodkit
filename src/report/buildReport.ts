@@ -39,6 +39,25 @@ function bySeverityPriority(f: Finding): number {
   return order[f.severity];
 }
 
+function detectorDiagnostics(analysis: ProjectAnalysis): ProductionReadinessReport['diagnostics']['detectors'] {
+  const completed = Object.keys(analysis.detectors).map((id) => ({ id, status: 'completed' as const }));
+  const skipped: Array<{ id: string; status: 'skipped'; reason?: string }> = [];
+
+  if (analysis.stack.frontend.length === 0) {
+    skipped.push({ id: 'frontend.detectors', status: 'skipped', reason: 'No frontend stack detected.' });
+  }
+
+  if (analysis.stack.backend.length === 0) {
+    skipped.push({ id: 'backend.detectors', status: 'skipped', reason: 'No backend stack detected.' });
+  }
+
+  if (analysis.stack.databases.length === 0) {
+    skipped.push({ id: 'database.detectors', status: 'skipped', reason: 'No database stack detected.' });
+  }
+
+  return [...completed, ...skipped];
+}
+
 function determineExpectationMode(
   requestedProfile: ProductProfile,
   productProfile: ProductExpectationResult | undefined,
@@ -129,6 +148,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     skippedFileCount: Math.max(analysis.files.all.length - analysis.files.source.length, 0),
     workspaceCount: Math.max(analysis.workspaceStacks.length, 1),
     detectorCount: Object.keys(analysis.detectors).length,
+    detectors: detectorDiagnostics(analysis),
     selectedProfile: requestedProfile,
     inferredProfile: productProfile?.inferredProfile,
     inferenceConfidence: productProfile?.inferenceConfidence,

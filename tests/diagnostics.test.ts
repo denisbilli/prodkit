@@ -13,6 +13,7 @@ describe('report diagnostics', () => {
     expect(report.diagnostics.analyzedFileCount).toBeGreaterThan(0);
     expect(report.diagnostics.workspaceCount).toBeGreaterThan(0);
     expect(report.diagnostics.detectorCount).toBeGreaterThan(0);
+    expect(report.diagnostics.detectors.length).toBeGreaterThan(0);
     expect(report.diagnostics.selectedProfile).toBe('observed-only');
     expect(report.diagnostics.expectationMode).toBe('observed-only');
     expect(report.diagnostics.prodkitVersion).toBe('0.2.0');
