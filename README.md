@@ -1,6 +1,6 @@
 # ProdKit
 
-ProdKit is a deterministic local CLI that analyzes an existing web application repository and generates a production-readiness report.
+ProdKit is a deterministic local CLI that analyzes an existing web application repository and generates a production-readiness report or a remediation plan.
 
 It is designed for early-stage and AI-generated apps where architecture and security quality can vary significantly.
 
@@ -35,6 +35,8 @@ Then it builds a structured production-readiness report with:
 - Passed checks
 - Suggested next steps
 - Technical evidence for each finding
+
+From the report, ProdKit can also build a deterministic remediation plan with phases, task priorities, effort estimates, and test suggestions.
 
 ## Installation
 
@@ -80,17 +82,23 @@ npm run lint
 
 ## Commands
 
-Main command:
+Diagnostic command:
 
 ```bash
 prodkit analyze <path-to-project>
 ```
 
+Remediation planning command:
+
+```bash
+prodkit plan <path-to-project>
+```
+
 Options:
 
-- `--format markdown|json` output format for report payload (when explicitly provided)
+- `--format markdown|json` output format for the report or plan payload
 - `--summary` print summary only
-- `--output <path>` write report to file
+- `--output <path>` write output to file
 
 ## Examples
 
@@ -101,6 +109,10 @@ prodkit analyze ../my-app --format markdown
 prodkit analyze ../my-app --format json
 prodkit analyze ../my-app --output prodkit-report.md
 prodkit analyze tests/fixtures/express-basic --format json --output report.json
+prodkit plan ../my-app
+prodkit plan ../my-app --format markdown
+prodkit plan ../my-app --format json
+prodkit plan ../my-app --output prodkit-plan.md
 ```
 
 ## Supported stacks in MVP
@@ -120,24 +132,28 @@ npm link
 prodkit analyze tests/fixtures/express-basic --format markdown
 prodkit analyze tests/fixtures/express-basic --format json
 prodkit analyze tests/fixtures/express-basic --output report.md
+prodkit plan tests/fixtures/express-basic
+prodkit plan tests/fixtures/express-basic --format json
+prodkit plan tests/fixtures/express-basic --output prodkit-plan.md
 ```
 
 ## Current limitations
 
-- Deterministic heuristics only (no AI explanation layer)
+- Deterministic heuristics only, with no AI explanation layer yet
 - Limited stack coverage (Express, React/Vite, Django + fallback)
 - Signal-based detection can produce false positives/negatives
-- No patch planning or automated remediation in MVP
+- Plan output is deterministic and read-only only
 - No cloud dashboard/UI in MVP
 
 ## Roadmap
 
 1. Deterministic analyzer
-2. AI-assisted explanation layer
-3. Patch planning
-4. Patch generation
-5. Framework adapters
-6. Dashboard
+2. Deterministic remediation planning
+3. AI explanation layer
+4. Apply/generate PRs
+5. Cloud GitHub integration
+6. Framework adapters
+7. Dashboard
 
 ## Project layout
 
@@ -150,6 +166,7 @@ prodkit/
     index.ts
     cli.ts
     analyzer/
+    planner/
     rules/
     report/
     utils/
@@ -157,6 +174,7 @@ prodkit/
     fixtures/
     analyzer.test.ts
     report.test.ts
+    planner.test.ts
 ```
 
 ## License

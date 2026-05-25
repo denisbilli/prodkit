@@ -5,6 +5,9 @@ import { analyzeProject } from './analyzer/analyzeProject';
 import { buildReport } from './report/buildReport';
 import { renderMarkdown } from './report/markdownReport';
 import { renderJson } from './report/jsonReport';
+import { buildPlan } from './planner/buildPlan';
+import { renderMarkdownPlan } from './planner/markdownPlan';
+import { renderJsonPlan } from './planner/jsonPlan';
 import { resolveProjectPath } from './utils/pathUtils';
 
 type OutputFormat = 'markdown' | 'json';
@@ -50,12 +53,34 @@ function renderByFormat(format: OutputFormat, report: ReturnType<typeof buildRep
   return format === 'json' ? renderJson(report) : renderMarkdown(report);
 }
 
+function summarizePlan(plan: ReturnType<typeof buildPlan>): string {
+  const phaseCount = plan.phases.filter((phase) => phase.tasks.length > 0).length;
+  const quickWins = plan.quickWins.length;
+  const highRisk = plan.highRiskTasks.length;
+
+  return [
+    'ProdKit Remediation Plan Summary',
+    `Project: ${plan.projectPath}`,
+    `Score: ${plan.score}/100`,
+    `Maturity: ${plan.maturityLevel}`,
+    `Tasks: ${plan.tasks.length}`,
+    `Phases with work: ${phaseCount}`,
+    `Quick wins: ${quickWins}`,
+    `High risk: ${highRisk}`,
+    `Summary: ${plan.summary}`,
+  ].join('\n');
+}
+
+function renderPlanByFormat(format: OutputFormat, plan: ReturnType<typeof buildPlan>): string {
+  return format === 'json' ? renderJsonPlan(plan) : renderMarkdownPlan(plan);
+}
+
 export async function runCli(argv = process.argv): Promise<void> {
   const program = new Command();
 
   program
     .name('prodkit')
-    .description('Analyze web application repositories for production-readiness.')
+    .description('Analyze web application repositories for production-readiness and remediation planning.')
     .version('0.2.0');
 
   program
@@ -82,6 +107,40 @@ export async function runCli(argv = process.argv): Promise<void> {
 
       if (options.summary || !formatSpecified) {
         console.log(summarize(report));
+        return;
+      }
+
+      console.log(payload);
+    });
+
+  program
+    .command('plan')
+    .argument('<path-to-project>', 'Path to target repository')
+    .option('--format <format>', 'Output format: markdown|json')
+    .option('--summary', 'Print summary only')
+    .option('--output <path>', 'Output file path (optional)')
+    .action(async (targetPath: string, options: { format?: OutputFormat; summary?: boolean; output?: string }) => {
+      const format = options.format === 'json' ? 'json' : 'markdown';
+      const resolved = resolveProjectPath(targetPath);
+      const analysis = await analyzeProject(resolved);
+      const report = buildReport(analysis);
+      const plan = buildPlan(report);
+      const payload = renderPlanByFormat(format, plan);
+
+      if (options.output) {
+        const outPath = path.resolve(process.cwd(), options.output);
+        await fs.writeFile(outPath, payload, 'utf8');
+        if (options.summary) {
+          console.log(summarizePlan(plan));
+          return;
+        }
+        console.log(summarizePlan(plan));
+        console.log(`\nPlan written to: ${outPath}`);
+        return;
+      }
+
+      if (options.summary) {
+        console.log(summarizePlan(plan));
         return;
       }
 
