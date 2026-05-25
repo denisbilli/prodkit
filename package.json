@@ -6,8 +6,15 @@
   "bin": {
     "prodkit": "dist/index.js"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/api.js",
+  "types": "dist/api.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/api.d.ts",
+      "default": "./dist/api.js"
+    },
+    "./cli": "./dist/index.js"
+  },
   "files": [
     "dist",
     "README.md"
