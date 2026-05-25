@@ -1,10 +1,11 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import { runRules } from '../rules/ruleEngine';
 import { computeMaturity, computeScore } from './score';
-import type { Category, Finding, ProductionReadinessReport } from './types';
+import type { Category, ExpectationMode, Finding, ProductionReadinessReport } from './types';
 import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectations';
 import { inferProductProfile } from '../expectations/inferProductProfile';
 import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
+import { PRODKit_VERSION } from '../version';
 
 export interface BuildReportOptions {
   profile?: ProductProfile;
@@ -36,6 +37,24 @@ function bySeverityPriority(f: Finding): number {
     info: 4,
   };
   return order[f.severity];
+}
+
+function determineExpectationMode(
+  requestedProfile: ProductProfile,
+  productProfile: ProductExpectationResult | undefined,
+  expectationScore: number | undefined,
+): ExpectationMode {
+  if (requestedProfile === 'observed-only') {
+    return 'observed-only';
+  }
+
+  if (requestedProfile === 'auto') {
+    return expectationScore === undefined || productProfile?.inferenceConfidence === 'low'
+      ? 'auto-inconclusive'
+      : 'auto-applied';
+  }
+
+  return 'explicit-profile';
 }
 
 export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOptions): ProductionReadinessReport {
@@ -104,6 +123,18 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     .map((f) => `${f.title}: ${f.recommendation}`);
 
   const technicalEvidence = findings.map((f) => ({ findingId: f.id, evidence: f.evidence }));
+  const expectationMode = determineExpectationMode(requestedProfile, productProfile, expectationScore);
+  const diagnostics = {
+    analyzedFileCount: analysis.files.source.length,
+    skippedFileCount: Math.max(analysis.files.all.length - analysis.files.source.length, 0),
+    workspaceCount: Math.max(analysis.workspaceStacks.length, 1),
+    detectorCount: Object.keys(analysis.detectors).length,
+    selectedProfile: requestedProfile,
+    inferredProfile: productProfile?.inferredProfile,
+    inferenceConfidence: productProfile?.inferenceConfidence,
+    expectationMode,
+    prodkitVersion: PRODKit_VERSION,
+  };
 
   return {
     projectPath: analysis.projectPath,
@@ -121,5 +152,6 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     passedChecks,
     suggestedNextSteps,
     technicalEvidence,
+    diagnostics,
   };
 }

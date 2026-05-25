@@ -1,5 +1,5 @@
 import type { DetectorEvidence, StackInfo } from '../analyzer/types';
-import type { ProductExpectationResult } from '../expectations/types';
+import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
 
 export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 export type FindingStatus = 'passed' | 'missing' | 'partial' | 'unknown';
@@ -33,6 +33,20 @@ export interface Finding {
 
 export type MaturityLevel = 'prototype' | 'early' | 'partial' | 'production_ready';
 
+export type ExpectationMode = 'observed-only' | 'explicit-profile' | 'auto-applied' | 'auto-inconclusive';
+
+export interface ReportDiagnostics {
+  analyzedFileCount: number;
+  skippedFileCount: number;
+  workspaceCount: number;
+  detectorCount: number;
+  selectedProfile: ProductProfile;
+  inferredProfile?: ProductProfile;
+  inferenceConfidence?: 'low' | 'medium' | 'high';
+  expectationMode: ExpectationMode;
+  prodkitVersion: string;
+}
+
 export interface ProductionReadinessReport {
   projectPath: string;
   generatedAt: string;
@@ -49,4 +63,5 @@ export interface ProductionReadinessReport {
   passedChecks: Finding[];
   suggestedNextSteps: string[];
   technicalEvidence: Array<{ findingId: string; evidence: DetectorEvidence[] }>;
+  diagnostics: ReportDiagnostics;
 }

@@ -14,6 +14,7 @@ export type {
 	CapabilityStatus,
 	CapabilityImportance,
 } from './expectations/types';
-export type { ProductionReadinessReport, Finding, MaturityLevel } from './report/types';
+export type { ProductionReadinessReport, Finding, MaturityLevel, ReportDiagnostics, ExpectationMode } from './report/types';
 export type { RemediationPlan, RemediationTask, RemediationPhase } from './planner/types';
 export type { BuildReportOptions } from './report/buildReport';
+export { PRODKit_VERSION } from './version';
