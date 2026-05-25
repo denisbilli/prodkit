@@ -17,8 +17,8 @@ import { detectObservability } from './detectObservability';
 import { detectJobs } from './detectJobs';
 import { detectDeployment } from './detectDeployment';
 import { buildStackInfo, mergeDetectors } from './detectStack';
-import type { DetectContext } from './detectContext';
-import type { PackageJson, ProjectAnalysis } from './types';
+import type { DetectContext, WorkspaceManifest } from './detectContext';
+import type { PackageJson, ProjectAnalysis, WorkspaceStack } from './types';
 
 const packageJsonSchema = z
   .object({
@@ -61,6 +61,62 @@ function pickConfig(files: string[]): string[] {
   return files.filter((f) => /(package\.json|tsconfig|vite\.config|docker|compose|requirements\.txt|pyproject\.toml|settings\.py|\.env)/i.test(f));
 }
 
+function workspaceRootFromFile(file: string): string {
+  const i = file.lastIndexOf('/');
+  return i === -1 ? '.' : file.slice(0, i);
+}
+
+function unique(items: string[]): string[] {
+  return Array.from(new Set(items));
+}
+
+function mergeDeps(target: Record<string, string>, source: Record<string, string> | undefined): void {
+  if (!source) return;
+  for (const [k, v] of Object.entries(source)) target[k.toLowerCase()] = v;
+}
+
+function detectWorkspaceFrontend(npmDeps: Record<string, string>): string[] {
+  const frameworks: string[] = [];
+  if (npmDeps.react || npmDeps['react-dom']) frameworks.push('react');
+  if (npmDeps.vite || npmDeps['@vitejs/plugin-react']) frameworks.push('vite');
+  if (npmDeps.electron) frameworks.push('electron');
+  if (npmDeps['react-router-dom']) frameworks.push('react-router-dom');
+  if (npmDeps.tailwindcss) frameworks.push('tailwindcss');
+  return unique(frameworks);
+}
+
+function detectWorkspaceBackend(npmDeps: Record<string, string>, pythonDeps: string[]): string[] {
+  const frameworks: string[] = [];
+  if (npmDeps.express) frameworks.push('express');
+  if (pythonDeps.includes('django')) frameworks.push('django');
+  return unique(frameworks);
+}
+
+function detectWorkspaceDatabases(npmDeps: Record<string, string>, pythonDeps: string[]): string[] {
+  const dbs: string[] = [];
+  if (npmDeps.pg || pythonDeps.includes('psycopg2')) dbs.push('postgres');
+  if (npmDeps.redis || npmDeps.ioredis || pythonDeps.includes('redis')) dbs.push('redis');
+  if (npmDeps.mysql2 || pythonDeps.includes('mysqlclient')) dbs.push('mysql');
+  if (npmDeps.mongodb || npmDeps.mongoose) dbs.push('mongodb');
+  if (npmDeps.sqlite3 || npmDeps['better-sqlite3']) dbs.push('sqlite');
+  return unique(dbs);
+}
+
+function resolveWorkspacePackageManager(workspace: WorkspaceManifest): {
+  manager: WorkspaceStack['packageManager'];
+  confidence: WorkspaceStack['packageManagerConfidence'];
+  warnings: string[];
+} {
+  if (workspace.lockfiles.includes('pnpm-lock.yaml')) return { manager: 'pnpm', confidence: 'lockfile', warnings: [] };
+  if (workspace.lockfiles.includes('package-lock.json')) return { manager: 'npm', confidence: 'lockfile', warnings: [] };
+  if (workspace.lockfiles.includes('yarn.lock')) return { manager: 'yarn', confidence: 'lockfile', warnings: [] };
+  if (workspace.lockfiles.includes('poetry.lock')) return { manager: 'poetry', confidence: 'lockfile', warnings: [] };
+  if (workspace.packageJsonPath) return { manager: 'npm', confidence: 'manifest', warnings: ['package-lock missing'] };
+  if (workspace.pyprojectPath) return { manager: 'poetry', confidence: 'manifest', warnings: [] };
+  if (workspace.requirementsPath) return { manager: 'pip', confidence: 'manifest', warnings: [] };
+  return { manager: 'unknown', confidence: 'unknown', warnings: [] };
+}
+
 export async function analyzeProject(projectPath: string): Promise<ProjectAnalysis> {
   const root = path.resolve(projectPath);
   const allFiles = await scanFiles({ cwd: root });
@@ -70,13 +126,77 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   const packageJsonRaw = await readJsonSafe<PackageJson>(root, 'package.json');
   const packageJson = packageJsonRaw ? packageJsonSchema.parse(packageJsonRaw) : null;
 
-  const reqTxt = await readTextFileSafe(root, 'requirements.txt');
-  const pyproject = await readTextFileSafe(root, 'pyproject.toml');
-  const pythonDeps = Array.from(new Set([...parseRequirements(reqTxt), ...parsePyproject(pyproject)]));
+  const packageJsonFiles = allFiles.filter((f) => f.endsWith('package.json'));
+  const requirementsFiles = allFiles.filter((f) => /(^|\/)requirements\.txt$/i.test(f));
+  const pyprojectFiles = allFiles.filter((f) => /(^|\/)pyproject\.toml$/i.test(f));
+  const lockfiles = allFiles.filter((f) => /(^|\/)(pnpm-lock\.yaml|package-lock\.json|yarn\.lock|poetry\.lock)$/i.test(f));
+
+  const workspaceRoots = new Set<string>(['.']);
+  for (const file of [...packageJsonFiles, ...requirementsFiles, ...pyprojectFiles, ...lockfiles]) {
+    workspaceRoots.add(workspaceRootFromFile(file));
+  }
+
+  const workspaces: WorkspaceManifest[] = [];
+  for (const wsRoot of Array.from(workspaceRoots).sort()) {
+    const packageJsonPath = wsRoot === '.' ? 'package.json' : `${wsRoot}/package.json`;
+    const requirementsPath = wsRoot === '.' ? 'requirements.txt' : `${wsRoot}/requirements.txt`;
+    const pyprojectPath = wsRoot === '.' ? 'pyproject.toml' : `${wsRoot}/pyproject.toml`;
+    const packageJsonRawForWorkspace = packageJsonFiles.includes(packageJsonPath)
+      ? await readJsonSafe<PackageJson>(root, packageJsonPath)
+      : null;
+    const packageJsonForWorkspace = packageJsonRawForWorkspace ? packageJsonSchema.parse(packageJsonRawForWorkspace) : null;
+    const reqText = requirementsFiles.includes(requirementsPath)
+      ? await readTextFileSafe(root, requirementsPath)
+      : null;
+    const pyprojectText = pyprojectFiles.includes(pyprojectPath)
+      ? await readTextFileSafe(root, pyprojectPath)
+      : null;
+    const wsLockfiles = lockfiles
+      .filter((f) => workspaceRootFromFile(f) === wsRoot)
+      .map((f) => f.split('/').pop() ?? f);
+
+    workspaces.push({
+      root: wsRoot,
+      packageJsonPath: packageJsonFiles.includes(packageJsonPath) ? packageJsonPath : undefined,
+      packageJson: packageJsonForWorkspace,
+      requirementsPath: requirementsFiles.includes(requirementsPath) ? requirementsPath : undefined,
+      requirementsDeps: parseRequirements(reqText),
+      pyprojectPath: pyprojectFiles.includes(pyprojectPath) ? pyprojectPath : undefined,
+      pyprojectDeps: parsePyproject(pyprojectText),
+      lockfiles: wsLockfiles,
+    });
+  }
+
+  const pythonDeps = unique(workspaces.flatMap((w) => [...w.requirementsDeps, ...w.pyprojectDeps]));
 
   const npmDeps: Record<string, string> = {};
-  for (const [k, v] of Object.entries(packageJson?.dependencies ?? {})) npmDeps[k.toLowerCase()] = v;
-  for (const [k, v] of Object.entries(packageJson?.devDependencies ?? {})) npmDeps[k.toLowerCase()] = v;
+  for (const workspace of workspaces) {
+    mergeDeps(npmDeps, workspace.packageJson?.dependencies);
+    mergeDeps(npmDeps, workspace.packageJson?.devDependencies);
+  }
+
+  const workspaceStacks: WorkspaceStack[] = workspaces.map((workspace) => {
+    const wsNpmDeps: Record<string, string> = {};
+    mergeDeps(wsNpmDeps, workspace.packageJson?.dependencies);
+    mergeDeps(wsNpmDeps, workspace.packageJson?.devDependencies);
+    const wsPythonDeps = unique([...workspace.requirementsDeps, ...workspace.pyprojectDeps]);
+    const pm = resolveWorkspacePackageManager(workspace);
+
+    return {
+      root: workspace.root,
+      frontend: detectWorkspaceFrontend(wsNpmDeps),
+      backend: detectWorkspaceBackend(wsNpmDeps, wsPythonDeps),
+      databases: detectWorkspaceDatabases(wsNpmDeps, wsPythonDeps),
+      packageManager: pm.manager,
+      packageManagerConfidence: pm.confidence,
+      warnings: pm.warnings,
+    };
+  }).filter((w) =>
+    w.frontend.length > 0
+    || w.backend.length > 0
+    || w.databases.length > 0
+    || w.packageManager !== 'unknown'
+  );
 
   const ctx: DetectContext = {
     root,
@@ -84,6 +204,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     packageJson,
     pythonDeps,
     npmDeps,
+    workspaces,
   };
 
   const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, deployment] =
@@ -131,10 +252,12 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       packageManager: pm.manager,
       packageManagerConfidence: pm.confidence,
       warnings: pm.warnings,
+      workspaces: workspaceStacks,
       files: allFiles,
     }),
     packageJson,
     pythonDeps,
+    workspaceStacks,
     files: {
       all: allFiles,
       source: sourceFiles,

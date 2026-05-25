@@ -40,6 +40,13 @@ Il documento è organizzato in fasi sequenziali. Ogni fase ha: obiettivo, file d
 - [x] Fixture e test su falsi positivi/falsi negativi
 - [ ] Snapshot report su repository reali
 
+## Milestone 0.3 (multi-package scanning)
+
+- [x] Scansione ricorsiva manifest (package.json, requirements.txt, pyproject.toml)
+- [x] Aggregazione dipendenze multi-workspace per detector stack
+- [x] Breakdown workspace nel report (stack + package manager confidence)
+- [x] Correzione semantica lockfile vs manifest (npm/pip/poetry)
+
 ---
 
 ## Fase 0 — Setup repository

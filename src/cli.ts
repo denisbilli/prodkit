@@ -22,6 +22,12 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     .map((f, i) => `${i + 1}. [${f.severity}] ${f.title} (${f.category})`)
     .join('\n');
 
+  const workspaceSummary = report.detectedStack.workspaces.length === 0
+    ? 'none'
+    : report.detectedStack.workspaces
+      .map((ws) => `${ws.root}:${ws.packageManager}/${ws.packageManagerConfidence}`)
+      .join(' | ');
+
   return [
     'ProdKit Analysis Summary',
     `Project: ${report.projectPath}`,
@@ -30,6 +36,7 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     `Detected databases: ${report.detectedStack.databases.join(', ') || 'unknown'}`,
     `Package manager: ${report.detectedStack.packageManager} (${report.detectedStack.packageManagerConfidence})`,
     report.detectedStack.warnings.length > 0 ? `Warnings: ${report.detectedStack.warnings.join('; ')}` : 'Warnings: none',
+    `Workspaces: ${workspaceSummary}`,
     `Score: ${report.overallScore}/100`,
     `Maturity: ${report.maturityLevel}`,
     `Critical/High/Medium: ${counts.critical}/${counts.high}/${counts.medium}`,

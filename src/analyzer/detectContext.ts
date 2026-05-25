@@ -1,5 +1,16 @@
 import type { PackageJson, ProjectFiles } from './types';
 
+export interface WorkspaceManifest {
+  root: string;
+  packageJsonPath?: string;
+  packageJson?: PackageJson | null;
+  requirementsPath?: string;
+  requirementsDeps: string[];
+  pyprojectPath?: string;
+  pyprojectDeps: string[];
+  lockfiles: string[];
+}
+
 export interface DetectContext {
   root: string;
   files: ProjectFiles;
@@ -7,6 +18,7 @@ export interface DetectContext {
   pythonDeps: string[]; // lowercase names
   /** Lowercased combined dependency map (deps + devDeps). */
   npmDeps: Record<string, string>;
+  workspaces: WorkspaceManifest[];
 }
 
 export function hasDep(ctx: DetectContext, name: string): boolean {

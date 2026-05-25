@@ -19,7 +19,7 @@ export async function detectFrontend(ctx: DetectContext): Promise<{
     for (const d of viteDeps) evidence.push({ type: 'dependency', value: d });
   }
 
-  const extras = hasAnyDep(ctx, ['react-router-dom', 'axios', 'tailwindcss']);
+  const extras = hasAnyDep(ctx, ['react-router-dom', 'axios', 'tailwindcss', 'electron']);
   for (const d of extras) {
     frameworks.push(d);
     evidence.push({ type: 'dependency', value: d });

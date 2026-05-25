@@ -39,6 +39,17 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
 
   const passed = report.passedChecks.map((f) => `- ${f.title} (${f.id})`).join('\n') || '- none';
   const nextSteps = report.suggestedNextSteps.map((n) => `- ${n}`).join('\n') || '- none';
+  const workspaceLines = report.detectedStack.workspaces.length === 0
+    ? ['- none']
+    : report.detectedStack.workspaces.map((ws) => {
+      const stackBits = [
+        ws.frontend.length > 0 ? `frontend: ${ws.frontend.join(', ')}` : null,
+        ws.backend.length > 0 ? `backend: ${ws.backend.join(', ')}` : null,
+        ws.databases.length > 0 ? `databases: ${ws.databases.join(', ')}` : null,
+      ].filter(Boolean).join(' | ');
+      const warningText = ws.warnings.length > 0 ? ` | warnings: ${ws.warnings.join('; ')}` : '';
+      return `- ${ws.root}: ${ws.packageManager} (${ws.packageManagerConfidence})${stackBits ? ` | ${stackBits}` : ''}${warningText}`;
+    });
 
   const appendix = report.technicalEvidence
     .map((te) => {
@@ -68,6 +79,10 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     `- Package manager: ${report.detectedStack.packageManager}`,
     `- Package manager confidence: ${report.detectedStack.packageManagerConfidence}`,
     `- Package manager warnings: ${report.detectedStack.warnings.join(', ') || 'none'}`,
+    '',
+    '### Workspace Breakdown',
+    '',
+    ...workspaceLines,
     '',
     '## Score',
     '',

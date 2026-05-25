@@ -9,6 +9,16 @@ export type PackageManager =
 
 export type PackageManagerConfidence = 'lockfile' | 'manifest' | 'inferred' | 'unknown';
 
+export interface WorkspaceStack {
+  root: string;
+  frontend: string[];
+  backend: string[];
+  databases: string[];
+  packageManager: PackageManager;
+  packageManagerConfidence: PackageManagerConfidence;
+  warnings: string[];
+}
+
 export interface StackInfo {
   frontend: string[]; // e.g. ['react', 'vite', 'tailwind']
   backend: string[]; // e.g. ['express'] or ['django']
@@ -17,6 +27,7 @@ export interface StackInfo {
   packageManager: PackageManager;
   packageManagerConfidence: PackageManagerConfidence;
   warnings: string[];
+  workspaces: WorkspaceStack[];
 }
 
 export interface DetectorEvidence {
@@ -60,6 +71,7 @@ export interface ProjectAnalysis {
   stack: StackInfo;
   packageJson: PackageJson | null;
   pythonDeps: string[];
+  workspaceStacks: WorkspaceStack[];
   files: ProjectFiles;
   detectors: Record<string, DetectorResult>;
 }

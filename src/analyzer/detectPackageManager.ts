@@ -1,48 +1,88 @@
 import type { DetectorResult, PackageManager } from './types';
 import type { DetectContext } from './detectContext';
 
+interface PackageManagerResolution {
+  manager: PackageManager;
+  confidence: 'lockfile' | 'manifest' | 'inferred' | 'unknown';
+  warnings: string[];
+  evidence: string[];
+}
+
+function resolveWorkspaceManager(workspace: DetectContext['workspaces'][number]): PackageManagerResolution {
+  const warnings: string[] = [];
+
+  if (workspace.lockfiles.includes('pnpm-lock.yaml')) {
+    return { manager: 'pnpm', confidence: 'lockfile', warnings, evidence: ['pnpm-lock.yaml'] };
+  }
+  if (workspace.lockfiles.includes('package-lock.json')) {
+    return { manager: 'npm', confidence: 'lockfile', warnings, evidence: ['package-lock.json'] };
+  }
+  if (workspace.lockfiles.includes('yarn.lock')) {
+    return { manager: 'yarn', confidence: 'lockfile', warnings, evidence: ['yarn.lock'] };
+  }
+  if (workspace.lockfiles.includes('poetry.lock')) {
+    return { manager: 'poetry', confidence: 'lockfile', warnings, evidence: ['poetry.lock'] };
+  }
+
+  if (workspace.packageJsonPath) {
+    warnings.push('package-lock missing');
+    return { manager: 'npm', confidence: 'manifest', warnings, evidence: [workspace.packageJsonPath] };
+  }
+
+  if (workspace.pyprojectPath) {
+    return { manager: 'poetry', confidence: 'manifest', warnings, evidence: [workspace.pyprojectPath] };
+  }
+
+  if (workspace.requirementsPath) {
+    return { manager: 'pip', confidence: 'manifest', warnings, evidence: [workspace.requirementsPath] };
+  }
+
+  return { manager: 'unknown', confidence: 'unknown', warnings, evidence: [] };
+}
+
 export async function detectPackageManager(ctx: DetectContext): Promise<{
   result: DetectorResult;
   manager: PackageManager;
   confidence: 'lockfile' | 'manifest' | 'inferred' | 'unknown';
   warnings: string[];
+  workspaceManagers: Array<{
+    root: string;
+    manager: PackageManager;
+    confidence: 'lockfile' | 'manifest' | 'inferred' | 'unknown';
+    warnings: string[];
+  }>;
 }> {
-  const warnings: string[] = [];
-  const map: Array<{ file: string; pm: PackageManager }> = [
-    { file: 'pnpm-lock.yaml', pm: 'pnpm' },
-    { file: 'package-lock.json', pm: 'npm' },
-    { file: 'yarn.lock', pm: 'yarn' },
-    { file: 'poetry.lock', pm: 'poetry' },
-    { file: 'pyproject.toml', pm: 'python' },
-    { file: 'requirements.txt', pm: 'pip' },
-  ];
-  for (const { file, pm } of map) {
-    if (ctx.files.all.includes(file)) {
-      return {
-        manager: pm,
-        confidence: 'lockfile',
-        warnings,
-        result: {
-          key: 'meta.packageManager',
-          present: true,
-          evidence: [{ type: 'file', value: file }],
-          details: { manager: pm, confidence: 'lockfile', warnings },
-        },
-      };
-    }
-  }
-
-  if (ctx.files.all.includes('package.json')) {
-    warnings.push('package-lock missing');
+  const workspaceManagers = ctx.workspaces.map((ws) => {
+    const resolved = resolveWorkspaceManager(ws);
     return {
-      manager: 'npm',
-      confidence: 'manifest',
-      warnings,
+      root: ws.root,
+      manager: resolved.manager,
+      confidence: resolved.confidence,
+      warnings: resolved.warnings,
+      evidence: resolved.evidence,
+    };
+  });
+
+  const rootWorkspace = workspaceManagers.find((w) => w.root === '.');
+  const selected = rootWorkspace ?? workspaceManagers.find((w) => w.manager !== 'unknown');
+  if (selected) {
+    return {
+      manager: selected.manager,
+      confidence: selected.confidence,
+      warnings: selected.warnings,
+      workspaceManagers: workspaceManagers.map(({ root, manager, confidence, warnings }) => ({ root, manager, confidence, warnings })),
       result: {
         key: 'meta.packageManager',
-        present: true,
-        evidence: [{ type: 'file', value: 'package.json' }],
-        details: { manager: 'npm', confidence: 'manifest', warnings },
+        present: selected.manager !== 'unknown',
+        evidence: selected.evidence.length > 0
+          ? selected.evidence.map((e) => ({ type: 'file', value: e as string }))
+          : [{ type: 'note', value: 'no lockfile or manifest detected' }],
+        details: {
+          manager: selected.manager,
+          confidence: selected.confidence,
+          warnings: selected.warnings,
+          workspaces: workspaceManagers.map(({ root, manager, confidence, warnings }) => ({ root, manager, confidence, warnings })),
+        },
       },
     };
   }
@@ -50,12 +90,13 @@ export async function detectPackageManager(ctx: DetectContext): Promise<{
   return {
     manager: 'unknown',
     confidence: 'unknown',
-    warnings,
+    warnings: [],
+    workspaceManagers: [],
     result: {
       key: 'meta.packageManager',
       present: false,
       evidence: [{ type: 'note', value: 'no lockfile or manifest detected' }],
-      details: { manager: 'unknown', confidence: 'unknown', warnings },
+      details: { manager: 'unknown', confidence: 'unknown', warnings: [] },
     },
   };
 }

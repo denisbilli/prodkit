@@ -19,6 +19,7 @@ export function buildStackInfo(input: {
   packageManager: StackInfo['packageManager'];
   packageManagerConfidence: StackInfo['packageManagerConfidence'];
   warnings: string[];
+  workspaces: StackInfo['workspaces'];
   files: string[];
 }): StackInfo {
   return {
@@ -28,6 +29,7 @@ export function buildStackInfo(input: {
     packageManager: input.packageManager,
     packageManagerConfidence: input.packageManagerConfidence,
     warnings: unique(input.warnings),
+    workspaces: input.workspaces,
     languages: deriveLanguages(input.files),
   };
 }

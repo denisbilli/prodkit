@@ -56,6 +56,8 @@ describe('analyzer fixtures', () => {
     const report = buildReport(analysis);
 
     expect(analysis.stack.backend).toContain('django');
+    expect(analysis.stack.packageManager).toBe('pip');
+    expect(analysis.stack.packageManagerConfidence).toBe('manifest');
 
     const debug = report.findings.find((f) => f.id === 'security.django-debug');
     const cookies = report.findings.find((f) => f.id === 'security.django-secure-cookies');
@@ -120,6 +122,19 @@ describe('analyzer fixtures', () => {
 
     expect(analysis.stack.frontend).toContain('react');
     expect(analysis.stack.frontend).toContain('vite');
+    expect(analysis.stack.frontend).toContain('electron');
     expect(analysis.stack.backend).toContain('express');
+    expect(analysis.stack.databases).toContain('postgres');
+    expect(analysis.stack.databases).toContain('redis');
+
+    const workspaceRoots = analysis.stack.workspaces.map((w) => w.root);
+    expect(workspaceRoots).toContain('.');
+    expect(workspaceRoots).toContain('frontend');
+    expect(workspaceRoots).toContain('backend');
+    expect(workspaceRoots).toContain('electron');
+
+    const backendWs = analysis.stack.workspaces.find((w) => w.root === 'backend');
+    expect(backendWs?.backend).toContain('express');
+    expect(backendWs?.databases).toContain('postgres');
   });
 });
