@@ -15,6 +15,7 @@ const GENERIC_SECRET_ASSIGNMENT_RE = /(JWT_SECRET|SECRET_KEY|SESSION_SECRET|API_
 
 export async function detectEnv(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
+  const weakSecretEvidence: DetectorEvidence[] = [];
   const hasEnvExample = ctx.files.all.includes('.env.example');
   const hasEnv = ctx.files.all.includes('.env');
 
@@ -40,7 +41,9 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult> {
   );
   const weakHits = fallbackHits.filter((m) => WEAK_SECRET_VALUE_RE.test(m.snippet));
   for (const m of weakHits) {
-    evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+    const hitEvidence = { type: 'snippet', value: m.snippet, file: m.file, line: m.line } as const;
+    evidence.push(hitEvidence);
+    weakSecretEvidence.push(hitEvidence);
   }
 
   return {
@@ -54,6 +57,7 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult> {
       readsEnv: envReads.length > 0,
       missingEnvExampleWarning: envReads.length > 0 && !hasEnvExample,
       weakSecretFallback: weakHits.length > 0,
+      weakSecretEvidence,
     },
   };
 }

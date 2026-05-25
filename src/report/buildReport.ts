@@ -38,8 +38,8 @@ export function buildReport(analysis: ProjectAnalysis): ProductionReadinessRepor
   const findingsByCategory = Object.fromEntries(categories.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
   for (const f of findings) findingsByCategory[f.category].push(f);
 
-  const criticalIssues = findings.filter((f) => f.severity === 'critical' && f.status !== 'passed');
-  const warnings = findings.filter((f) => ['high', 'medium', 'low'].includes(f.severity) && f.status !== 'passed');
+  const criticalIssues = findings.filter((f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown');
+  const warnings = findings.filter((f) => ['high', 'medium', 'low'].includes(f.severity) && f.status !== 'passed' && f.status !== 'unknown');
   const passedChecks = findings.filter((f) => f.status === 'passed');
 
   const suggestedNextSteps = findings

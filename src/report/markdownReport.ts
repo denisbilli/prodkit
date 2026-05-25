@@ -25,17 +25,20 @@ function formatFinding(f: Finding): string {
 
 export function renderMarkdown(report: ProductionReadinessReport): string {
   const severeCounts = {
-    critical: report.findings.filter((f) => f.severity === 'critical' && f.status !== 'passed').length,
-    high: report.findings.filter((f) => f.severity === 'high' && f.status !== 'passed').length,
-    medium: report.findings.filter((f) => f.severity === 'medium' && f.status !== 'passed').length,
+    critical: report.findings.filter((f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown').length,
+    high: report.findings.filter((f) => f.severity === 'high' && f.status !== 'passed' && f.status !== 'unknown').length,
+    medium: report.findings.filter((f) => f.severity === 'medium' && f.status !== 'passed' && f.status !== 'unknown').length,
   };
 
   const byCategorySections = Object.entries(report.findingsByCategory)
+    .map(([category, arr]) => [category, arr.filter((f) => f.status !== 'unknown')] as const)
     .filter(([, arr]) => arr.length > 0)
     .map(([category, arr]) => {
       return [`## Category: ${category}`, '', ...arr.map((f) => formatFinding(f))].join('\n');
     })
     .join('\n');
+
+  const unknownFindings = report.findings.filter((f) => f.status === 'unknown');
 
   const passed = report.passedChecks.map((f) => `- ${f.title} (${f.id})`).join('\n') || '- none';
   const nextSteps = report.suggestedNextSteps.map((n) => `- ${n}`).join('\n') || '- none';
@@ -98,6 +101,9 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '## Critical Findings',
     '',
     ...(report.criticalIssues.length > 0 ? report.criticalIssues.map((f) => formatFinding(f)) : ['- none', '']),
+    '## Not Applicable / Unknown',
+    '',
+    ...(unknownFindings.length > 0 ? unknownFindings.map((f) => formatFinding(f)) : ['- none', '']),
     byCategorySections,
     '## Passed Checks',
     '',

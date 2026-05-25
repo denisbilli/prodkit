@@ -49,7 +49,20 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     25
   );
 
-  const roleSignals = await searchInFiles(ctx.root, sourceFiles, [/requireRole/i, /isAdmin/i, /\brole\b/i, /superadmin/i], 20);
+  const roleSignals = await searchInFiles(
+    ctx.root,
+    sourceFiles,
+    [
+      /requireRole/i,
+      /isAdmin/i,
+      /SUPER_ADMIN/i,
+      /req\.user\.role/i,
+      /user\.role/i,
+      /role\s*===/i,
+      /roles\.includes\(/i,
+    ],
+    20
+  );
   const permissionSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
@@ -59,26 +72,59 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   const resourceLevelSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/resource/i, /owner/i, /organizationId/i, /tenantId/i, /workspaceId/i, /where\s*\(/i],
+    [
+      /requirePermission/i,
+      /permission_classes/i,
+      /authorize\(/i,
+      /\bcanAccess\(/i,
+      /\bhasAccessTo\(/i,
+      /ownerId/i,
+      /createdBy/i,
+      /req\.user\.id/i,
+      /userId\s*===/i,
+      /organizationId/i,
+      /tenantId/i,
+      /workspaceId/i,
+      /teamId/i,
+    ],
     20
   );
 
   const organizationSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/organization/i, /tenant/i, /workspace/i, /company/i, /team/i],
+    [
+      /organizationId/i,
+      /tenantId/i,
+      /workspaceId/i,
+      /companyId/i,
+      /teamId/i,
+      /organization_id/i,
+      /tenant_id/i,
+      /workspace_id/i,
+    ],
     25
   );
   const membershipSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/membership/i, /memberOf/i, /organizationId/i, /tenantId/i, /workspaceId/i, /teamId/i],
+    [/memberId/i, /organizationId/i, /tenantId/i, /workspaceId/i, /teamId/i, /companyId/i],
     25
   );
   const b2bSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/stripe/i, /subscription/i, /\/admin/i, /\/users/i, /organization/i, /team/i, /company/i],
+    [
+      /stripe/i,
+      /subscription/i,
+      /\/admin/i,
+      /\/users/i,
+      /organizationId/i,
+      /tenantId/i,
+      /workspaceId/i,
+      /teamId/i,
+      /companyId/i,
+    ],
     20
   );
 

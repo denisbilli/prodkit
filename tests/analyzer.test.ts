@@ -137,4 +137,17 @@ describe('analyzer fixtures', () => {
     expect(backendWs?.backend).toContain('express');
     expect(backendWs?.databases).toContain('postgres');
   });
+
+  it('does not treat generic role/workspace/export words as authz-tenancy-gdpr signals', async () => {
+    const analysis = await analyzeProject(fixture('express-keyword-noise'));
+    const report = buildReport(analysis);
+
+    const authz = report.findings.find((f) => f.id === 'authz.resource-level');
+    const tenancy = report.findings.find((f) => f.id === 'tenancy.b2b');
+    const gdpr = report.findings.find((f) => f.id === 'gdpr.privacy');
+
+    expect(authz?.status).toBe('unknown');
+    expect(tenancy?.status).toBe('unknown');
+    expect(gdpr?.status).toBe('unknown');
+  });
 });

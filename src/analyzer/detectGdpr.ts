@@ -7,23 +7,40 @@ function toEvidence(matches: Array<{ snippet: string; file: string; line: number
 }
 
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
-  const consent = await searchInFiles(ctx.root, ctx.files.source, [/consent/i, /cookie[-_ ]?consent/i, /accept[-_ ]?consent/i], 20);
+  const consent = await searchInFiles(
+    ctx.root,
+    ctx.files.source,
+    [/cookie[-_ ]?consent/i, /consentGiven/i, /privacyConsent/i, /gdprConsent/i],
+    20
+  );
   const exportRoute = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/export user data/i, /dataExport/i, /\/export\b/i, /download.*data/i],
+    [
+      /\/gdpr\/export\b/i,
+      /exportUserData/i,
+      /personalDataExport/i,
+      /dataSubject/i,
+      /rightToAccess/i,
+      /data portability/i,
+      /export personal data/i,
+    ],
     20
   );
   const erasure = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/erasure/i, /delete account/i, /right to be forgotten/i, /delete.*user/i],
+    [/erasure/i, /delete account/i, /right to be forgotten/i, /delete user data/i, /delete personal data/i],
     20
   );
   const retention = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/retention/i, /cleanup/i, /purge/i, /delete older than/i, /cron/i],
+    [
+      /(gdpr|privacy).*(retention|purge|delete)/i,
+      /(retention|purge|delete).*(personal data|user data|data subject)/i,
+      /delete personal data older than/i,
+    ],
     20
   );
   const adminQueue = await searchInFiles(

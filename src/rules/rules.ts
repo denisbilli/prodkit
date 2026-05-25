@@ -98,6 +98,9 @@ export const rules: Rule[] = [
     evaluate: ({ analysis }) => {
       const det = analysis.detectors['env.config'];
       const weak = Boolean(det?.details?.weakSecretFallback);
+      const weakEvidence = Array.isArray(det?.details?.weakSecretEvidence)
+        ? (det?.details?.weakSecretEvidence as DetectorEvidence[])
+        : [];
       const status: FindingStatus = weak ? 'missing' : 'passed';
       return mkFinding({
         id: 'security.weak-secret',
@@ -108,7 +111,7 @@ export const rules: Rule[] = [
         description: weak
           ? 'Hardcoded fallback secrets detected (e.g. changeme/secret).' : 'No weak fallback secret patterns detected.',
         recommendation: 'Require strong secrets through environment variables with strict startup validation.',
-        evidence: det?.evidence ?? [],
+        evidence: weakEvidence.length > 0 ? weakEvidence : det?.evidence ?? [],
       });
     },
   },
