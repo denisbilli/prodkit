@@ -1,0 +1,8 @@
+{
+  "name": "stripe-webhook-signature-only",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.18.0",
+    "stripe": "^14.0.0"
+  }
+}

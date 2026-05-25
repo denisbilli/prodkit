@@ -16,10 +16,9 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     ctx.root,
     ctx.files.source,
     [
-      /\/webhook/i,
-      /webhook/i,
-      /app\.post\(/i,
-      /router\.post\(/i,
+      /\/webhooks?\b/i,
+      /app\.post\(\s*['\"][^'\"]*webhook/i,
+      /router\.post\(\s*['\"][^'\"]*webhook/i,
     ],
     40
   );
