@@ -4,6 +4,31 @@ Roadmap operativa per costruire la **MVP** di ProdKit: una CLI locale in TypeScr
 
 Il documento è organizzato in fasi sequenziali. Ogni fase ha: obiettivo, file da creare, attività, criteri di completamento (DoD).
 
+## Stato avanzamento
+
+- [x] Fase 0 — Setup repository
+- [x] Fase 1 — Tipi core e modello dati
+- [x] Fase 2 — Utilities
+- [x] Fase 3 — Pipeline analyzer (collector)
+- [x] Fase 4 — Detector stack base
+- [x] Fase 5 — Detector infra/env
+- [x] Fase 6 — Detector auth/authz/tenancy
+- [x] Fase 7 — Detector security
+- [x] Fase 8 — Detector uploads
+- [x] Fase 9 — Detector GDPR/privacy
+- [x] Fase 10 — Detector billing
+- [x] Fase 11 — Detector observability
+- [x] Fase 12 — Detector jobs/background
+- [x] Fase 13 — Detector deployment
+- [x] Fase 14 — Rule engine e regole
+- [x] Fase 15 — Scoring e maturity
+- [x] Fase 16 — Report builder
+- [x] Fase 17 — CLI
+- [x] Fase 18 — Fixtures di test
+- [x] Fase 19 — Test
+- [x] Fase 20 — README e packaging
+- [x] Fase 21 — Accettazione finale
+
 ---
 
 ## Fase 0 — Setup repository
