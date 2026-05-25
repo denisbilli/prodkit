@@ -9,8 +9,15 @@ import { buildPlan } from './planner/buildPlan';
 import { renderMarkdownPlan } from './planner/markdownPlan';
 import { renderJsonPlan } from './planner/jsonPlan';
 import { resolveProjectPath } from './utils/pathUtils';
+import type { ProductProfile } from './expectations/types';
 
 type OutputFormat = 'markdown' | 'json';
+const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'auto'] as const;
+
+function normalizeProfile(profile: string | undefined): ProductProfile {
+  if (!profile) return 'observed-only';
+  return (allowedProfiles.includes(profile as ProductProfile) ? profile : 'observed-only') as ProductProfile;
+}
 
 function summarize(report: ReturnType<typeof buildReport>): string {
   const counts = {
@@ -87,14 +94,16 @@ export async function runCli(argv = process.argv): Promise<void> {
     .command('analyze')
     .argument('<path-to-project>', 'Path to target repository')
     .option('--format <format>', 'Output format: markdown|json')
+    .option('--profile <profile>', 'Product profile: observed-only|static-site|internal-tool|b2c-app|b2b-saas|ai-saas|marketplace|auto')
     .option('--summary', 'Print summary only')
     .option('--output <path>', 'Output file path (optional)')
-    .action(async (targetPath: string, options: { format?: OutputFormat; summary?: boolean; output?: string }) => {
+    .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string }) => {
       const format = options.format === 'json' ? 'json' : 'markdown';
       const formatSpecified = typeof options.format === 'string';
+      const profile = normalizeProfile(options.profile);
       const resolved = resolveProjectPath(targetPath);
       const analysis = await analyzeProject(resolved);
-      const report = buildReport(analysis);
+      const report = buildReport(analysis, { profile });
       const payload = renderByFormat(format, report);
 
       if (options.output) {
@@ -117,13 +126,15 @@ export async function runCli(argv = process.argv): Promise<void> {
     .command('plan')
     .argument('<path-to-project>', 'Path to target repository')
     .option('--format <format>', 'Output format: markdown|json')
+    .option('--profile <profile>', 'Product profile: observed-only|static-site|internal-tool|b2c-app|b2b-saas|ai-saas|marketplace|auto')
     .option('--summary', 'Print summary only')
     .option('--output <path>', 'Output file path (optional)')
-    .action(async (targetPath: string, options: { format?: OutputFormat; summary?: boolean; output?: string }) => {
+    .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string }) => {
       const format = options.format === 'json' ? 'json' : 'markdown';
+      const profile = normalizeProfile(options.profile);
       const resolved = resolveProjectPath(targetPath);
       const analysis = await analyzeProject(resolved);
-      const report = buildReport(analysis);
+      const report = buildReport(analysis, { profile });
       const plan = buildPlan(report);
       const payload = renderPlanByFormat(format, plan);
 

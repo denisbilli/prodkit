@@ -1,5 +1,78 @@
 import type { Finding, ProductionReadinessReport } from './types';
 
+function profileSummary(report: ProductionReadinessReport): string[] {
+  const profile = report.productProfile;
+  if (!profile) {
+    return [
+      '## Product Profile',
+      '',
+      '- Mode: observed-only',
+      '- Expected capabilities: not evaluated',
+      '',
+    ];
+  }
+
+  if (report.expectedCapabilityScore === undefined || profile.capabilities.length === 0) {
+    return [
+      '## Product Profile',
+      '',
+      `- Mode: ${profile.selectedProfile}`,
+      `- Inferred profile: ${profile.inferredProfile ?? 'n/a'}`,
+      `- Inference confidence: ${profile.inferenceConfidence ?? 'n/a'}`,
+      '- Expected capabilities: not evaluated',
+      profile.note ? `- Note: ${profile.note}` : '- Note: profile inference was inconclusive',
+      '',
+    ];
+  }
+
+  const required = profile.capabilities.filter((c) => c.importance === 'required');
+  const recommended = profile.capabilities.filter((c) => c.importance === 'recommended');
+
+  const requiredPresent = required.filter((c) => c.status === 'present').length;
+  const requiredMissing = required.filter((c) => c.status === 'missing').length;
+  const requiredPartial = required.filter((c) => c.status === 'partial').length;
+
+  const recommendedPresent = recommended.filter((c) => c.status === 'present').length;
+  const recommendedMissing = recommended.filter((c) => c.status === 'missing').length;
+  const recommendedPartial = recommended.filter((c) => c.status === 'partial').length;
+
+  return [
+    '## Product Profile',
+    '',
+    `- Selected profile: ${profile.selectedProfile}`,
+    `- Profile: ${profile.profileTitle}`,
+    `- Description: ${profile.profileDescription}`,
+    `- Observed score: ${report.observedScore}/100`,
+    `- Expected capability score: ${report.expectedCapabilityScore}/100`,
+    `- Final score: ${report.overallScore}/100`,
+    '- Capability summary:',
+    `- Required: ${requiredPresent} present / ${requiredMissing} missing / ${requiredPartial} partial`,
+    `- Recommended: ${recommendedPresent} present / ${recommendedMissing} missing / ${recommendedPartial} partial`,
+    '',
+  ];
+}
+
+function expectedGapSection(report: ProductionReadinessReport): string[] {
+  const profile = report.productProfile;
+  if (!profile || report.expectedCapabilityScore === undefined || profile.capabilities.length === 0) {
+    return [];
+  }
+
+  const gaps = profile.capabilities.filter((c) =>
+    (c.importance === 'required' || c.importance === 'recommended')
+    && (c.status === 'missing' || c.status === 'partial')
+  );
+
+  return [
+    '## Expected Capability Gaps',
+    '',
+    ...(gaps.length > 0
+      ? gaps.map((gap) => `- [${gap.importance}] ${gap.title}: ${gap.status} (${gap.findingId})`)
+      : ['- none']),
+    '',
+  ];
+}
+
 function formatFinding(f: Finding): string {
   const ev = f.evidence
     .slice(0, 6)
@@ -90,8 +163,12 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '## Score',
     '',
     `- Overall score: ${report.overallScore}/100`,
+    `- Observed score: ${report.observedScore}/100`,
+    ...(report.expectedCapabilityScore !== undefined ? [`- Expected capability score: ${report.expectedCapabilityScore}/100`] : []),
     `- Maturity level: ${report.maturityLevel}`,
     '',
+    ...profileSummary(report),
+    ...expectedGapSection(report),
     '## Executive Summary',
     '',
     `- Critical findings: ${severeCounts.critical}`,

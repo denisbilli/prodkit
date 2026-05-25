@@ -99,17 +99,26 @@ Options:
 - `--format markdown|json` output format for the report or plan payload
 - `--summary` print summary only
 - `--output <path>` write output to file
+- `--profile <name>` evaluate expected product capabilities (`static-site`, `internal-tool`, `b2c-app`, `b2b-saas`, `ai-saas`, `marketplace`, `auto`, `observed-only`)
+
+Profile warning:
+
+- Without a product profile, ProdKit only scores observed deterministic findings. Use `--profile` to evaluate expected product capabilities.
 
 ## Examples
 
 ```bash
 prodkit analyze ../my-app
+prodkit analyze ../my-app --profile b2b-saas
+prodkit analyze ../my-app --profile auto
 prodkit analyze ../my-app --summary
 prodkit analyze ../my-app --format markdown
 prodkit analyze ../my-app --format json
 prodkit analyze ../my-app --output prodkit-report.md
 prodkit analyze tests/fixtures/express-basic --format json --output report.json
 prodkit plan ../my-app
+prodkit plan ../my-app --profile b2b-saas
+prodkit plan ../my-app --profile observed-only
 prodkit plan ../my-app --format markdown
 prodkit plan ../my-app --format json
 prodkit plan ../my-app --output prodkit-plan.md

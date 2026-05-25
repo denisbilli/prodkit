@@ -2,6 +2,13 @@ import type { ProjectAnalysis } from '../analyzer/types';
 import { runRules } from '../rules/ruleEngine';
 import { computeMaturity, computeScore } from './score';
 import type { Category, Finding, ProductionReadinessReport } from './types';
+import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectations';
+import { inferProductProfile } from '../expectations/inferProductProfile';
+import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
+
+export interface BuildReportOptions {
+  profile?: ProductProfile;
+}
 
 const categories: Category[] = [
   'meta',
@@ -14,6 +21,7 @@ const categories: Category[] = [
   'security',
   'uploads',
   'billing',
+  'audit',
   'observability',
   'jobs',
   'deployment',
@@ -30,9 +38,57 @@ function bySeverityPriority(f: Finding): number {
   return order[f.severity];
 }
 
-export function buildReport(analysis: ProjectAnalysis): ProductionReadinessReport {
-  const findings = runRules(analysis).sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b));
-  const overallScore = computeScore(findings);
+export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOptions): ProductionReadinessReport {
+  const observedFindings = runRules(analysis);
+  const observedScore = computeScore(observedFindings);
+  const requestedProfile = options?.profile ?? 'observed-only';
+
+  let expectationFindings: Finding[] = [];
+  let expectationScore: number | undefined;
+  let productProfile: ProductExpectationResult | undefined;
+
+  if (requestedProfile !== 'observed-only') {
+    if (requestedProfile === 'auto') {
+      const inferred = inferProductProfile(analysis);
+      if (inferred.confidence === 'low') {
+        productProfile = {
+          selectedProfile: 'auto',
+          inferredProfile: inferred.inferredProfile,
+          inferenceConfidence: inferred.confidence,
+          profileTitle: 'Auto (inconclusive)',
+          profileDescription: 'Profile inference was inconclusive; expected capabilities were not applied.',
+          capabilities: [],
+          score: observedScore,
+          note: inferred.reason,
+        };
+      } else {
+        const evaluated = evaluateExpectedCapabilities({
+          analysis,
+          selectedProfile: inferred.inferredProfile as Exclude<ProductProfile, 'auto' | 'observed-only'>,
+          requestedProfile,
+          inferredProfile: inferred.inferredProfile,
+          inferenceConfidence: inferred.confidence,
+        });
+        productProfile = evaluated.result;
+        expectationFindings = evaluated.findings;
+        expectationScore = evaluated.result.score;
+      }
+    } else {
+      const evaluated = evaluateExpectedCapabilities({
+        analysis,
+        selectedProfile: requestedProfile as Exclude<ProductProfile, 'auto' | 'observed-only'>,
+        requestedProfile,
+      });
+      productProfile = evaluated.result;
+      expectationFindings = evaluated.findings;
+      expectationScore = evaluated.result.score;
+    }
+  }
+
+  const findings = [...observedFindings, ...expectationFindings].sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b));
+  const overallScore = expectationScore === undefined
+    ? observedScore
+    : Math.max(0, Math.min(100, Math.round((observedScore * 0.6) + (expectationScore * 0.4))));
   const maturityLevel = computeMaturity(overallScore);
 
   const findingsByCategory = Object.fromEntries(categories.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
@@ -52,8 +108,11 @@ export function buildReport(analysis: ProjectAnalysis): ProductionReadinessRepor
   return {
     projectPath: analysis.projectPath,
     generatedAt: new Date().toISOString(),
+    observedScore,
+    expectedCapabilityScore: expectationScore,
     overallScore,
     maturityLevel,
+    productProfile,
     detectedStack: analysis.stack,
     findings,
     findingsByCategory,

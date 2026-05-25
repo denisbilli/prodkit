@@ -1,4 +1,5 @@
 import type { DetectorEvidence, StackInfo } from '../analyzer/types';
+import type { ProductExpectationResult } from '../expectations/types';
 
 export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 export type FindingStatus = 'passed' | 'missing' | 'partial' | 'unknown';
@@ -14,6 +15,7 @@ export type Category =
   | 'security'
   | 'uploads'
   | 'billing'
+  | 'audit'
   | 'observability'
   | 'jobs'
   | 'deployment';
@@ -34,8 +36,11 @@ export type MaturityLevel = 'prototype' | 'early' | 'partial' | 'production_read
 export interface ProductionReadinessReport {
   projectPath: string;
   generatedAt: string;
+  observedScore: number;
+  expectedCapabilityScore?: number;
   overallScore: number;
   maturityLevel: MaturityLevel;
+  productProfile?: ProductExpectationResult;
   detectedStack: StackInfo;
   findings: Finding[];
   findingsByCategory: Record<Category, Finding[]>;

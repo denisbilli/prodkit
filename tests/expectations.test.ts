@@ -1,0 +1,91 @@
+import * as path from 'path';
+import { describe, expect, it } from 'vitest';
+import { analyzeProject } from '../src/analyzer/analyzeProject';
+import { buildReport } from '../src/report/buildReport';
+import { buildPlan } from '../src/planner/buildPlan';
+
+const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
+
+describe('product profile expectations', () => {
+  it('keeps observed-only behavior when no profile is provided', async () => {
+    const analysis = await analyzeProject(fixture('react-vite'));
+    const report = buildReport(analysis);
+
+    expect(report.expectedCapabilityScore).toBeUndefined();
+    expect(report.productProfile).toBeUndefined();
+    expect(report.overallScore).toBe(report.observedScore);
+  });
+
+  it('applies b2b-saas expectations and lowers final score on a frontend-only fixture', async () => {
+    const analysis = await analyzeProject(fixture('react-vite'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+    const plan = buildPlan(report);
+
+    expect(report.expectedCapabilityScore).toBeDefined();
+    expect((report.expectedCapabilityScore ?? 100)).toBeLessThan(report.observedScore);
+    expect(report.findings.some((f) => f.id === 'expectation.auth.required')).toBe(true);
+    expect(report.findings.some((f) => f.id === 'expectation.tenancy.required')).toBe(true);
+    expect(report.findings.some((f) => f.id === 'expectation.gdpr.required')).toBe(true);
+    expect(plan.tasks.some((t) => t.id === 'remediate.auth.core')).toBe(true);
+    expect(plan.tasks.some((t) => t.id === 'remediate.tenancy.b2b')).toBe(true);
+    expect(plan.tasks.some((t) => t.id === 'remediate.gdpr.privacy')).toBe(true);
+  });
+
+  it('marks auth/tenancy/billing as non-actionable under static-site profile', async () => {
+    const analysis = await analyzeProject(fixture('react-vite'));
+    const report = buildReport(analysis, { profile: 'static-site' });
+
+    expect(report.expectedCapabilityScore).toBeDefined();
+    expect(report.findings.some((f) => f.id === 'expectation.auth.required')).toBe(false);
+    expect(report.findings.some((f) => f.id === 'expectation.tenancy.required')).toBe(false);
+    expect(report.findings.some((f) => f.id.startsWith('expectation.billing'))).toBe(false);
+    expect(report.overallScore).toBeGreaterThan(70);
+  });
+
+  it('keeps observed-only behavior in auto mode when confidence is low', async () => {
+    const analysis = await analyzeProject(fixture('auto-inconclusive'));
+    const report = buildReport(analysis, { profile: 'auto' });
+
+    expect(report.expectedCapabilityScore).toBeUndefined();
+    expect(report.productProfile?.selectedProfile).toBe('auto');
+    expect(report.productProfile?.inferenceConfidence).toBe('low');
+    expect(report.overallScore).toBe(report.observedScore);
+  });
+
+  it('applies inferred expectations in auto mode when confidence is not low', async () => {
+    const analysis = await analyzeProject(fixture('stripe-webhook-secret-only'));
+    const report = buildReport(analysis, { profile: 'auto' });
+
+    expect(report.expectedCapabilityScore).toBeDefined();
+    expect(report.productProfile?.inferredProfile).toBe('b2b-saas');
+    expect(report.productProfile?.inferenceConfidence === 'medium' || report.productProfile?.inferenceConfidence === 'high').toBe(true);
+  });
+
+  it('uses stronger requirement severity for missing logging in ai-saas profile', async () => {
+    const analysis = await analyzeProject(fixture('express-basic'));
+    const b2b = buildReport(analysis, { profile: 'b2b-saas' });
+    const ai = buildReport(analysis, { profile: 'ai-saas' });
+
+    const b2bLogging = b2b.findings.find((f) => f.id === 'expectation.observability.logging.recommended');
+    const aiLogging = ai.findings.find((f) => f.id === 'expectation.observability.logging.required');
+    const aiRateLimit = ai.findings.find((f) => f.id === 'expectation.security.rate-limit.required');
+
+    expect(b2bLogging).toBeDefined();
+    expect(aiLogging).toBeDefined();
+    expect(aiRateLimit).toBeDefined();
+    expect(aiLogging?.severity === 'high' || aiLogging?.severity === 'critical').toBe(true);
+  });
+
+  it('merges duplicated remediation tasks when both base and expectation findings map to same task', async () => {
+    const analysis = await analyzeProject(fixture('tenant-missing'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+    const plan = buildPlan(report);
+
+    const ids = plan.tasks.map((task) => task.id);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const authTask = plan.tasks.find((task) => task.id === 'remediate.auth.core');
+    expect(authTask).toBeDefined();
+    expect((authTask?.findingIds ?? []).length).toBeGreaterThan(1);
+  });
+});
