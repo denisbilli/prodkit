@@ -70,4 +70,17 @@ describe('billing webhook sub-detectors', () => {
     const billing = report.findings.find((f) => f.id === 'billing.webhook-signature');
     expect(billing?.status).toBe('passed');
   });
+
+  it('marks stripe webhook hardening as partial when route+secret exist without raw body/signature', async () => {
+    const analysis = await analyzeProject(fixture('stripe-webhook-route-secret-partial'));
+
+    expect(analysis.detectors['billing.webhook.route']?.present).toBe(true);
+    expect(analysis.detectors['billing.webhook.rawBody']?.present).toBe(false);
+    expect(analysis.detectors['billing.webhook.secret']?.present).toBe(true);
+    expect(analysis.detectors['billing.webhook.signatureValidation']?.present).toBe(false);
+
+    const report = buildReport(analysis);
+    const billing = report.findings.find((f) => f.id === 'billing.webhook-signature');
+    expect(billing?.status).toBe('partial');
+  });
 });
