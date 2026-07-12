@@ -16,7 +16,24 @@ const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-a
 
 function normalizeProfile(profile: string | undefined): ProductProfile {
   if (!profile) return 'observed-only';
-  return (allowedProfiles.includes(profile as ProductProfile) ? profile : 'observed-only') as ProductProfile;
+  if (!allowedProfiles.includes(profile as ProductProfile)) {
+    throw new Error(`Invalid profile "${profile}". Allowed profiles: ${allowedProfiles.join(', ')}.`);
+  }
+  return profile as ProductProfile;
+}
+
+async function resolveExistingProjectPath(input: string): Promise<string> {
+  const resolved = resolveProjectPath(input);
+  let stats;
+  try {
+    stats = await fs.stat(resolved);
+  } catch {
+    throw new Error(`Project path does not exist: ${resolved}`);
+  }
+  if (!stats.isDirectory()) {
+    throw new Error(`Project path is not a directory: ${resolved}`);
+  }
+  return resolved;
 }
 
 function summarize(report: ReturnType<typeof buildReport>): string {
@@ -101,7 +118,7 @@ export async function runCli(argv = process.argv): Promise<void> {
       const format = options.format === 'json' ? 'json' : 'markdown';
       const formatSpecified = typeof options.format === 'string';
       const profile = normalizeProfile(options.profile);
-      const resolved = resolveProjectPath(targetPath);
+      const resolved = await resolveExistingProjectPath(targetPath);
       const analysis = await analyzeProject(resolved);
       const report = buildReport(analysis, { profile });
       const payload = renderByFormat(format, report);
@@ -132,7 +149,7 @@ export async function runCli(argv = process.argv): Promise<void> {
     .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string }) => {
       const format = options.format === 'json' ? 'json' : 'markdown';
       const profile = normalizeProfile(options.profile);
-      const resolved = resolveProjectPath(targetPath);
+      const resolved = await resolveExistingProjectPath(targetPath);
       const analysis = await analyzeProject(resolved);
       const report = buildReport(analysis, { profile });
       const plan = buildPlan(report);

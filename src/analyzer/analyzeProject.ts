@@ -36,7 +36,7 @@ function parseRequirements(text: string | null): string[] {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith('#'))
-    .map((l) => l.split(/[<=>~!\[]/)[0].trim().toLowerCase())
+    .map((l) => l.split(/[<=>~![]/)[0].trim().toLowerCase())
     .filter(Boolean);
 }
 

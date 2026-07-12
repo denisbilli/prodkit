@@ -6,12 +6,12 @@ const WEAK_SECRET_VALUE_RE =
   /(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)/i;
 
 const FALLBACK_SECRET_RE =
-  /(jwt_secret|secret_key|session_secret)\s*[:=]\s*['\"][^'\"]*(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)[^'\"]*['\"]/i;
+  /(jwt_secret|secret_key|session_secret)\s*[:=]\s*['"][^'"]*(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)[^'"]*['"]/i;
 
 const ENV_FALLBACK_RE =
-  /(process\.env\.(JWT_SECRET|SECRET_KEY|SESSION_SECRET)\s*(\|\||\?\?)\s*['\"][^'\"]*(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)[^'\"]*['\"])/i;
+  /(process\.env\.(JWT_SECRET|SECRET_KEY|SESSION_SECRET)\s*(\|\||\?\?)\s*['"][^'"]*(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)[^'"]*['"])/i;
 
-const GENERIC_SECRET_ASSIGNMENT_RE = /(JWT_SECRET|SECRET_KEY|SESSION_SECRET|API_KEY)\s*[:=]\s*['\"][^'\"]+['\"]/i;
+const GENERIC_SECRET_ASSIGNMENT_RE = /(JWT_SECRET|SECRET_KEY|SESSION_SECRET|API_KEY)\s*[:=]\s*['"][^'"]+['"]/i;
 
 function classifySecretFallback(snippet: string): 'jwt' | 'session' | 'app' | 'apiKey' | 'unknown' {
   if (/JWT_SECRET/i.test(snippet)) return 'jwt';
@@ -51,7 +51,7 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
   const fallbackHits = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [FALLBACK_SECRET_RE, ENV_FALLBACK_RE, /\|\|\s*['\"][^'\"]+['\"]/i, /\?\?\s*['\"][^'\"]+['\"]/i, GENERIC_SECRET_ASSIGNMENT_RE],
+    [FALLBACK_SECRET_RE, ENV_FALLBACK_RE, /\|\|\s*['"][^'"]+['"]/i, /\?\?\s*['"][^'"]+['"]/i, GENERIC_SECRET_ASSIGNMENT_RE],
     30
   );
   const weakHits = fallbackHits.filter((m) => WEAK_SECRET_VALUE_RE.test(m.snippet));

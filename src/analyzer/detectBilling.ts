@@ -35,8 +35,8 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
       [
         /\/webhooks?\b/i,
         /\/webhooks?\/stripe/i,
-        /app\.post\(\s*['\"][^'\"]*webhook/i,
-        /router\.post\(\s*['\"][^'\"]*webhook/i,
+        /app\.post\(\s*['"][^'"]*webhook/i,
+        /router\.post\(\s*['"][^'"]*webhook/i,
       ],
       40
     )
@@ -57,7 +57,7 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
       [
         /stripe\.webhooks\.constructEvent/i,
         /constructEvent\(/i,
-        /['\"]stripe-signature['\"]/i,
+        /['"]stripe-signature['"]/i,
         /validateSignature/i,
       ],
       25

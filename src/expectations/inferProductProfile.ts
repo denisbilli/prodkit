@@ -1,9 +1,5 @@
 import type { ProjectAnalysis } from '../analyzer/types';
-import type { ProductProfile, ProductProfileInference } from './types';
-
-function hasSignal(value: unknown): boolean {
-  return value === true;
-}
+import type { ProductProfileInference } from './types';
 
 export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileInference {
   const backendPresent = analysis.stack.backend.length > 0;

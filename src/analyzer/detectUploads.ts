@@ -17,7 +17,7 @@ function getLineNumber(text: string, offset: number): number {
 
 function findExpressUploadsRoutes(text: string, file: string): UploadRouteSignal[] {
   const out: UploadRouteSignal[] = [];
-  const routeRegex = /app\.use\(\s*['\"]\/uploads['\"][\s\S]{0,260}?express\.static\([^)]*\)\s*\)/g;
+  const routeRegex = /app\.use\(\s*['"]\/uploads['"][\s\S]{0,260}?express\.static\([^)]*\)\s*\)/g;
   const protectionRegex = /requireAuth|authMiddleware|requireRole|requirePermission|permission/i;
 
   for (const match of text.matchAll(routeRegex)) {

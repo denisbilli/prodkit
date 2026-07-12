@@ -20,11 +20,6 @@ function boolDetail(result: DetectorResult | undefined, key: string): boolean {
   return result?.details?.[key] === true;
 }
 
-function numberDetail(result: DetectorResult | undefined, key: string): number {
-  const value = result?.details?.[key];
-  return typeof value === 'number' ? value : 0;
-}
-
 function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability): CapabilityStatus {
   const sec = detector(analysis, 'security.core');
   const obs = detector(analysis, 'observability.core');
