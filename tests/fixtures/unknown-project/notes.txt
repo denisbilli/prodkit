@@ -1,0 +1,3 @@
+This fixture intentionally contains no manifests and no recognizable source
+files, so the analyzer cannot detect any stack. ProdKit must report the
+analysis as inconclusive instead of scoring it as production ready.

@@ -63,6 +63,8 @@ export interface ProductionReadinessReport {
   expectedCapabilityScore?: number;
   overallScore: number;
   maturityLevel: MaturityLevel;
+  inconclusive: boolean;
+  inconclusiveReasons: string[];
   productProfile?: ProductExpectationResult;
   detectedStack: StackInfo;
   findings: Finding[];

@@ -124,9 +124,26 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   }
 
   const findings = [...observedFindings, ...expectationFindings].sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b));
-  const overallScore = expectationScore === undefined
+  const combinedScore = expectationScore === undefined
     ? observedScore
     : Math.max(0, Math.min(100, Math.round((observedScore * 0.6) + (expectationScore * 0.4))));
+
+  const stackDetected = analysis.stack.frontend.length > 0
+    || analysis.stack.backend.length > 0
+    || analysis.stack.databases.length > 0;
+  const inconclusive = !stackDetected && analysis.workspaceStacks.length === 0;
+  const inconclusiveReasons: string[] = [];
+  if (inconclusive) {
+    inconclusiveReasons.push('No frontend, backend, or database stack signals were detected.');
+    inconclusiveReasons.push('No package manifests (package.json, requirements.txt, pyproject.toml) were found.');
+    if (analysis.files.source.length === 0) {
+      inconclusiveReasons.push('No recognizable source files were found.');
+    }
+  }
+
+  // An unrecognized project has almost no applicable detectors, so the absence
+  // of findings must not be rewarded with a high score: cap it at prototype.
+  const overallScore = inconclusive ? Math.min(combinedScore, 39) : combinedScore;
   const maturityLevel = computeMaturity(overallScore);
 
   const findingsByCategory = Object.fromEntries(categories.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
@@ -163,6 +180,8 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     expectedCapabilityScore: expectationScore,
     overallScore,
     maturityLevel,
+    inconclusive,
+    inconclusiveReasons,
     productProfile,
     detectedStack: analysis.stack,
     findings,

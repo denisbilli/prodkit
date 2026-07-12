@@ -100,10 +100,16 @@ Options:
 - `--summary` print summary only
 - `--output <path>` write output to file
 - `--profile <name>` evaluate expected product capabilities (`static-site`, `internal-tool`, `b2c-app`, `b2b-saas`, `ai-saas`, `marketplace`, `auto`, `observed-only`)
+- `--fail-under <score>` (analyze only) exit with code 1 if the overall score is below the threshold — useful as a CI quality gate
+- `--min-maturity <level>` (analyze only) exit with code 1 if maturity is below `prototype|early|partial|production_ready`
 
 Profile warning:
 
 - Without a product profile, ProdKit only scores observed deterministic findings. Use `--profile` to evaluate expected product capabilities.
+
+Inconclusive assessments:
+
+- If no stack signals and no package manifests are detected, the report is marked **inconclusive** and the score is capped at 39 (`prototype`). An unrecognized project is never scored as production ready.
 
 ## Examples
 
@@ -116,6 +122,8 @@ prodkit analyze ../my-app --format markdown
 prodkit analyze ../my-app --format json
 prodkit analyze ../my-app --output prodkit-report.md
 prodkit analyze tests/fixtures/express-basic --format json --output report.json
+prodkit analyze ../my-app --fail-under 65
+prodkit analyze ../my-app --min-maturity partial
 prodkit plan ../my-app
 prodkit plan ../my-app --profile b2b-saas
 prodkit plan ../my-app --profile observed-only

@@ -167,7 +167,13 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     `- Overall score: ${report.overallScore}/100`,
     `- Observed score: ${report.observedScore}/100`,
     ...(report.expectedCapabilityScore !== undefined ? [`- Expected capability score: ${report.expectedCapabilityScore}/100`] : []),
-    `- Maturity level: ${report.maturityLevel}`,
+    `- Maturity level: ${report.maturityLevel}${report.inconclusive ? ' (inconclusive)' : ''}`,
+    ...(report.inconclusive
+      ? [
+        '- Assessment: INCONCLUSIVE — the score is capped because the project could not be recognized:',
+        ...report.inconclusiveReasons.map((r) => `  - ${r}`),
+      ]
+      : []),
     `- Diagnostics: ${report.diagnostics.analyzedFileCount} analyzed / ${report.diagnostics.skippedFileCount} skipped / ${report.diagnostics.workspaceCount} workspaces / ${report.diagnostics.detectorCount} detectors`,
     `- Expectation mode: ${report.diagnostics.expectationMode}`,
     `- ProdKit version: ${report.diagnostics.prodkitVersion}`,

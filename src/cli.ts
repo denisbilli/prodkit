@@ -10,9 +10,11 @@ import { renderMarkdownPlan } from './planner/markdownPlan';
 import { renderJsonPlan } from './planner/jsonPlan';
 import { resolveProjectPath } from './utils/pathUtils';
 import type { ProductProfile } from './expectations/types';
+import type { MaturityLevel } from './report/types';
 
 type OutputFormat = 'markdown' | 'json';
 const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'auto'] as const;
+const maturityOrder: MaturityLevel[] = ['prototype', 'early', 'partial', 'production_ready'];
 
 function normalizeProfile(profile: string | undefined): ProductProfile {
   if (!profile) return 'observed-only';
@@ -34,6 +36,36 @@ async function resolveExistingProjectPath(input: string): Promise<string> {
     throw new Error(`Project path is not a directory: ${resolved}`);
   }
   return resolved;
+}
+
+function parseFailUnder(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) {
+    throw new Error(`Invalid --fail-under value "${value}". Expected an integer between 0 and 100.`);
+  }
+  return parsed;
+}
+
+function parseMinMaturity(value: string | undefined): MaturityLevel | undefined {
+  if (value === undefined) return undefined;
+  if (!maturityOrder.includes(value as MaturityLevel)) {
+    throw new Error(`Invalid --min-maturity value "${value}". Allowed levels: ${maturityOrder.join(', ')}.`);
+  }
+  return value as MaturityLevel;
+}
+
+function enforceThresholds(
+  report: ReturnType<typeof buildReport>,
+  failUnder: number | undefined,
+  minMaturity: MaturityLevel | undefined,
+): void {
+  if (failUnder !== undefined && report.overallScore < failUnder) {
+    throw new Error(`Score gate failed: overall score ${report.overallScore} is below --fail-under ${failUnder}.`);
+  }
+  if (minMaturity !== undefined && maturityOrder.indexOf(report.maturityLevel) < maturityOrder.indexOf(minMaturity)) {
+    throw new Error(`Maturity gate failed: maturity "${report.maturityLevel}" is below --min-maturity "${minMaturity}".`);
+  }
 }
 
 function summarize(report: ReturnType<typeof buildReport>): string {
@@ -65,7 +97,7 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     report.detectedStack.warnings.length > 0 ? `Warnings: ${report.detectedStack.warnings.join('; ')}` : 'Warnings: none',
     `Workspaces: ${workspaceSummary}`,
     `Score: ${report.overallScore}/100`,
-    `Maturity: ${report.maturityLevel}`,
+    `Maturity: ${report.maturityLevel}${report.inconclusive ? ' (INCONCLUSIVE: project not recognized, score capped)' : ''}`,
     `Critical/High/Medium: ${counts.critical}/${counts.high}/${counts.medium}`,
     '',
     'Top findings:',
@@ -114,10 +146,14 @@ export async function runCli(argv = process.argv): Promise<void> {
     .option('--profile <profile>', 'Product profile: observed-only|static-site|internal-tool|b2c-app|b2b-saas|ai-saas|marketplace|auto')
     .option('--summary', 'Print summary only')
     .option('--output <path>', 'Output file path (optional)')
-    .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string }) => {
+    .option('--fail-under <score>', 'Exit with an error if overall score is below this threshold (0-100)')
+    .option('--min-maturity <level>', `Exit with an error if maturity is below this level: ${maturityOrder.join('|')}`)
+    .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string; failUnder?: string; minMaturity?: string }) => {
       const format = options.format === 'json' ? 'json' : 'markdown';
       const formatSpecified = typeof options.format === 'string';
       const profile = normalizeProfile(options.profile);
+      const failUnder = parseFailUnder(options.failUnder);
+      const minMaturity = parseMinMaturity(options.minMaturity);
       const resolved = await resolveExistingProjectPath(targetPath);
       const analysis = await analyzeProject(resolved);
       const report = buildReport(analysis, { profile });
@@ -128,15 +164,13 @@ export async function runCli(argv = process.argv): Promise<void> {
         await fs.writeFile(outPath, payload, 'utf8');
         console.log(summarize(report));
         console.log(`\nReport written to: ${outPath}`);
-        return;
-      }
-
-      if (options.summary || !formatSpecified) {
+      } else if (options.summary || !formatSpecified) {
         console.log(summarize(report));
-        return;
+      } else {
+        console.log(payload);
       }
 
-      console.log(payload);
+      enforceThresholds(report, failUnder, minMaturity);
     });
 
   program
