@@ -28,6 +28,25 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     }
   }
 
+  // FastAPI
+  if (hasPyDep(ctx, 'fastapi')) {
+    frameworks.push('fastapi');
+    evidence.push({ type: 'dependency', value: 'fastapi' });
+  } else {
+    const matches = await searchInFiles(
+      ctx.root,
+      ctx.files.source.filter((f) => f.endsWith('.py')),
+      [/from fastapi import/, /import fastapi/, /FastAPI\(/, /APIRouter\(/],
+      3
+    );
+    if (matches.length) {
+      frameworks.push('fastapi');
+      for (const m of matches) {
+        evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+      }
+    }
+  }
+
   // Django
   const djangoSignals: DetectorEvidence[] = [];
   if (ctx.files.all.some((f) => f.endsWith('manage.py') || f === 'manage.py')) {

@@ -150,4 +150,41 @@ describe('analyzer fixtures', () => {
     expect(tenancy?.status).toBe('unknown');
     expect(gdpr?.status).toBe('unknown');
   });
+
+  it('detects fastapi backend from PEP 621 pyproject dependencies', async () => {
+    const analysis = await analyzeProject(fixture('fastapi-basic'));
+
+    expect(analysis.stack.backend).toContain('fastapi');
+    expect(analysis.stack.databases).toContain('postgres');
+    expect(analysis.pythonDeps).toContain('fastapi');
+    expect(analysis.pythonDeps).toContain('uvicorn');
+    expect(analysis.pythonDeps).not.toContain('name');
+    expect(analysis.pythonDeps).not.toContain('version');
+
+    const backendWs = analysis.stack.workspaces.find((w) => w.root === '.');
+    expect(backendWs?.backend).toContain('fastapi');
+  });
+
+  it('does not raise tenancy findings for a frontend-only app with billing keywords', async () => {
+    const analysis = await analyzeProject(fixture('react-frontend-billing'));
+    const report = buildReport(analysis);
+
+    expect(analysis.stack.frontend).toContain('react');
+    expect(analysis.stack.backend).toEqual([]);
+
+    const tenancy = report.findings.find((f) => f.id === 'tenancy.b2b');
+    expect(tenancy?.status).toBe('unknown');
+    expect(tenancy?.description).toContain('No backend detected');
+  });
+
+  it('still raises tenancy findings when a backend with B2B signals lacks tenant boundaries', async () => {
+    const analysis = await analyzeProject(fixture('tenant-missing'));
+    const report = buildReport(analysis);
+
+    expect(analysis.stack.backend.length).toBeGreaterThan(0);
+
+    const tenancy = report.findings.find((f) => f.id === 'tenancy.b2b');
+    expect(tenancy?.status).toBe('missing');
+    expect(tenancy?.severity).toBe('high');
+  });
 });

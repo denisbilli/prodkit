@@ -40,16 +40,58 @@ function parseRequirements(text: string | null): string[] {
     .filter(Boolean);
 }
 
+function normalizePyDepSpec(spec: string): string {
+  return spec.split(/[\s<>=!~;[(]/)[0].trim().toLowerCase();
+}
+
 function parsePyproject(text: string | null): string[] {
   if (!text) return [];
   const deps: string[] = [];
-  const lines = text.split(/\r?\n/);
-  for (const raw of lines) {
+  let section = '';
+  let inDependencyArray = false;
+
+  for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
-    if (!line || line.startsWith('#') || line.startsWith('[')) continue;
-    const match = line.match(/^([A-Za-z0-9_.-]+)\s*=/);
-    if (match) deps.push(match[1].toLowerCase());
+    if (!line || line.startsWith('#')) continue;
+
+    const header = line.match(/^\[+([^\]]+)]+$/);
+    if (header) {
+      section = header[1].trim();
+      inDependencyArray = false;
+      continue;
+    }
+
+    // Poetry-style tables: each key of the section is a dependency name.
+    const isPoetryDepsSection = section === 'tool.poetry.dependencies'
+      || section === 'tool.poetry.dev-dependencies'
+      || /^tool\.poetry\.group\.[^.]+\.dependencies$/.test(section);
+    if (isPoetryDepsSection) {
+      const match = line.match(/^([A-Za-z0-9_.-]+)\s*=/);
+      if (match && match[1].toLowerCase() !== 'python') deps.push(match[1].toLowerCase());
+      continue;
+    }
+
+    // PEP 621 / uv style: dependency specs live inside string arrays.
+    const isDepArraySection = section === 'project.optional-dependencies'
+      || section === 'dependency-groups'
+      || section === 'tool.uv';
+    if (section === 'project' || isDepArraySection || inDependencyArray) {
+      if (line.includes('include-group')) continue;
+      const startsArray = section === 'project'
+        ? /^dependencies\s*=\s*\[/.test(line)
+        : isDepArraySection && /^[A-Za-z0-9_-]+\s*=\s*\[/.test(line);
+      if (!inDependencyArray && !startsArray) continue;
+      for (const quoted of line.matchAll(/["']([^"']+)["']/g)) {
+        const name = normalizePyDepSpec(quoted[1]);
+        if (name) deps.push(name);
+      }
+      // Only a closing bracket outside quoted specs ends the array — specs
+      // like "fastapi[standard]>=0.114" contain brackets of their own.
+      const lineWithoutStrings = line.replace(/["'][^"']*["']/g, '');
+      inDependencyArray = (inDependencyArray || startsArray) && !lineWithoutStrings.includes(']');
+    }
   }
+
   return deps;
 }
 
@@ -95,6 +137,7 @@ function detectWorkspaceBackend(npmDeps: Record<string, string>, pythonDeps: str
   const frameworks: string[] = [];
   if (npmDeps.express) frameworks.push('express');
   if (pythonDeps.includes('django')) frameworks.push('django');
+  if (pythonDeps.includes('fastapi')) frameworks.push('fastapi');
   return unique(frameworks);
 }
 

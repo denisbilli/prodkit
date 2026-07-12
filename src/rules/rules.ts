@@ -386,18 +386,25 @@ export const rules: Rule[] = [
       const b2bHint = Boolean(organization?.details?.b2bHint);
       const missingTenantRisk = Boolean(organization?.details?.missingTenantRisk);
       const hasMembership = Boolean(membership?.present);
-      const status: FindingStatus = !b2bHint ? 'unknown' : missingTenantRisk ? 'missing' : hasMembership ? 'passed' : 'partial';
+      // Tenant boundaries are a backend data-access concern: without a detected
+      // backend the B2B keyword hint alone (e.g. in a frontend client) is noise.
+      const backendDetected = analysis.stack.backend.length > 0;
+      const status: FindingStatus = !b2bHint || !backendDetected ? 'unknown' : missingTenantRisk ? 'missing' : hasMembership ? 'passed' : 'partial';
       return mkFinding({
         id: 'tenancy.b2b',
         title: 'Tenant and organization boundaries',
         category: 'tenancy',
         status,
         severity: status === 'passed' ? 'info' : status === 'partial' ? 'medium' : 'high',
-        description: missingTenantRisk
-          ? 'B2B/SaaS signals detected but no clear tenant/organization concept found.'
-          : hasMembership
-            ? 'Tenant organization and membership signals detected.'
-            : 'Organization signals exist but membership boundaries are unclear.',
+        description: status === 'unknown'
+          ? (backendDetected
+            ? 'No B2B/SaaS signals detected.'
+            : 'No backend detected; tenant boundaries were not evaluated.')
+          : missingTenantRisk
+            ? 'B2B/SaaS signals detected but no clear tenant/organization concept found.'
+            : hasMembership
+              ? 'Tenant organization and membership signals detected.'
+              : 'Organization signals exist but membership boundaries are unclear.',
         recommendation: 'Model tenant/org membership explicitly and scope data access by tenant.',
         evidence: [...(organization?.evidence ?? []), ...(membership?.evidence ?? [])],
       });

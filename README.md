@@ -137,6 +137,7 @@ prodkit plan ../my-app --output prodkit-plan.md
 - Express / Node.js
 - React / Vite
 - Django
+- FastAPI
 - Generic unknown app fallback
 
 ## Acceptance commands
@@ -157,7 +158,7 @@ prodkit plan tests/fixtures/express-basic --output prodkit-plan.md
 ## Current limitations
 
 - Deterministic heuristics only, with no AI explanation layer yet
-- Limited stack coverage (Express, React/Vite, Django + fallback)
+- Limited stack coverage (Express, React/Vite, Django, FastAPI + fallback)
 - Signal-based detection can produce false positives/negatives
 - Plan output is deterministic and read-only only
 - No cloud dashboard/UI in MVP
