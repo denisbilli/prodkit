@@ -165,6 +165,30 @@ describe('analyzer fixtures', () => {
     expect(backendWs?.backend).toContain('fastapi');
   });
 
+  it('detects Next.js as a backend framework alongside React', async () => {
+    const analysis = await analyzeProject(fixture('nextjs-app'));
+    expect(analysis.stack.backend).toContain('next');
+    expect(analysis.stack.frontend).toContain('react');
+  });
+
+  it('detects a NestJS backend from @nestjs/core', async () => {
+    const analysis = await analyzeProject(fixture('nestjs-api'));
+    expect(analysis.stack.backend).toContain('nestjs');
+    expect(analysis.stack.databases).toContain('postgres');
+  });
+
+  it('detects a Vue frontend', async () => {
+    const analysis = await analyzeProject(fixture('vue-app'));
+    expect(analysis.stack.frontend).toContain('vue');
+    expect(analysis.stack.backend).toEqual([]);
+  });
+
+  it('detects a Flask backend and postgres from requirements.txt', async () => {
+    const analysis = await analyzeProject(fixture('flask-api'));
+    expect(analysis.stack.backend).toContain('flask');
+    expect(analysis.stack.databases).toContain('postgres');
+  });
+
   it('detects fastapi and postgres from Poetry-style dependency tables', async () => {
     const analysis = await analyzeProject(fixture('fastapi-poetry'));
 

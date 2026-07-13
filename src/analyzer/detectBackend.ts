@@ -28,6 +28,38 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     }
   }
 
+  // Node backend frameworks detected purely from dependencies.
+  const nodeFrameworkDeps: Array<[string, string]> = [
+    ['next', 'next'],
+    ['nestjs', '@nestjs/core'],
+    ['fastify', 'fastify'],
+  ];
+  for (const [framework, dep] of nodeFrameworkDeps) {
+    if (hasDep(ctx, dep)) {
+      frameworks.push(framework);
+      evidence.push({ type: 'dependency', value: dep });
+    }
+  }
+
+  // Flask
+  if (hasPyDep(ctx, 'flask')) {
+    frameworks.push('flask');
+    evidence.push({ type: 'dependency', value: 'flask' });
+  } else {
+    const matches = await searchInFiles(
+      ctx.root,
+      ctx.files.source.filter((f) => f.endsWith('.py')),
+      [/from flask import/, /import flask/, /Flask\(__name__\)/],
+      3
+    );
+    if (matches.length) {
+      frameworks.push('flask');
+      for (const m of matches) {
+        evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+      }
+    }
+  }
+
   // FastAPI
   if (hasPyDep(ctx, 'fastapi')) {
     frameworks.push('fastapi');

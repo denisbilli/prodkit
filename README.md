@@ -134,10 +134,8 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 ## Supported stacks in MVP
 
-- Express / Node.js
-- React / Vite
-- Django
-- FastAPI
+- Backend: Express, NestJS, Fastify, Next.js (Node); Django, FastAPI, Flask (Python)
+- Frontend: React, Vue, Svelte, Angular, Nuxt, Vite
 - Generic unknown app fallback
 
 ## Acceptance commands
@@ -158,7 +156,7 @@ prodkit plan tests/fixtures/express-basic --output prodkit-plan.md
 ## Current limitations
 
 - Deterministic heuristics only, with no AI explanation layer yet
-- Limited stack coverage (Express, React/Vite, Django, FastAPI + fallback)
+- Signal-based stack coverage across common Node/Python/JS frameworks + fallback
 - Signal-based detection can produce false positives/negatives
 - Plan output is deterministic and read-only only
 - No cloud dashboard/UI in MVP

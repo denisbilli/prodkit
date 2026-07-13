@@ -19,6 +19,21 @@ export async function detectFrontend(ctx: DetectContext): Promise<{
     for (const d of viteDeps) evidence.push({ type: 'dependency', value: d });
   }
 
+  // Other frontend frameworks detected from their signature dependency.
+  const frameworkDeps: Array<[string, string[]]> = [
+    ['vue', ['vue']],
+    ['nuxt', ['nuxt']],
+    ['svelte', ['svelte', '@sveltejs/kit']],
+    ['angular', ['@angular/core']],
+  ];
+  for (const [framework, names] of frameworkDeps) {
+    const hits = hasAnyDep(ctx, names);
+    if (hits.length) {
+      frameworks.push(framework);
+      for (const d of hits) evidence.push({ type: 'dependency', value: d });
+    }
+  }
+
   const extras = hasAnyDep(ctx, ['react-router-dom', 'axios', 'tailwindcss', 'electron']);
   for (const d of extras) {
     frameworks.push(d);

@@ -127,6 +127,10 @@ function detectWorkspaceFrontend(npmDeps: Record<string, string>): string[] {
   const frameworks: string[] = [];
   if (npmDeps.react || npmDeps['react-dom']) frameworks.push('react');
   if (npmDeps.vite || npmDeps['@vitejs/plugin-react']) frameworks.push('vite');
+  if (npmDeps.vue) frameworks.push('vue');
+  if (npmDeps.nuxt) frameworks.push('nuxt');
+  if (npmDeps.svelte || npmDeps['@sveltejs/kit']) frameworks.push('svelte');
+  if (npmDeps['@angular/core']) frameworks.push('angular');
   if (npmDeps.electron) frameworks.push('electron');
   if (npmDeps['react-router-dom']) frameworks.push('react-router-dom');
   if (npmDeps.tailwindcss) frameworks.push('tailwindcss');
@@ -136,8 +140,12 @@ function detectWorkspaceFrontend(npmDeps: Record<string, string>): string[] {
 function detectWorkspaceBackend(npmDeps: Record<string, string>, pythonDeps: string[]): string[] {
   const frameworks: string[] = [];
   if (npmDeps.express) frameworks.push('express');
+  if (npmDeps.next) frameworks.push('next');
+  if (npmDeps['@nestjs/core']) frameworks.push('nestjs');
+  if (npmDeps.fastify) frameworks.push('fastify');
   if (pythonDeps.includes('django')) frameworks.push('django');
   if (pythonDeps.includes('fastapi')) frameworks.push('fastapi');
+  if (pythonDeps.includes('flask')) frameworks.push('flask');
   return unique(frameworks);
 }
 

@@ -1,0 +1,11 @@
+{
+  "name": "vue-app",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "vite": "^5.3.3"
+  }
+}
