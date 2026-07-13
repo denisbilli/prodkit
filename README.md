@@ -102,6 +102,14 @@ Options:
 - `--profile <name>` evaluate expected product capabilities (`static-site`, `internal-tool`, `b2c-app`, `b2b-saas`, `ai-saas`, `marketplace`, `auto`, `observed-only`)
 - `--fail-under <score>` (analyze only) exit with code 1 if the overall score is below the threshold — useful as a CI quality gate
 - `--min-maturity <level>` (analyze only) exit with code 1 if maturity is below `prototype|early|partial|production_ready`
+- `--ai` (analyze only) add an AI stack/architecture insight — opt-in, advisory only, does not affect the score
+- `--ai-review` (analyze only) add an AI semantic review of fine-grained code issues — opt-in, advisory only, does not affect the score
+
+Optional AI layer:
+
+- The AI features are entirely opt-in and off by default: ProdKit stays deterministic, offline, and read-only unless you pass `--ai`/`--ai-review`.
+- They require an `ANTHROPIC_API_KEY` and the optional `@anthropic-ai/sdk` package (`npm install @anthropic-ai/sdk`). Without them, the deterministic analysis is unaffected.
+- Repository content is redacted of secrets before anything is sent, and AI output is advisory only — it never changes the deterministic score.
 
 Profile warning:
 

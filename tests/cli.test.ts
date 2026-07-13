@@ -77,4 +77,17 @@ describe('cli', () => {
 
     expect(logSpy.mock.calls.flat().join('\n')).toContain('INCONCLUSIVE');
   });
+
+  it('fails cleanly when --ai is used without an API key', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const previous = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      await expect(
+        runCli(['node', 'prodkit', 'analyze', fixture('express-basic'), '--summary', '--ai'])
+      ).rejects.toThrow(/Anthropic API key/);
+    } finally {
+      if (previous !== undefined) process.env.ANTHROPIC_API_KEY = previous;
+    }
+  });
 });

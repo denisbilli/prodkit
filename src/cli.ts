@@ -11,6 +11,8 @@ import { renderJsonPlan } from './planner/jsonPlan';
 import { resolveProjectPath } from './utils/pathUtils';
 import type { ProductProfile } from './expectations/types';
 import type { MaturityLevel } from './report/types';
+import type { ProjectAnalysis } from './analyzer/types';
+import { inferStackWithAi, reviewCodeWithAi } from './ai/enrich';
 
 type OutputFormat = 'markdown' | 'json';
 const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'auto'] as const;
@@ -131,6 +133,32 @@ function renderPlanByFormat(format: OutputFormat, plan: ReturnType<typeof buildP
   return format === 'json' ? renderJsonPlan(plan) : renderMarkdownPlan(plan);
 }
 
+async function runAiEnrichment(
+  analysis: ProjectAnalysis,
+  opts: { ai?: boolean; aiReview?: boolean },
+): Promise<void> {
+  if (opts.ai) {
+    const hint = await inferStackWithAi(analysis);
+    console.log('\n## AI Stack Insight (advisory — does not affect score)');
+    console.log(`- Frontend: ${hint.frontend.join(', ') || 'unknown'}`);
+    console.log(`- Backend: ${hint.backend.join(', ') || 'unknown'}`);
+    console.log(`- Databases: ${hint.databases.join(', ') || 'unknown'}`);
+    console.log(`- Architecture: ${hint.architecture}`);
+    console.log(`- Confidence: ${hint.confidence}`);
+  }
+  if (opts.aiReview) {
+    const review = await reviewCodeWithAi(analysis);
+    console.log('\n## AI Code Review (advisory — does not affect score)');
+    if (review.findings.length === 0) {
+      console.log('- No issues reported.');
+    }
+    for (const f of review.findings) {
+      const loc = f.file ? ` (${f.file}${f.line !== undefined ? `:${f.line}` : ''})` : '';
+      console.log(`- [${f.severity}/${f.confidence}] ${f.title}${loc}: ${f.recommendation}`);
+    }
+  }
+}
+
 export async function runCli(argv = process.argv): Promise<void> {
   const program = new Command();
 
@@ -148,7 +176,9 @@ export async function runCli(argv = process.argv): Promise<void> {
     .option('--output <path>', 'Output file path (optional)')
     .option('--fail-under <score>', 'Exit with an error if overall score is below this threshold (0-100)')
     .option('--min-maturity <level>', `Exit with an error if maturity is below this level: ${maturityOrder.join('|')}`)
-    .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string; failUnder?: string; minMaturity?: string }) => {
+    .option('--ai', 'Add an AI stack/architecture insight (opt-in; requires ANTHROPIC_API_KEY; advisory only)')
+    .option('--ai-review', 'Add an AI semantic code review of fine-grained issues (opt-in; requires ANTHROPIC_API_KEY; advisory only)')
+    .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string; failUnder?: string; minMaturity?: string; ai?: boolean; aiReview?: boolean }) => {
       const format = options.format === 'json' ? 'json' : 'markdown';
       const formatSpecified = typeof options.format === 'string';
       const profile = normalizeProfile(options.profile);
@@ -170,6 +200,7 @@ export async function runCli(argv = process.argv): Promise<void> {
         console.log(payload);
       }
 
+      await runAiEnrichment(analysis, options);
       enforceThresholds(report, failUnder, minMaturity);
     });
 
