@@ -165,6 +165,19 @@ describe('analyzer fixtures', () => {
     expect(backendWs?.backend).toContain('fastapi');
   });
 
+  it('detects fastapi and postgres from Poetry-style dependency tables', async () => {
+    const analysis = await analyzeProject(fixture('fastapi-poetry'));
+
+    expect(analysis.stack.backend).toContain('fastapi');
+    expect(analysis.stack.databases).toContain('postgres');
+    expect(analysis.pythonDeps).toContain('fastapi');
+    expect(analysis.pythonDeps).toContain('uvicorn');
+    // The Poetry table key "python" is a runtime marker, not a dependency.
+    expect(analysis.pythonDeps).not.toContain('python');
+    // Section headers must never leak in as dependency names.
+    expect(analysis.pythonDeps).not.toContain('tool.poetry.dependencies');
+  });
+
   it('does not raise tenancy findings for a frontend-only app with billing keywords', async () => {
     const analysis = await analyzeProject(fixture('react-frontend-billing'));
     const report = buildReport(analysis);
