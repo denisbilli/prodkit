@@ -14,6 +14,15 @@ export const DEFAULT_IGNORE = [
   '**/.turbo/**',
   '**/.cache/**',
   '**/.parcel-cache/**',
+  // Test fixtures are sample applications, often deliberately insecure, and they are
+  // not the product. Scanning them makes a repository inherit the stack and the
+  // defects of its own test data: prodkit analysing itself reported express, next,
+  // nestjs, flask, fastapi, django, react, vue and electron, none of which it uses,
+  // because each has a fixture directory under tests/fixtures.
+  '**/fixtures/**',
+  '**/__fixtures__/**',
+  '**/testdata/**',
+  '**/__snapshots__/**',
 ];
 
 export interface ScanOptions {

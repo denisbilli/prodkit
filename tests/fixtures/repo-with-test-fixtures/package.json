@@ -1,0 +1,5 @@
+{
+  "name": "repo-with-test-fixtures",
+  "version": "1.0.0",
+  "dependencies": { "commander": "^12.0.0" }
+}

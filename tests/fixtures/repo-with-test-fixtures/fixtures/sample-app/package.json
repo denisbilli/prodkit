@@ -1,0 +1,5 @@
+{
+  "name": "sample-app",
+  "version": "1.0.0",
+  "dependencies": { "express": "^4.19.0", "react": "^18.0.0" }
+}

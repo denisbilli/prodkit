@@ -225,3 +225,17 @@ describe('analyzer fixtures', () => {
     expect(tenancy?.severity).toBe('high');
   });
 });
+
+describe('test fixture isolation', () => {
+  // A repository should not inherit the stack or the defects of its own test data.
+  // prodkit analysing itself reported express, next, nestjs, flask, fastapi, django,
+  // react, vue and electron — none of which it uses — because each has a directory
+  // under tests/fixtures.
+  it('ignores nested fixture directories when detecting the stack', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'repo-with-test-fixtures'));
+
+    expect(analysis.stack.backend).not.toContain('express');
+    expect(analysis.stack.frontend).not.toContain('react');
+    expect(analysis.stack.workspaces).toHaveLength(1);
+  });
+});
