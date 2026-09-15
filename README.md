@@ -209,10 +209,17 @@ code being analysed never leaves the machine.
 
 Tools: `analyze_project`, `plan_remediation`, `compare_profiles`, `list_profiles`.
 
+ProdKit is not on npm yet — the name `prodkit` is taken by an unrelated package — so
+install it from a local checkout:
+
+```bash
+npm install && npm run build && npm link
+```
+
 Claude Code:
 
 ```bash
-claude mcp add prodkit -- npx -y prodkit-mcp
+claude mcp add prodkit -- prodkit-mcp
 ```
 
 Or, in a client that reads a JSON config:
@@ -221,8 +228,7 @@ Or, in a client that reads a JSON config:
 {
   "mcpServers": {
     "prodkit": {
-      "command": "npx",
-      "args": ["-y", "prodkit-mcp"]
+      "command": "prodkit-mcp"
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "prodkit",
   "version": "0.2.0",
-  "description": "Local CLI that analyzes a web app and produces a production-readiness report.",
+  "description": "Deterministic CLI and library that analyzes a web application repository and reports how far it is from production-ready for the kind of product it is meant to be.",
   "license": "MIT",
   "bin": {
     "prodkit": "dist/index.js",
@@ -64,5 +64,25 @@
     "brace-expansion@3": "^5.0.12",
     "brace-expansion@4": "^5.0.12",
     "brace-expansion@5": "^5.0.12"
-  }
+  },
+  "keywords": [
+    "production-readiness",
+    "code-analysis",
+    "static-analysis",
+    "saas",
+    "gdpr",
+    "security",
+    "remediation",
+    "mcp",
+    "ai-generated-code"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/denisbilli/prodkit.git"
+  },
+  "homepage": "https://github.com/denisbilli/prodkit#readme",
+  "bugs": {
+    "url": "https://github.com/denisbilli/prodkit/issues"
+  },
+  "author": "Denis Billi"
 }
