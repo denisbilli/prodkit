@@ -239,3 +239,33 @@ describe('test fixture isolation', () => {
     expect(analysis.stack.workspaces).toHaveLength(1);
   });
 });
+
+describe('framework-native security and auth', () => {
+  // The detectors were Express-shaped: auth looked for jsonwebtoken and bcrypt, and
+  // hardening looked for helmet and express-rate-limit. A Next.js application using
+  // next-auth and setting its own headers was therefore reported as having neither,
+  // which is the stack most AI app builders emit.
+  it('recognises managed auth and framework-native hardening', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'nextjs-managed-auth'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    const status = (id: string) =>
+      report.productProfile?.capabilities.find((capability) => capability.capabilityId === id)?.status;
+
+    expect(status('auth.baseline')).toBe('present');
+    expect(status('security.headers')).toBe('present');
+    expect(status('security.rate-limit')).toBe('present');
+    expect(status('security.cors')).toBe('present');
+  });
+
+  it('still reports an unhardened project as missing those capabilities', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'react-vite'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    const status = (id: string) =>
+      report.productProfile?.capabilities.find((capability) => capability.capabilityId === id)?.status;
+
+    expect(status('security.headers')).toBe('missing');
+    expect(status('security.rate-limit')).toBe('missing');
+  });
+});

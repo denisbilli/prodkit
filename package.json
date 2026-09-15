@@ -1,5 +1,5 @@
 {
-  "name": "prodkit",
+  "name": "@prodkit/core",
   "version": "0.2.0",
   "description": "Deterministic CLI and library that analyzes a web application repository and reports how far it is from production-ready for the kind of product it is meant to be.",
   "license": "MIT",
@@ -84,5 +84,8 @@
   "bugs": {
     "url": "https://github.com/denisbilli/prodkit/issues"
   },
-  "author": "Denis Billi"
+  "author": "Denis Billi",
+  "publishConfig": {
+    "access": "public"
+  }
 }

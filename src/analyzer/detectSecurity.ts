@@ -54,16 +54,62 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   const evidence: DetectorEvidence[] = [];
   const source = ctx.files.source;
 
-  const helmet = hasDep(ctx, 'helmet');
-  const rateLimit = hasDep(ctx, 'express-rate-limit');
-  if (helmet) evidence.push({ type: 'dependency', value: 'helmet' });
-  if (rateLimit) evidence.push({ type: 'dependency', value: 'express-rate-limit' });
+  // helmet and express-rate-limit are the Express answers. A framework-native app sets
+  // the same headers itself — in a Next proxy, a Nuxt route rule, a Django setting —
+  // and looking only for those two packages reported hardened applications as having
+  // no protection at all.
+  const helmetDep = hasDep(ctx, 'helmet') || hasDep(ctx, 'secure') || hasDep(ctx, 'django-csp');
+  const headerSignals = await searchInFiles(
+    ctx.root,
+    source,
+    [
+      /Content-Security-Policy/i,
+      /Strict-Transport-Security/i,
+      /X-Content-Type-Options/i,
+      /X-Frame-Options/i,
+      /SECURE_HSTS_SECONDS/,
+      /securityHeaders/i,
+    ],
+    20,
+  );
+  const helmet = helmetDep || headerSignals.length > 0;
+
+  const rateLimitDep =
+    hasDep(ctx, 'express-rate-limit') ||
+    hasDep(ctx, '@upstash/ratelimit') ||
+    hasDep(ctx, 'rate-limiter-flexible') ||
+    hasDep(ctx, 'next-rate-limit') ||
+    hasDep(ctx, 'django-ratelimit') ||
+    hasDep(ctx, 'slowapi');
+  const rateLimitSignals = await searchInFiles(
+    ctx.root,
+    source,
+    [/rateLimit\s*\(/, /rate_?limit/i, /Retry-After/i, /\b429\b/, /TooManyRequests/i],
+    20,
+  );
+  const rateLimit = rateLimitDep || rateLimitSignals.length > 0;
+
+  if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet' });
+  if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package' });
+  for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  for (const m of rateLimitSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
 
   const corsLoose: CorsHit[] = [];
   const corsStrict: CorsHit[] = [];
   for (const file of source) {
     const text = await readTextFileSafe(ctx.root, file);
-    if (!text || !/\bcors\s*\(/.test(text)) continue;
+    if (!text) continue;
+
+    // Framework-native CORS: an explicit allowlist checked against the Origin header,
+    // rather than the Express cors() middleware.
+    if (/Access-Control-Allow-Origin/i.test(text) || /ALLOWED_ORIGINS/.test(text) || /allowedOrigins/i.test(text)) {
+      const wildcard = /Access-Control-Allow-Origin["'\s:,]+\*/i.test(text);
+      const hit = { snippet: 'explicit origin handling', file, line: 1 };
+      if (wildcard) corsLoose.push(hit);
+      else corsStrict.push(hit);
+    }
+
+    if (!/\bcors\s*\(/.test(text)) continue;
     const detected = detectCorsConfig(text, file);
     corsLoose.push(...detected.loose);
     corsStrict.push(...detected.strict);

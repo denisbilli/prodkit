@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep } from './detectContext';
+import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 
 function depEvidence(deps: string[]): DetectorEvidence[] {
@@ -13,14 +13,54 @@ function snippetEvidence(matches: Array<{ snippet: string; file: string; line: n
 
 export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> {
   const sourceFiles = ctx.files.source;
-  const authDeps = hasAnyDep(ctx, ['jsonwebtoken', 'bcrypt', 'bcryptjs', 'express-session', 'cookie-parser']);
-  const sessionDeps = hasAnyDep(ctx, ['express-session', 'cookie-session']);
-  const twoFaDeps = hasAnyDep(ctx, ['speakeasy', 'pyotp', 'qrcode']);
+  // Hand-rolled Express auth is only one shape. Most repositories written in the last
+  // few years — and nearly everything produced by AI app builders — reach for a managed
+  // auth library instead, and looking only for jsonwebtoken/bcrypt reported those as
+  // having no authentication at all.
+  const managedAuthDeps = hasAnyDep(ctx, [
+    'next-auth',
+    '@auth/core',
+    '@auth/prisma-adapter',
+    '@clerk/nextjs',
+    '@clerk/clerk-react',
+    '@clerk/backend',
+    '@supabase/supabase-js',
+    '@supabase/auth-helpers-nextjs',
+    '@supabase/ssr',
+    'lucia',
+    'better-auth',
+    '@kinde-oss/kinde-auth-nextjs',
+    '@workos-inc/node',
+    '@auth0/nextjs-auth0',
+    'firebase-admin',
+    'passport',
+  ]);
+  const managedAuthPyDeps = hasAnyPyDep(ctx, ['django-allauth', 'authlib', 'python-jose', 'fastapi-users', 'flask-login']);
+  const authDeps = [
+    ...hasAnyDep(ctx, ['jsonwebtoken', 'bcrypt', 'bcryptjs', 'express-session', 'cookie-parser']),
+    ...managedAuthDeps,
+    ...managedAuthPyDeps,
+  ];
+  const sessionDeps = [...hasAnyDep(ctx, ['express-session', 'cookie-session']), ...managedAuthDeps];
+  const twoFaDeps = hasAnyDep(ctx, ['speakeasy', 'pyotp', 'qrcode', '@simplewebauthn/server', 'otplib']);
 
   const routeSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/\/(login|register|logout)\b/i, /requireAuth/i, /auth\s*middleware/i, /django\.contrib\.auth/i, /AUTH_USER_MODEL/i],
+    [
+      /\/(login|register|logout|signin|signup|sign-in|sign-up)\b/i,
+      /requireAuth/i,
+      /auth\s*middleware/i,
+      /django\.contrib\.auth/i,
+      /AUTH_USER_MODEL/i,
+      // Framework-native shapes: NextAuth handlers, Clerk and Supabase helpers.
+      /NextAuth\(/,
+      /\bauth\(\)/,
+      /getServerSession/,
+      /currentUser\(/,
+      /createServerClient/,
+      /\[\.\.\.nextauth\]/i,
+    ],
     30
   );
   const twoFaSignals = await searchInFiles(ctx.root, sourceFiles, [/two[_-]?factor/i, /otp/i, /totp/i], 20);
