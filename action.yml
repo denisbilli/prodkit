@@ -1,0 +1,93 @@
+name: ProdKit production readiness
+description: Assess how far a repository is from production ready for the kind of product it is meant to be.
+author: Denis Billi
+
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  path:
+    description: Path to analyse, relative to the workspace.
+    required: false
+    default: "."
+  profile:
+    description: >
+      Product profile to evaluate against: observed-only, auto, static-site,
+      internal-tool, b2c-app, b2b-saas, ai-saas or marketplace.
+    required: false
+    default: "auto"
+  fail-under:
+    description: Fail the job when the overall score is below this value. Empty means never fail on score.
+    required: false
+    default: ""
+  min-maturity:
+    description: >
+      Fail the job below this maturity level: prototype, early, partial or
+      production_ready. Empty means never fail on maturity.
+    required: false
+    default: ""
+  comment-summary:
+    description: Write the executive summary to the job summary.
+    required: false
+    default: "true"
+
+outputs:
+  score:
+    description: Overall production-readiness score, 0-100.
+    value: ${{ steps.analyze.outputs.score }}
+  maturity:
+    description: Maturity level.
+    value: ${{ steps.analyze.outputs.maturity }}
+  launch-ready:
+    description: Whether nothing required is missing for the selected profile.
+    value: ${{ steps.analyze.outputs.launch-ready }}
+
+runs:
+  using: composite
+  steps:
+    - id: analyze
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        args=(analyze "${{ inputs.path }}" --profile "${{ inputs.profile }}" --format json)
+        [ -n "${{ inputs.fail-under }}" ] && args+=(--fail-under "${{ inputs.fail-under }}")
+        [ -n "${{ inputs.min-maturity }}" ] && args+=(--min-maturity "${{ inputs.min-maturity }}")
+
+        # The threshold flags make prodkit exit non-zero, and that exit code is the
+        # gate. Capture the report first so the summary is written even on a failure —
+        # a check that fails without saying why is worse than no check.
+        set +e
+        npx --yes @prodkit/core "${args[@]}" > prodkit-report.json
+        status=$?
+        set -e
+
+        node -e "
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('prodkit-report.json', 'utf8'));
+          const out = process.env.GITHUB_OUTPUT;
+          fs.appendFileSync(out, 'score=' + report.overallScore + '\n');
+          fs.appendFileSync(out, 'maturity=' + report.maturityLevel + '\n');
+          fs.appendFileSync(out, 'launch-ready=' + report.executiveSummary.launchReady + '\n');
+
+          if (process.env.COMMENT_SUMMARY === 'true' && process.env.GITHUB_STEP_SUMMARY) {
+            const s = report.executiveSummary;
+            const lines = [
+              '## ProdKit production readiness',
+              '',
+              s.verdict,
+              '',
+              '- Launch ready: ' + (s.launchReady ? 'yes' : 'no'),
+              '- Score: ' + s.scoreExplanation,
+              '- Estimated effort: ' + s.estimatedEffort,
+              ''
+            ];
+            if (s.topRisks.length) lines.push('### What is holding it back', '', ...s.topRisks.map(r => '- ' + r), '');
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n'));
+          }
+        "
+
+        exit $status
+      env:
+        COMMENT_SUMMARY: ${{ inputs.comment-summary }}

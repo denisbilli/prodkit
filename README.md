@@ -201,6 +201,26 @@ prodkit/
     planner.test.ts
 ```
 
+## GitHub Action
+
+Gate a pull request on production readiness:
+
+```yaml
+- uses: denisbilli/prodkit@main
+  with:
+    profile: b2b-saas
+    fail-under: "65"
+```
+
+Inputs: `path`, `profile`, `fail-under`, `min-maturity`, `comment-summary`.
+Outputs: `score`, `maturity`, `launch-ready`.
+
+The executive summary is written to the job summary even when the thresholds fail the
+job — a check that fails without saying why is worse than no check at all.
+
+Requires the package to be published; until then, point the action at a local
+checkout.
+
 ## MCP server
 
 ProdKit ships an MCP server so an agent can assess a repository without leaving the

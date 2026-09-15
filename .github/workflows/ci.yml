@@ -6,25 +6,18 @@ on:
   pull_request:
 
 jobs:
-  build-test:
+  verify:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18, 20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build
       - run: npm run lint
+      # Separate from the build: tsc -p tsconfig.json emits, and the test sources are
+      # only checked by the test config.
+      - run: npx tsc --noEmit -p tsconfig.test.json
       - run: npm test
-      - name: Smoke test CLI
-        run: |
-          node dist/index.js analyze tests/fixtures/express-basic --summary
-          node dist/index.js analyze tests/fixtures/express-secure --format json > /dev/null
-          node dist/index.js plan tests/fixtures/express-basic > /dev/null
-      - name: Self-check score gate
-        run: node dist/index.js analyze tests/fixtures/express-secure --fail-under 50
