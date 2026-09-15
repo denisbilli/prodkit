@@ -67,6 +67,19 @@ export interface CapabilityEvaluation {
   evidence: DetectorEvidence[];
 }
 
+export interface CapabilityGap {
+  /** Capabilities that count toward the score (importance != not_applicable, status != unknown). */
+  applicableTotal: number;
+  /** Applicable capabilities whose status is 'present' or 'not_applicable'. */
+  satisfied: number;
+  requiredTotal: number;
+  requiredMissing: number;
+  requiredPartial: number;
+  recommendedTotal: number;
+  recommendedMissing: number;
+  recommendedPartial: number;
+}
+
 export interface ProductExpectationResult {
   selectedProfile: ProductProfile;
   inferredProfile?: ProductProfile;
@@ -75,6 +88,12 @@ export interface ProductExpectationResult {
   profileDescription: string;
   capabilities: CapabilityEvaluation[];
   score: number;
+  /**
+   * Size of the gap between the repository and this profile's expectations.
+   * Two profiles can both score 0 while demanding very different amounts of work,
+   * so the counts — not the score — are what distinguish them on an empty repository.
+   */
+  gap: CapabilityGap;
   note?: string;
 }
 

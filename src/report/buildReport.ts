@@ -97,6 +97,16 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
           profileDescription: 'Profile inference was inconclusive; expected capabilities were not applied.',
           capabilities: [],
           score: observedScore,
+          gap: {
+            applicableTotal: 0,
+            satisfied: 0,
+            requiredTotal: 0,
+            requiredMissing: 0,
+            requiredPartial: 0,
+            recommendedTotal: 0,
+            recommendedMissing: 0,
+            recommendedPartial: 0,
+          },
           note: inferred.reason,
         };
       } else {

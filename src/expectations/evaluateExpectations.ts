@@ -2,6 +2,7 @@ import type { DetectorResult, ProjectAnalysis } from '../analyzer/types';
 import type { Finding } from '../report/types';
 import type {
   CapabilityEvaluation,
+  CapabilityGap,
   CapabilityImportance,
   CapabilityStatus,
   ExpectationEvaluationOutput,
@@ -170,6 +171,36 @@ function scorePenalty(importance: CapabilityImportance, status: CapabilityStatus
   return 0;
 }
 
+/**
+ * Penalty at which the expected-capability score decays to 1/e (about 37).
+ * Tuned so that one missing required capability costs roughly 14 points and a
+ * profile whose every expectation is missed still lands in a distinguishable band
+ * rather than pinned at zero.
+ */
+const EXPECTATION_DECAY = 100;
+
+function accumulateGap(gap: CapabilityGap, importance: CapabilityImportance, status: CapabilityStatus): void {
+  if (importance === 'not_applicable' || status === 'unknown') return;
+
+  gap.applicableTotal += 1;
+  if (status === 'present' || status === 'not_applicable') {
+    gap.satisfied += 1;
+  }
+
+  if (importance === 'required') {
+    gap.requiredTotal += 1;
+    if (status === 'missing') gap.requiredMissing += 1;
+    if (status === 'partial') gap.requiredPartial += 1;
+    return;
+  }
+
+  if (importance === 'recommended') {
+    gap.recommendedTotal += 1;
+    if (status === 'missing') gap.recommendedMissing += 1;
+    if (status === 'partial') gap.recommendedPartial += 1;
+  }
+}
+
 function shouldCreateFinding(importance: CapabilityImportance, status: CapabilityStatus): boolean {
   if (importance === 'not_applicable') return false;
   if (status === 'not_applicable' || status === 'present' || status === 'unknown') return false;
@@ -224,7 +255,30 @@ export function evaluateExpectedCapabilities(args: {
   const evaluations: CapabilityEvaluation[] = [];
   const findings: Finding[] = [];
 
-  let score = 100;
+  // A demanding profile accumulates well over 100 points of penalty when nothing is
+  // present (b2b-saas reaches ~163, ai-saas ~185), so the original `100 - penalty`
+  // clamped to zero and collapsed every demanding profile onto the same score —
+  // destroying the profile comparison the product is built on.
+  //
+  // Normalising by the profile's own worst case is not the answer either: it maps
+  // "all expectations missed" to 0 for every profile, which erases the fact that a
+  // static site missing everything is far closer to shippable than a marketplace
+  // missing everything.
+  //
+  // Exponential decay keeps the penalty absolute (a profile that expects more scores
+  // lower for the same repository) while never saturating, so the ordering between
+  // profiles survives at both ends of the scale.
+  let penalty = 0;
+  const gap: CapabilityGap = {
+    applicableTotal: 0,
+    satisfied: 0,
+    requiredTotal: 0,
+    requiredMissing: 0,
+    requiredPartial: 0,
+    recommendedTotal: 0,
+    recommendedMissing: 0,
+    recommendedPartial: 0,
+  };
   const authDetected = detector(args.analysis, 'auth.core')?.present === true;
 
   for (const cap of profile.capabilities) {
@@ -261,7 +315,8 @@ export function evaluateExpectedCapabilities(args: {
     };
     evaluations.push(evaluation);
 
-    score -= scorePenalty(effectiveImportance, status);
+    penalty += scorePenalty(effectiveImportance, status);
+    accumulateGap(gap, effectiveImportance, status);
 
     if (shouldCreateFinding(effectiveImportance, status)) {
       if (args.requestedProfile === 'auto' && args.inferenceConfidence === 'low') {
@@ -283,7 +338,7 @@ export function evaluateExpectedCapabilities(args: {
     }
   }
 
-  score = Math.max(0, Math.min(100, score));
+  const score = Math.max(0, Math.min(100, Math.round(100 * Math.exp(-penalty / EXPECTATION_DECAY))));
 
   const result: ProductExpectationResult = {
     selectedProfile: args.selectedProfile,
@@ -293,6 +348,7 @@ export function evaluateExpectedCapabilities(args: {
     profileDescription: profile.description,
     capabilities: evaluations,
     score,
+    gap,
   };
 
   return { result, findings };
