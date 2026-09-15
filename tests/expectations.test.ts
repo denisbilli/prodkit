@@ -24,11 +24,14 @@ describe('product profile expectations', () => {
     expect(report.expectedCapabilityScore).toBeDefined();
     expect((report.expectedCapabilityScore ?? 100)).toBeLessThan(report.observedScore);
     expect(report.findings.some((f) => f.id === 'expectation.auth.required')).toBe(true);
-    expect(report.findings.some((f) => f.id === 'expectation.tenancy.required')).toBe(true);
-    expect(report.findings.some((f) => f.id === 'expectation.gdpr.required')).toBe(true);
+    expect(report.findings.some((f) => f.id === 'expectation.tenancy.organization.required')).toBe(true);
+    expect(report.findings.some((f) => f.id === 'expectation.tenancy.isolation.required')).toBe(true);
+    expect(report.findings.some((f) => f.id === 'expectation.gdpr.consent.required')).toBe(true);
+    expect(report.findings.some((f) => f.id === 'expectation.gdpr.erasure.required')).toBe(true);
     expect(plan.tasks.some((t) => t.id === 'remediate.auth.core')).toBe(true);
-    expect(plan.tasks.some((t) => t.id === 'remediate.tenancy.b2b')).toBe(true);
-    expect(plan.tasks.some((t) => t.id === 'remediate.gdpr.privacy')).toBe(true);
+    expect(plan.tasks.some((t) => t.id === 'remediate.tenancy.organization')).toBe(true);
+    expect(plan.tasks.some((t) => t.id === 'remediate.tenancy.isolation')).toBe(true);
+    expect(plan.tasks.some((t) => t.id === 'remediate.gdpr.erasure')).toBe(true);
   });
 
   it('marks auth/tenancy/billing as non-actionable under static-site profile', async () => {
@@ -37,7 +40,7 @@ describe('product profile expectations', () => {
 
     expect(report.expectedCapabilityScore).toBeDefined();
     expect(report.findings.some((f) => f.id === 'expectation.auth.required')).toBe(false);
-    expect(report.findings.some((f) => f.id === 'expectation.tenancy.required')).toBe(false);
+    expect(report.findings.some((f) => f.id.startsWith('expectation.tenancy'))).toBe(false);
     expect(report.findings.some((f) => f.id.startsWith('expectation.billing'))).toBe(false);
     expect(report.overallScore).toBeGreaterThan(70);
   });

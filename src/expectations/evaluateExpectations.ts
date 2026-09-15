@@ -36,30 +36,57 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
     case 'auth.api-keys': {
       return detector(analysis, 'auth.apiKeys')?.present ? 'present' : 'missing';
     }
-    case 'authz.resource-level': {
-      if (authz?.present || authzPerm?.present) return 'present';
+    case 'auth.mfa': {
+      return detector(analysis, 'auth.2fa')?.present ? 'present' : 'missing';
+    }
+    case 'auth.password-reset': {
+      return detector(analysis, 'auth.passwordReset')?.present ? 'present' : 'missing';
+    }
+    case 'auth.email-verification': {
+      return detector(analysis, 'auth.emailVerification')?.present ? 'present' : 'missing';
+    }
+    case 'authz.roles': {
+      if (authzPerm?.present) return 'present';
       if (authzRoles?.present) return 'partial';
       return 'missing';
     }
-    case 'tenancy.model': {
-      const org = detector(analysis, 'tenancy.organization')?.present === true;
-      const membership = detector(analysis, 'tenancy.membership')?.present === true;
-      if (org && membership) return 'present';
-      if (org || membership) return 'partial';
-      return 'missing';
+    case 'authz.ownership': {
+      return authz?.present ? 'present' : 'missing';
     }
-    case 'gdpr.baseline': {
-      const consent = detector(analysis, 'gdpr.consent.route')?.present === true;
-      const exp = detector(analysis, 'gdpr.export.route')?.present === true;
-      const erasure = detector(analysis, 'gdpr.erasure.route')?.present === true;
-      const retention = detector(analysis, 'gdpr.retention.job')?.present === true;
-      const score = Number(consent) + Number(exp) + Number(erasure) + Number(retention);
-      if (score >= 3) return 'present';
-      if (score >= 1) return 'partial';
-      return 'missing';
+    case 'tenancy.organization': {
+      return detector(analysis, 'tenancy.organization')?.present ? 'present' : 'missing';
     }
-    case 'billing.baseline': {
+    case 'tenancy.isolation': {
+      return detector(analysis, 'tenancy.membership')?.present ? 'present' : 'missing';
+    }
+    case 'gdpr.consent': {
+      return detector(analysis, 'gdpr.consent.route')?.present ? 'present' : 'missing';
+    }
+    case 'gdpr.export': {
+      return detector(analysis, 'gdpr.export.route')?.present ? 'present' : 'missing';
+    }
+    case 'gdpr.erasure': {
+      return detector(analysis, 'gdpr.erasure.route')?.present ? 'present' : 'missing';
+    }
+    case 'gdpr.retention': {
+      return detector(analysis, 'gdpr.retention.job')?.present ? 'present' : 'missing';
+    }
+    case 'billing.model': {
       return detector(analysis, 'billing.stripe')?.present ? 'present' : 'missing';
+    }
+    case 'billing.webhook-integrity': {
+      // Only meaningful once a payment integration exists at all.
+      if (detector(analysis, 'billing.stripe')?.present !== true) return 'not_applicable';
+
+      const signature = detector(analysis, 'billing.webhook.signatureValidation')?.present === true;
+      const rawBody = detector(analysis, 'billing.webhook.rawBody')?.present === true;
+      const secret = detector(analysis, 'billing.webhook.secret')?.present === true;
+      const route = detector(analysis, 'billing.webhook.route')?.present === true;
+
+      if (!route) return 'missing';
+      if (signature && rawBody && secret) return 'present';
+      if (signature || rawBody || secret) return 'partial';
+      return 'missing';
     }
     case 'security.headers': {
       return boolDetail(sec, 'helmet') ? 'present' : 'missing';
@@ -129,10 +156,6 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
 function toFindingId(capability: ExpectedCapability, importance: CapabilityImportance): string {
   switch (capability.id) {
     case 'auth.baseline': return 'expectation.auth.required';
-    case 'authz.resource-level': return 'expectation.authz.resource-level.required';
-    case 'tenancy.model': return 'expectation.tenancy.required';
-    case 'gdpr.baseline': return 'expectation.gdpr.required';
-    case 'billing.baseline': return importance === 'required' ? 'expectation.billing.required' : 'expectation.billing.recommended';
     case 'security.headers': return 'expectation.security.headers.required';
     case 'security.cors': return 'expectation.security.cors.required';
     case 'security.rate-limit': return 'expectation.security.rate-limit.required';
@@ -173,11 +196,14 @@ function scorePenalty(importance: CapabilityImportance, status: CapabilityStatus
 
 /**
  * Penalty at which the expected-capability score decays to 1/e (about 37).
- * Tuned so that one missing required capability costs roughly 14 points and a
- * profile whose every expectation is missed still lands in a distinguishable band
- * rather than pinned at zero.
+ *
+ * Tuned against the worst case of the richest profile: ai-saas accumulates roughly
+ * 320 penalty points when a repository satisfies none of its expectations, and the
+ * value below places that case near 28 while leaving a static site — which expects
+ * almost nothing — above 90. Retune this whenever the capability catalogue grows,
+ * otherwise the demanding profiles compress against zero and stop being comparable.
  */
-const EXPECTATION_DECAY = 100;
+const EXPECTATION_DECAY = 250;
 
 function accumulateGap(gap: CapabilityGap, importance: CapabilityImportance, status: CapabilityStatus): void {
   if (importance === 'not_applicable' || status === 'unknown') return;

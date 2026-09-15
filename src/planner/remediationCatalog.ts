@@ -886,8 +886,331 @@ export const remediationCatalog: Record<string, RemediationCatalogEntry> = {
     ],
     dependencies: [],
   }),
+
+  // --- Capabilities split out of the former coarse expectations -------------
+  // `expectation.tenancy.required`, `expectation.gdpr.required` and
+  // `expectation.authz.resource-level.required` no longer exist: each is now a
+  // granular capability with its own finding id, so each needs its own task.
+
+  'expectation.tenancy.organization.required': entry({
+    taskId: 'remediate.tenancy.organization',
+    title: 'Introduce an explicit organization model',
+    category: 'tenancy',
+    phaseId: safety,
+    priority: 'p0',
+    effort: 'large',
+    risk: 'high',
+    automationReadiness: 'manual_only',
+    why: 'Without an organization entity that owns data, every record belongs to the whole system and there is nothing to scope access by.',
+    recommendedApproach: [
+      'Introduce an Organization (or Workspace) model as the owner of domain records.',
+      'Add organizationId to every tenant-owned table with a migration.',
+      'Resolve the active organization in request context.',
+    ].join('\n'),
+    likelyFiles: ['backend/models/*', 'backend/middleware/*', 'migrations/*', 'src/db/*'],
+    suggestedTests: [
+      'Domain records carry an organization reference.',
+      'Request context resolves the active organization.',
+    ],
+    acceptanceCriteria: [
+      'An organization entity exists and owns domain records.',
+      'Every tenant-owned table references the organization.',
+    ],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.tenancy.isolation.required': entry({
+    taskId: 'remediate.tenancy.isolation',
+    title: 'Enforce tenant isolation on every query',
+    category: 'tenancy',
+    phaseId: safety,
+    priority: 'p0',
+    effort: 'large',
+    risk: 'high',
+    automationReadiness: 'manual_only',
+    why: 'An organization model without enforced scoping still leaks: one tenant can read another tenant rows by guessing identifiers.',
+    recommendedApproach: [
+      'Model Membership explicitly and check it on access.',
+      'Scope every query by the active tenant rather than filtering in application code.',
+      'Add cross-tenant access tests as a regression guard.',
+    ].join('\n'),
+    likelyFiles: ['backend/middleware/*', 'backend/routes/*', 'backend/services/*', 'src/db/*'],
+    suggestedTests: [
+      'A user of tenant A cannot read, update or delete a record of tenant B.',
+      'Membership is required to access organization data.',
+    ],
+    acceptanceCriteria: [
+      'Cross-tenant access is rejected and covered by tests.',
+      'Tenant membership is explicit.',
+    ],
+    dependencies: ['remediate.tenancy.organization'],
+  }),
+
+  'expectation.authz.roles.required': entry({
+    taskId: 'remediate.authz.roles',
+    title: 'Introduce a role or permission model',
+    category: 'authz',
+    phaseId: safety,
+    priority: 'p0',
+    effort: 'medium',
+    risk: 'high',
+    automationReadiness: 'manual_only',
+    why: 'Without roles, every authenticated user can perform every action, including administrative and destructive ones.',
+    recommendedApproach: [
+      'Define roles (or permissions) and assign them to users within their tenant.',
+      'Check the role on privileged and destructive actions.',
+    ].join('\n'),
+    likelyFiles: ['backend/models/*', 'backend/middleware/*', 'backend/routes/*'],
+    suggestedTests: [
+      'A member role cannot perform owner-only actions.',
+      'Role checks are enforced server-side.',
+    ],
+    acceptanceCriteria: [
+      'Distinct roles exist and are enforced on privileged actions.',
+    ],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.authz.ownership.required': entry({
+    taskId: 'remediate.authz.ownership',
+    title: 'Add per-record ownership checks',
+    category: 'authz',
+    phaseId: safety,
+    priority: 'p0',
+    effort: 'medium',
+    risk: 'high',
+    automationReadiness: 'manual_only',
+    why: 'Route-level authentication without record-level checks allows a valid user to act on another user records by changing an identifier.',
+    recommendedApproach: [
+      'Check ownership or membership for the specific record on read, update and delete.',
+      'Prefer scoped queries over post-hoc comparison.',
+    ].join('\n'),
+    likelyFiles: ['backend/routes/*', 'backend/services/*', 'backend/policies/*'],
+    suggestedTests: [
+      'Requesting another user record by id returns 403 or 404.',
+    ],
+    acceptanceCriteria: [
+      'Read, update and delete verify the caller may act on that specific record.',
+    ],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.gdpr.consent.required': entry({
+    taskId: 'remediate.gdpr.consent',
+    title: 'Capture and store consent',
+    category: 'gdpr',
+    phaseId: safety,
+    priority: 'p1',
+    effort: 'small',
+    risk: 'medium',
+    automationReadiness: 'needs_review',
+    why: 'Processing personal data needs a recorded lawful basis, and consent that is not stored cannot be demonstrated later.',
+    recommendedApproach: [
+      'Record consent with timestamp, subject and the version of the terms accepted.',
+      'Expose the current consent state to the user.',
+    ].join('\n'),
+    likelyFiles: ['backend/models/*', 'backend/routes/privacy*', 'src/privacy*'],
+    suggestedTests: ['Consent is persisted with timestamp and terms version.'],
+    acceptanceCriteria: ['Consent is recorded and retrievable per user.'],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.gdpr.export.required': entry({
+    taskId: 'remediate.gdpr.export',
+    title: 'Add a personal data export endpoint',
+    category: 'gdpr',
+    phaseId: safety,
+    priority: 'p1',
+    effort: 'medium',
+    risk: 'medium',
+    automationReadiness: 'needs_review',
+    why: 'GDPR article 20 gives users the right to obtain their personal data in a machine-readable form.',
+    recommendedApproach: [
+      'Add an authenticated export endpoint that gathers user data across stores.',
+      'Produce a machine-readable archive and audit the request.',
+    ].join('\n'),
+    likelyFiles: ['backend/routes/export*', 'backend/services/*', 'backend/jobs/*'],
+    suggestedTests: ['An authenticated user can export their own data and only their own.'],
+    acceptanceCriteria: ['Export returns the user personal data in a machine-readable format.'],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.gdpr.erasure.required': entry({
+    taskId: 'remediate.gdpr.erasure',
+    title: 'Add an account erasure flow',
+    category: 'gdpr',
+    phaseId: safety,
+    priority: 'p1',
+    effort: 'medium',
+    risk: 'high',
+    automationReadiness: 'manual_only',
+    why: 'GDPR article 17 requires deletion of personal data on request, across every store that holds it.',
+    recommendedApproach: [
+      'Add a delete-account flow that removes or anonymises personal data.',
+      'Cover derived stores: caches, search indexes, backups policy, logs.',
+      'Audit the erasure request and its completion.',
+    ].join('\n'),
+    likelyFiles: ['backend/routes/privacy*', 'backend/services/*', 'backend/jobs/*'],
+    suggestedTests: ['Erasure removes or anonymises the user across primary and derived stores.'],
+    acceptanceCriteria: ['An erasure request is tracked and demonstrably completed.'],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.gdpr.retention.recommended': entry({
+    taskId: 'remediate.gdpr.retention',
+    title: 'Define and enforce retention limits',
+    category: 'gdpr',
+    phaseId: ops,
+    priority: 'p2',
+    effort: 'small',
+    risk: 'low',
+    automationReadiness: 'needs_review',
+    why: 'Personal data kept indefinitely by default increases breach impact and weakens the lawful basis for processing.',
+    recommendedApproach: [
+      'Define a retention window per data category.',
+      'Run a scheduled job that deletes or anonymises data past its window.',
+    ].join('\n'),
+    likelyFiles: ['backend/jobs/*', 'backend/config/*'],
+    suggestedTests: ['Data past its retention window is removed by the job.'],
+    acceptanceCriteria: ['Retention windows are defined and enforced by a job.'],
+    dependencies: [],
+  }),
+
+  'expectation.auth.password-reset.required': entry({
+    taskId: 'remediate.auth.password-reset',
+    title: 'Add a password reset flow',
+    category: 'auth',
+    phaseId: safety,
+    priority: 'p1',
+    effort: 'small',
+    risk: 'medium',
+    automationReadiness: 'needs_review',
+    why: 'Without self-service recovery every locked-out user becomes a support request, and ad-hoc manual resets become their own attack surface.',
+    recommendedApproach: [
+      'Issue a single-use, expiring reset token delivered out of band.',
+      'Invalidate active sessions on a successful reset.',
+    ].join('\n'),
+    likelyFiles: ['backend/routes/auth*', 'backend/services/auth*'],
+    suggestedTests: [
+      'A reset token works once and expires.',
+      'Sessions are invalidated after a reset.',
+    ],
+    acceptanceCriteria: ['Users can recover access without operator intervention.'],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.auth.email-verification.required': entry({
+    taskId: 'remediate.auth.email-verification',
+    title: 'Verify email ownership at signup',
+    category: 'auth',
+    phaseId: safety,
+    priority: 'p1',
+    effort: 'small',
+    risk: 'medium',
+    automationReadiness: 'needs_review',
+    why: 'Unverified addresses allow impersonation of an address the signup does not control, and make abuse cheap.',
+    recommendedApproach: [
+      'Send a verification token and gate full account capabilities until it is used.',
+    ].join('\n'),
+    likelyFiles: ['backend/routes/auth*', 'backend/services/auth*'],
+    suggestedTests: ['An unverified account cannot use gated capabilities.'],
+    acceptanceCriteria: ['Email ownership is proven before full access is granted.'],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.auth.mfa.required': entry({
+    taskId: 'remediate.auth.mfa',
+    title: 'Offer a second authentication factor',
+    category: 'auth',
+    phaseId: safety,
+    priority: 'p1',
+    effort: 'medium',
+    risk: 'medium',
+    automationReadiness: 'needs_review',
+    why: 'Accounts that move money or administer other users are worth stealing, and a password alone is a single point of failure.',
+    recommendedApproach: [
+      'Support TOTP or WebAuthn as a second factor.',
+      'Require it at least for owner and admin roles.',
+      'Provide recovery codes and audit their use.',
+    ].join('\n'),
+    likelyFiles: ['backend/routes/auth*', 'backend/services/auth*', 'backend/models/*'],
+    suggestedTests: [
+      'An account with MFA enabled requires the second factor.',
+      'Recovery codes work once.',
+    ],
+    acceptanceCriteria: ['A second factor is available and enforceable for privileged roles.'],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.billing.model.required': entry({
+    taskId: 'remediate.billing.model',
+    title: 'Introduce a billing and entitlement model',
+    category: 'billing',
+    phaseId: safety,
+    priority: 'p1',
+    effort: 'large',
+    risk: 'medium',
+    automationReadiness: 'manual_only',
+    why: 'A product that charges needs plans and server-side entitlement checks, otherwise paid features are only hidden, not protected.',
+    recommendedApproach: [
+      'Model plans and subscriptions.',
+      'Check entitlement server-side on every paid capability.',
+    ].join('\n'),
+    likelyFiles: ['backend/models/*', 'backend/services/billing*', 'backend/routes/*'],
+    suggestedTests: ['A free-plan account cannot reach a paid capability by calling the API directly.'],
+    acceptanceCriteria: ['Entitlement is enforced server-side, not only in the UI.'],
+    dependencies: ['remediate.auth.core'],
+  }),
+
+  'expectation.billing.webhook-integrity.required': entry({
+    taskId: 'remediate.billing.webhook-integrity',
+    title: 'Verify payment webhook signatures',
+    category: 'billing',
+    phaseId: critical,
+    priority: 'p0',
+    effort: 'small',
+    risk: 'high',
+    automationReadiness: 'safe_template',
+    why: 'An unverified payment webhook lets anyone forge a request that grants a paid plan for free, or marks an unpaid order as paid.',
+    recommendedApproach: [
+      'Verify the provider signature against the raw, unparsed request body.',
+      'Load the signing secret from configuration with no fallback default.',
+      'Reject and log requests that fail verification.',
+    ].join('\n'),
+    likelyFiles: ['backend/routes/webhook*', 'backend/routes/stripe*', 'src/app/api/webhook*'],
+    suggestedTests: [
+      'A request with an invalid signature is rejected.',
+      'The raw body is used for verification, not the parsed one.',
+    ],
+    acceptanceCriteria: ['Only signature-verified webhook events change billing state.'],
+    dependencies: [],
+  }),
 };
 
+/**
+ * Expectation findings carry their importance in the id
+ * (`expectation.auth.mfa.required` vs `...recommended`), but the remediation work is
+ * the same either way — only the urgency differs, and that is already carried by the
+ * finding severity. Falling back across the importance suffix avoids duplicating every
+ * catalogue entry once per profile that grades the capability differently.
+ */
+const IMPORTANCE_SUFFIXES = ['.required', '.recommended'] as const;
+
 export function getRemediationEntry(findingId: string): RemediationCatalogEntry | undefined {
-  return remediationCatalog[findingId];
+  const exact = remediationCatalog[findingId];
+  if (exact) return exact;
+
+  for (const suffix of IMPORTANCE_SUFFIXES) {
+    if (!findingId.endsWith(suffix)) continue;
+
+    const stem = findingId.slice(0, -suffix.length);
+    for (const alternative of IMPORTANCE_SUFFIXES) {
+      if (alternative === suffix) continue;
+
+      const candidate = remediationCatalog[`${stem}${alternative}`];
+      if (candidate) return candidate;
+    }
+  }
+
+  return undefined;
 }
