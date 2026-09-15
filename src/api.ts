@@ -17,6 +17,7 @@ export type {
 export type { ProductionReadinessReport, Finding, MaturityLevel, ReportDiagnostics, ExpectationMode } from './report/types';
 export type { CategoryScore } from './report/categoryScores';
 export type { ExecutiveSummary } from './report/executiveSummary';
+export type { ComplianceObligation, ComplianceFramework } from './report/complianceMapping';
 export type { CapabilityGap } from './expectations/types';
 export type { FindingConfidence, EvidenceQuality } from './report/types';
 export type { RemediationPlan, RemediationTask, RemediationPhase } from './planner/types';

@@ -7,6 +7,8 @@ import { inferProductProfile } from '../expectations/inferProductProfile';
 import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
 import { PRODKit_VERSION } from '../version';
 import { buildCategoryScores } from './categoryScores';
+import { withBusinessImpact } from './businessImpact';
+import { buildComplianceMapping } from './complianceMapping';
 import { buildExecutiveSummary } from './executiveSummary';
 
 export interface BuildReportOptions {
@@ -135,7 +137,9 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     }
   }
 
-  const findings = [...observedFindings, ...expectationFindings].sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b));
+  const findings = withBusinessImpact(
+    [...observedFindings, ...expectationFindings].sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b)),
+  );
   const combinedScore = expectationScore === undefined
     ? observedScore
     : Math.max(0, Math.min(100, Math.round((observedScore * 0.6) + (expectationScore * 0.4))));
@@ -172,6 +176,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
 
   const technicalEvidence = findings.map((f) => ({ findingId: f.id, evidence: f.evidence }));
   const categoryScores = buildCategoryScores(findings);
+  const compliance = buildComplianceMapping(findings);
   const executiveSummary = buildExecutiveSummary({
     findings,
     categoryScores,
@@ -215,6 +220,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     technicalEvidence,
     executiveSummary,
     categoryScores,
+    compliance,
     diagnostics,
   };
 }

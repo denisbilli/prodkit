@@ -1,6 +1,7 @@
 import type { DetectorEvidence, StackInfo } from '../analyzer/types';
 import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
 import type { CategoryScore } from './categoryScores';
+import type { ComplianceObligation } from './complianceMapping';
 import type { ExecutiveSummary } from './executiveSummary';
 
 export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
@@ -35,6 +36,11 @@ export interface Finding {
   recommendation: string;
   confidence: FindingConfidence;
   evidenceQuality: EvidenceQuality;
+  /**
+   * What actually happens if this is left as it is, in plain language.
+   * Present on actionable findings; absent on passed checks.
+   */
+  businessImpact?: string;
 }
 
 export type MaturityLevel = 'prototype' | 'early' | 'partial' | 'production_ready';
@@ -80,5 +86,10 @@ export interface ProductionReadinessReport {
   executiveSummary: ExecutiveSummary;
   /** Per-category readiness, so the report can say where the product is weak. */
   categoryScores: CategoryScore[];
+  /**
+   * Obligations touched by the analysis. Advisory only — ProdKit is not a compliance
+   * certification and an obligation nothing maps to is omitted rather than called met.
+   */
+  compliance: ComplianceObligation[];
   diagnostics: ReportDiagnostics;
 }

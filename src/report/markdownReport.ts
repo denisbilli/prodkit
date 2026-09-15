@@ -89,6 +89,7 @@ function formatFinding(f: Finding): string {
     `- ID: ${f.id}`,
     `- Category: ${f.category}`,
     `- Description: ${f.description}`,
+    ...(f.businessImpact ? [`- What this means: ${f.businessImpact}`] : []),
     `- Recommendation: ${f.recommendation}`,
     `- Confidence: ${f.confidence}`,
     `- Evidence quality: ${f.evidenceQuality}`,
@@ -137,6 +138,27 @@ function categoryScoreSection(report: ProductionReadinessReport): string[] {
     '| --- | --- | --- | --- |',
     ...assessed.map(
       (entry) => `| ${entry.category} | ${entry.score}/100 | ${entry.findingCount} | ${entry.criticalCount} |`,
+    ),
+    '',
+  ];
+}
+
+function complianceSection(report: ProductionReadinessReport): string[] {
+  if (report.compliance.length === 0) return [];
+
+  const unmet = report.compliance.filter((obligation) => !obligation.met);
+  if (unmet.length === 0) return [];
+
+  return [
+    '## Compliance Exposure',
+    '',
+    '_Advisory mapping, not a compliance certification. Obligations nothing mapped to are omitted rather than reported as met._',
+    '',
+    '| Framework | Reference | Obligation | Findings |',
+    '| --- | --- | --- | --- |',
+    ...unmet.map(
+      (obligation) =>
+        `| ${obligation.framework} | ${obligation.reference} | ${obligation.title} | ${obligation.findingIds.length} |`,
     ),
     '',
   ];
@@ -194,6 +216,7 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '',
     ...executiveSummarySection(report),
     ...categoryScoreSection(report),
+    ...complianceSection(report),
     '## Detected Stack',
     '',
     `- Frontend: ${report.detectedStack.frontend.join(', ') || 'unknown'}`,
