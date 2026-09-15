@@ -269,3 +269,51 @@ describe('framework-native security and auth', () => {
     expect(status('security.rate-limit')).toBe('missing');
   });
 });
+
+describe('framework-native observability and identity', () => {
+  // A file-routing framework declares a health endpoint as a path, not as a string in
+  // source, so text search alone reported hardened applications as having none. The
+  // same applied to structured logging written without a logging library.
+  it('recognises a health endpoint declared by file path and a hand-written logger', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'nextjs-managed-auth'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    const status = (id: string) =>
+      report.productProfile?.capabilities.find((capability) => capability.capabilityId === id)?.status;
+
+    expect(status('observability.health')).toBe('present');
+    expect(status('observability.logging')).not.toBe('missing');
+  });
+
+  it('does not demand a password reset from an OAuth-only product', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'nextjs-managed-auth'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    // There is no password to reset, so requiring the flow is a defect in the
+    // question rather than in the repository.
+    const capability = report.productProfile?.capabilities.find(
+      (entry) => entry.capabilityId === 'auth.password-reset',
+    );
+    expect(capability?.status).toBe('not_applicable');
+  });
+
+  it('still demands a password reset where passwords are stored locally', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'express-basic'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    const capability = report.productProfile?.capabilities.find(
+      (entry) => entry.capabilityId === 'auth.password-reset',
+    );
+    expect(capability?.status).toBe('missing');
+  });
+
+  it('still reports an unhardened project as having no health endpoint', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'react-vite'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    const capability = report.productProfile?.capabilities.find(
+      (entry) => entry.capabilityId === 'observability.health',
+    );
+    expect(capability?.status).toBe('missing');
+  });
+});

@@ -185,6 +185,19 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       },
     },
     {
+      // True when authentication goes exclusively through an external identity
+      // provider and the repository stores no password of its own. Downstream this
+      // makes password reset not applicable rather than missing — there is no
+      // password to reset.
+      key: 'auth.externalIdentityOnly',
+      present:
+        managedAuthDeps.length > 0 &&
+        hasAnyDep(ctx, ['bcrypt', 'bcryptjs', 'argon2', 'scrypt-kdf', 'passport-local']).length === 0 &&
+        passwordResetSignals.length === 0,
+      evidence: depEvidence(managedAuthDeps),
+      details: { managedProviders: managedAuthDeps.length },
+    },
+    {
       key: 'auth.2fa',
       present: twoFaDeps.length > 0 || twoFaSignals.length > 0,
       evidence: [...depEvidence(twoFaDeps), ...snippetEvidence(twoFaSignals)],

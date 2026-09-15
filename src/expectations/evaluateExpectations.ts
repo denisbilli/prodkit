@@ -40,7 +40,15 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       return detector(analysis, 'auth.2fa')?.present ? 'present' : 'missing';
     }
     case 'auth.password-reset': {
-      return detector(analysis, 'auth.passwordReset')?.present ? 'present' : 'missing';
+      if (detector(analysis, 'auth.passwordReset')?.present) return 'present';
+
+      // A product that authenticates only through an external identity provider has no
+      // password to reset, so demanding the flow is a defect in the question, not in
+      // the repository. Requires an auth baseline: no auth at all is still missing.
+      const managedOnly = detector(analysis, 'auth.externalIdentityOnly')?.present === true;
+      if (managedOnly && detector(analysis, 'auth.core')?.present === true) return 'not_applicable';
+
+      return 'missing';
     }
     case 'auth.email-verification': {
       return detector(analysis, 'auth.emailVerification')?.present ? 'present' : 'missing';
