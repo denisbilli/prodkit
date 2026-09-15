@@ -61,3 +61,34 @@ describe('planner', () => {
     expect(typeof parsed.summary).toBe('string');
   });
 });
+describe('remediation plan ordering', () => {
+  // Ranking by priority, severity and title alone produced plans that could not be
+  // followed in the order given: "Enforce tenant isolation on every query" sorted
+  // above "Implement an explicit authentication baseline" because E precedes I.
+  it('never lists a task before a task it depends on', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'nestjs-api'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+    const plan = buildPlan(report);
+
+    const positions = new Map(plan.tasks.map((task, index) => [task.id, index]));
+
+    for (const task of plan.tasks) {
+      for (const dependency of task.dependencies) {
+        const dependencyPosition = positions.get(dependency);
+        if (dependencyPosition === undefined) continue;
+
+        expect(dependencyPosition).toBeLessThan(positions.get(task.id)!);
+      }
+    }
+  });
+
+  it('treats a missing authentication baseline as a P0 blocker', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'nestjs-api'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+    const plan = buildPlan(report);
+
+    const authTask = plan.tasks.find((task) => task.id === 'remediate.auth.core');
+    expect(authTask?.priority).toBe('p0');
+    expect(plan.tasks[0].id).toBe('remediate.auth.core');
+  });
+});

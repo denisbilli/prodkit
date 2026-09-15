@@ -88,7 +88,7 @@ function mergeTask(existing: RemediationTask, seed: PlannedTaskSeed, evidenceFil
   };
 }
 
-function sortStates(states: PlannedTaskState[]): PlannedTaskState[] {
+function rankStates(states: PlannedTaskState[]): PlannedTaskState[] {
   return [...states].sort((left, right) => {
     const priorityDelta = priorityOrder[left.task.priority] - priorityOrder[right.task.priority];
     if (priorityDelta !== 0) return priorityDelta;
@@ -96,6 +96,45 @@ function sortStates(states: PlannedTaskState[]): PlannedTaskState[] {
     if (severityDelta !== 0) return severityDelta;
     return left.task.title.localeCompare(right.task.title);
   });
+}
+
+/**
+ * Orders tasks by urgency, then reorders so that no task is listed before a task it
+ * depends on.
+ *
+ * Ranking alone produced plans that could not be followed in the order given: with
+ * priority, severity and title as the only keys, "Enforce tenant isolation on every
+ * query" sorted above "Implement an explicit authentication baseline" purely because
+ * E precedes I, even though the first is unreachable without the second.
+ *
+ * Dependencies pointing outside the current plan are ignored — a task is not blocked
+ * by work the repository does not need. A dependency cycle degrades to plain ranking
+ * for the tasks involved rather than dropping them.
+ */
+function sortStates(states: PlannedTaskState[]): PlannedTaskState[] {
+  const ranked = rankStates(states);
+  const pending = new Map(ranked.map((state) => [state.task.id, state]));
+  const emitted = new Set<string>();
+  const ordered: PlannedTaskState[] = [];
+
+  while (pending.size > 0) {
+    const ready = ranked.find(
+      (state) =>
+        pending.has(state.task.id) &&
+        state.task.dependencies.every((dependency) => !pending.has(dependency) || emitted.has(dependency)),
+    );
+
+    // No task has all its dependencies satisfied: the remainder forms a cycle, so fall
+    // back to ranked order for it instead of looping forever or dropping tasks.
+    const next = ready ?? ranked.find((state) => pending.has(state.task.id));
+    if (!next) break;
+
+    ordered.push(next);
+    emitted.add(next.task.id);
+    pending.delete(next.task.id);
+  }
+
+  return ordered;
 }
 
 function summarizePlan(tasks: RemediationTask[], actionableFindingCount: number): string {
