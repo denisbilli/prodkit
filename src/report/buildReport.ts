@@ -6,6 +6,8 @@ import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectatio
 import { inferProductProfile } from '../expectations/inferProductProfile';
 import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
 import { PRODKit_VERSION } from '../version';
+import { buildCategoryScores } from './categoryScores';
+import { buildExecutiveSummary } from './executiveSummary';
 
 export interface BuildReportOptions {
   profile?: ProductProfile;
@@ -169,6 +171,16 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     .map((f) => `${f.title}: ${f.recommendation}`);
 
   const technicalEvidence = findings.map((f) => ({ findingId: f.id, evidence: f.evidence }));
+  const categoryScores = buildCategoryScores(findings);
+  const executiveSummary = buildExecutiveSummary({
+    findings,
+    categoryScores,
+    profile: productProfile,
+    maturity: maturityLevel,
+    observedScore,
+    overallScore,
+    inconclusive,
+  });
   const expectationMode = determineExpectationMode(requestedProfile, productProfile, expectationScore);
   const diagnostics = {
     analyzedFileCount: analysis.files.source.length,
@@ -201,6 +213,8 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     passedChecks,
     suggestedNextSteps,
     technicalEvidence,
+    executiveSummary,
+    categoryScores,
     diagnostics,
   };
 }

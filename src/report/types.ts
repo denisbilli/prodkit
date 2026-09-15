@@ -1,5 +1,7 @@
 import type { DetectorEvidence, StackInfo } from '../analyzer/types';
 import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
+import type { CategoryScore } from './categoryScores';
+import type { ExecutiveSummary } from './executiveSummary';
 
 export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 export type FindingStatus = 'passed' | 'missing' | 'partial' | 'unknown';
@@ -74,5 +76,9 @@ export interface ProductionReadinessReport {
   passedChecks: Finding[];
   suggestedNextSteps: string[];
   technicalEvidence: Array<{ findingId: string; evidence: DetectorEvidence[] }>;
+  /** Plain-language summary for a reader deciding whether to launch, not how to fix. */
+  executiveSummary: ExecutiveSummary;
+  /** Per-category readiness, so the report can say where the product is weak. */
+  categoryScores: CategoryScore[];
   diagnostics: ReportDiagnostics;
 }

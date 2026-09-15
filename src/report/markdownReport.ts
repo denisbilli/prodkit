@@ -98,6 +98,50 @@ function formatFinding(f: Finding): string {
   ].join('\n');
 }
 
+/**
+ * The summary a non-technical reader sees first.
+ *
+ * It leads the document deliberately: the previous layout opened with the detected
+ * stack and buried a severity tally under the heading "Executive Summary", which
+ * answers a question nobody asked before deciding whether they can launch.
+ */
+function executiveSummarySection(report: ProductionReadinessReport): string[] {
+  const summary = report.executiveSummary;
+
+  return [
+    '## Summary',
+    '',
+    summary.verdict,
+    '',
+    `- Launch ready: ${summary.launchReady ? 'yes' : 'no'}`,
+    `- Score: ${summary.scoreExplanation}`,
+    `- Estimated effort: ${summary.estimatedEffort}`,
+    '',
+    ...(summary.topRisks.length > 0
+      ? ['**What is holding it back**', '', ...summary.topRisks.map((risk) => `- ${risk}`), '']
+      : []),
+    ...(summary.strengths.length > 0
+      ? ['**What already works**', '', ...summary.strengths.map((strength) => `- ${strength}`), '']
+      : []),
+  ];
+}
+
+function categoryScoreSection(report: ProductionReadinessReport): string[] {
+  const assessed = report.categoryScores.filter((entry) => !entry.notAssessed);
+  if (assessed.length === 0) return [];
+
+  return [
+    '## Readiness by Area',
+    '',
+    '| Area | Score | Open findings | Critical |',
+    '| --- | --- | --- | --- |',
+    ...assessed.map(
+      (entry) => `| ${entry.category} | ${entry.score}/100 | ${entry.findingCount} | ${entry.criticalCount} |`,
+    ),
+    '',
+  ];
+}
+
 export function renderMarkdown(report: ProductionReadinessReport): string {
   const severeCounts = {
     critical: report.findings.filter((f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown').length,
@@ -148,6 +192,8 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     `- Generated at: ${report.generatedAt}`,
     `- Project path: ${report.projectPath}`,
     '',
+    ...executiveSummarySection(report),
+    ...categoryScoreSection(report),
     '## Detected Stack',
     '',
     `- Frontend: ${report.detectedStack.frontend.join(', ') || 'unknown'}`,
@@ -181,7 +227,7 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '',
     ...profileSummary(report),
     ...expectedGapSection(report),
-    '## Executive Summary',
+    '## Finding Counts',
     '',
     `- Critical findings: ${severeCounts.critical}`,
     `- High findings: ${severeCounts.high}`,
