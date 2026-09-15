@@ -1,0 +1,102 @@
+import type { DetectorEvidence, DetectorResult } from './types';
+import type { DetectContext } from './detectContext';
+import { hasAnyDep, hasAnyPyDep } from './detectContext';
+import { searchInFiles } from '../utils/textSearch';
+
+/**
+ * Signals for the two things a consumer product needs that a backend service does not:
+ * a way to bring a stranger from signup to first use, and a way to reach them
+ * afterwards.
+ *
+ * As with the marketplace detectors, matching is restricted to files where these
+ * concepts would be declared. "welcome" and "notification" are common enough words
+ * that searching the whole tree reports every project as having onboarding.
+ */
+
+const DOMAIN_FILE = /(model|schema|entity|migration|prisma|domain|route|controller|service|job|worker|email|mail|notification)/i;
+
+function domainFiles(ctx: DetectContext): string[] {
+  return ctx.files.source.filter((file) => DOMAIN_FILE.test(file));
+}
+
+const EMAIL_DEPS = [
+  'nodemailer',
+  '@sendgrid/mail',
+  'resend',
+  'postmark',
+  'mailgun.js',
+  '@aws-sdk/client-ses',
+  'react-email',
+  '@react-email/components',
+];
+
+const PUSH_DEPS = ['firebase-admin', 'web-push', '@onesignal/node-onesignal', 'expo-server-sdk'];
+const EMAIL_PY_DEPS = ['sendgrid', 'postmarker', 'mailgun', 'boto3', 'django-anymail'];
+
+async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
+  const evidence: DetectorEvidence[] = [];
+
+  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS)];
+  const pushDeps = hasAnyDep(ctx, PUSH_DEPS);
+  for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
+
+  const hits = await searchInFiles(
+    ctx.root,
+    domainFiles(ctx),
+    [/send_?mail/i, /send_?email/i, /\btransactional\b/i, /push_?notification/i, /\bnotify\(/i],
+    20,
+  );
+  for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
+
+  const templateFiles = ctx.files.all
+    .filter((file) => /(email|mail)[-_/]?(template|layout)/i.test(file))
+    .slice(0, 20);
+  for (const file of templateFiles) evidence.push({ type: 'file', value: file });
+
+  // A delivery dependency on its own only proves the capability could exist; the send
+  // sites are what show it is wired up.
+  const wired = hits.length > 0 || templateFiles.length > 0;
+  const capable = emailDeps.length + pushDeps.length > 0;
+
+  return {
+    key: 'notifications.transactional',
+    present: capable || wired,
+    complete: capable && wired,
+    evidence,
+    details: {
+      emailDependency: emailDeps.length > 0,
+      pushDependency: pushDeps.length > 0,
+      sendSites: hits.length,
+      templateFiles: templateFiles.length,
+    },
+  };
+}
+
+async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
+  const evidence: DetectorEvidence[] = [];
+
+  const hits = await searchInFiles(
+    ctx.root,
+    domainFiles(ctx),
+    [/\bonboarding\b/i, /\bsign_?up\b/i, /\bregister(ed)?\b/i, /\bwelcome\b/i, /\bfirst_?run\b/i],
+    20,
+  );
+  for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
+
+  const files = ctx.files.all.filter((file) => /(onboarding|signup|sign-up|register)/i.test(file)).slice(0, 20);
+  for (const file of files) evidence.push({ type: 'file', value: file });
+
+  const strong = files.length > 0;
+
+  return {
+    key: 'onboarding.flow',
+    present: strong || hits.length > 0,
+    complete: strong,
+    evidence,
+    details: { onboardingFiles: files.length, onboardingSignals: hits.length },
+  };
+}
+
+export async function detectEngagement(ctx: DetectContext): Promise<DetectorResult[]> {
+  return Promise.all([detectNotifications(ctx), detectOnboarding(ctx)]);
+}

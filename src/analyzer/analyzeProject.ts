@@ -17,6 +17,7 @@ import { detectObservability } from './detectObservability';
 import { detectJobs } from './detectJobs';
 import { detectMarketplace } from './detectMarketplace';
 import { detectAiSafety } from './detectAiSafety';
+import { detectEngagement } from './detectNotifications';
 import { detectDeployment } from './detectDeployment';
 import { buildStackInfo, mergeDetectors } from './detectStack';
 import type { DetectContext, WorkspaceManifest } from './detectContext';
@@ -266,7 +267,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     workspaces,
   };
 
-  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, deployment] =
+  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, engagement, deployment] =
     await Promise.all([
       detectPackageManager(ctx),
       detectFrontend(ctx),
@@ -283,6 +284,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       detectJobs(ctx),
       detectMarketplace(ctx),
       detectAiSafety(ctx),
+      detectEngagement(ctx),
       detectDeployment(ctx),
     ]);
 
@@ -302,6 +304,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     jobs,
     ...marketplace,
     ...aiSafety,
+    ...engagement,
     deployment,
   ]);
 

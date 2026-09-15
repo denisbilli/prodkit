@@ -281,6 +281,22 @@ const CAPABILITIES = {
     description: 'Validation between user input and the model, which is the injection surface specific to AI products.',
     recommendation: 'Validate and constrain user input before it reaches a prompt, and separate system instructions from user content.',
   }),
+  'b2c.onboarding': blueprint({
+    id: 'b2c.onboarding',
+    title: 'Signup and onboarding flow',
+    category: 'auth',
+    detectorKeys: ['onboarding.flow'],
+    description: 'A path from stranger to first use. A consumer product with no onboarding loses the user before it has one.',
+    recommendation: 'Add an explicit signup and first-run flow, with a defined activation step.',
+  }),
+  'b2c.notifications': blueprint({
+    id: 'b2c.notifications',
+    title: 'Transactional notifications',
+    category: 'observability',
+    detectorKeys: ['notifications.transactional'],
+    description: 'A way to reach the user after they leave: confirmations, resets, and account notices.',
+    recommendation: 'Wire a transactional email or push provider and cover the account lifecycle events.',
+  }),
 } as const;
 
 export type CapabilityId = keyof typeof CAPABILITIES;
@@ -366,6 +382,8 @@ export const productProfiles: Record<
       'auth.mfa': 'optional',
       'auth.password-reset': 'required',
       'auth.email-verification': 'required',
+      'b2c.onboarding': 'required',
+      'b2c.notifications': 'required',
       'authz.ownership': 'recommended',
       'gdpr.consent': 'required',
       'gdpr.export': 'required',
@@ -463,6 +481,7 @@ export const productProfiles: Record<
       'auth.email-verification': 'required',
       'authz.roles': 'required',
       'authz.ownership': 'required',
+      'b2c.notifications': 'recommended',
       'marketplace.multi-role': 'required',
       'marketplace.payout': 'required',
       'marketplace.commission': 'required',
