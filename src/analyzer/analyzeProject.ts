@@ -15,6 +15,8 @@ import { detectGdpr } from './detectGdpr';
 import { detectBilling } from './detectBilling';
 import { detectObservability } from './detectObservability';
 import { detectJobs } from './detectJobs';
+import { detectMarketplace } from './detectMarketplace';
+import { detectAiSafety } from './detectAiSafety';
 import { detectDeployment } from './detectDeployment';
 import { buildStackInfo, mergeDetectors } from './detectStack';
 import type { DetectContext, WorkspaceManifest } from './detectContext';
@@ -264,7 +266,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     workspaces,
   };
 
-  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, deployment] =
+  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, deployment] =
     await Promise.all([
       detectPackageManager(ctx),
       detectFrontend(ctx),
@@ -279,6 +281,8 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       detectBilling(ctx),
       detectObservability(ctx),
       detectJobs(ctx),
+      detectMarketplace(ctx),
+      detectAiSafety(ctx),
       detectDeployment(ctx),
     ]);
 
@@ -296,6 +300,8 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     ...billing,
     observability,
     jobs,
+    ...marketplace,
+    ...aiSafety,
     deployment,
   ]);
 

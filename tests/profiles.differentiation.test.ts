@@ -92,3 +92,41 @@ describe('product profile differentiation', () => {
     expect(gap!.requiredMissing + gap!.requiredPartial).toBeLessThanOrEqual(gap!.requiredTotal);
   });
 });
+
+describe('domain-specific capabilities', () => {
+  // A transcription app satisfies every generic capability, so before marketplace.*
+  // existed it scored the same as a B2B SaaS under the marketplace profile — the
+  // profile had nothing marketplace-specific to ask about.
+  it('separates marketplace from b2b-saas on a product that is not a marketplace', async () => {
+    const analysis = await analyzeProject(fixture('express-secure'));
+    const asSaas = buildReport(analysis, { profile: 'b2b-saas' });
+    const asMarketplace = buildReport(analysis, { profile: 'marketplace' });
+
+    expect(asMarketplace.overallScore).toBeLessThan(asSaas.overallScore);
+
+    const marketplaceCapabilities = (asMarketplace.productProfile?.capabilities ?? []).filter((capability) =>
+      capability.capabilityId.startsWith('marketplace.'),
+    );
+
+    expect(marketplaceCapabilities).toHaveLength(4);
+    expect(marketplaceCapabilities.every((capability) => capability.status !== 'present')).toBe(true);
+  });
+
+  it('asks an ai-saas about inference cost controls', async () => {
+    const analysis = await analyzeProject(fixture('express-secure'));
+    const report = buildReport(analysis, { profile: 'ai-saas' });
+
+    const ids = (report.productProfile?.capabilities ?? []).map((capability) => capability.capabilityId);
+    expect(ids).toContain('ai.cost-control');
+    expect(ids).toContain('ai.prompt-safety');
+  });
+
+  it('does not ask a b2b-saas about payouts or inference cost', async () => {
+    const analysis = await analyzeProject(fixture('express-secure'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    const ids = (report.productProfile?.capabilities ?? []).map((capability) => capability.capabilityId);
+    expect(ids.some((id) => id.startsWith('marketplace.'))).toBe(false);
+    expect(ids.some((id) => id.startsWith('ai.'))).toBe(false);
+  });
+});
