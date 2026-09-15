@@ -201,6 +201,38 @@ prodkit/
     planner.test.ts
 ```
 
+## MCP server
+
+ProdKit ships an MCP server so an agent can assess a repository without leaving the
+editor. It exposes the deterministic analysis only, makes no network calls, and the
+code being analysed never leaves the machine.
+
+Tools: `analyze_project`, `plan_remediation`, `compare_profiles`, `list_profiles`.
+
+Claude Code:
+
+```bash
+claude mcp add prodkit -- npx -y prodkit-mcp
+```
+
+Or, in a client that reads a JSON config:
+
+```json
+{
+  "mcpServers": {
+    "prodkit": {
+      "command": "npx",
+      "args": ["-y", "prodkit-mcp"]
+    }
+  }
+}
+```
+
+`compare_profiles` is the one to reach for first: it scores the same repository
+against every product profile in a single call, which is the question ProdKit exists
+to answer.
+
 ## License
+
 
 MIT

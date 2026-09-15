@@ -4,7 +4,8 @@
   "description": "Local CLI that analyzes a web app and produces a production-readiness report.",
   "license": "MIT",
   "bin": {
-    "prodkit": "dist/index.js"
+    "prodkit": "dist/index.js",
+    "prodkit-mcp": "dist/mcp/index.js"
   },
   "main": "dist/api.js",
   "types": "dist/api.d.ts",
