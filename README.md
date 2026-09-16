@@ -263,7 +263,27 @@ Or, in a client that reads a JSON config:
 against every product profile in a single call, which is the question ProdKit exists
 to answer.
 
+## Releases
+
+Published from CI on a version tag, with
+[npm provenance](https://docs.npmjs.com/generating-provenance-statements): the tarball
+is cryptographically linked to the commit and the workflow run that produced it, so it
+can be verified rather than merely trusted. No publish token ever sits on a developer
+machine.
+
+To cut a release:
+
+```bash
+npm version patch   # or minor / major — commits and tags
+git push --follow-tags
+```
+
+The workflow refuses to publish if the tag and `package.json` disagree, and runs a
+check that the commercial AI layer is absent from `dist` before anything leaves.
+Release notes are generated from the commits since the previous tag.
+
 ## License
+
 
 
 MIT

@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      # Required for npm provenance: the workflow proves to npm that this tarball was
+      # built from this commit in this repository. It is why publishing moved to CI —
+      # the token never touches a laptop, and the package is verifiable rather than
+      # merely trusted.
+      id-token: write
+      # Required to create the release that carries the notes.
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, so the release notes can be generated from the commits since
+          # the previous tag.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # The tag and the manifest must agree. A tag that says v0.3.0 while package.json
+      # says 0.2.0 publishes the wrong version under the right name, and npm will not
+      # let that version number be reused afterwards.
+      - name: Check the tag matches the version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          manifest="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$manifest" ]; then
+            echo "::error::Tag is v$tag but package.json says $manifest."
+            exit 1
+          fi
+          echo "Publishing version $manifest"
+
+      - run: npm run build
+      - run: npm run lint
+      - run: npx tsc --noEmit -p tsconfig.test.json
+      - run: npm test
+
+      # The guard that matters most: refuses to publish if anything from the commercial
+      # AI layer is in dist. A stale build from before the extraction would otherwise
+      # ship the paid code under MIT.
+      - name: Refuse to publish the AI layer
+        run: node scripts/assert-no-ai.mjs
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create the GitHub release
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}
