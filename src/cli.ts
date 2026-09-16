@@ -12,6 +12,7 @@ import { resolveProjectPath } from './utils/pathUtils';
 import type { ProductProfile } from './expectations/types';
 import type { MaturityLevel } from './report/types';
 import type { ProjectAnalysis } from './analyzer/types';
+import { PRODKit_VERSION } from './version';
 
 type OutputFormat = 'markdown' | 'json';
 const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'auto'] as const;
@@ -215,7 +216,7 @@ export async function runCli(argv = process.argv): Promise<void> {
   program
     .name('prodkit')
     .description('Analyze web application repositories for production-readiness and remediation planning.')
-    .version('0.2.0');
+    .version(PRODKit_VERSION);
 
   program
     .command('analyze')
