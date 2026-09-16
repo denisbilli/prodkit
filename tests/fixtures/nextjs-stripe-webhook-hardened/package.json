@@ -1,0 +1,9 @@
+{
+  "name": "nextjs-stripe-webhook-hardened",
+  "version": "1.0.0",
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "stripe": "^17.0.0"
+  }
+}

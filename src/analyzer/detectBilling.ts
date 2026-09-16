@@ -42,8 +42,63 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     )
     : [];
 
+  /**
+   * Routes that exist as a file path rather than as a string in the code.
+   *
+   * The patterns above all look for the URL written out somewhere — `app.post('/webhook')`
+   * and its relatives. In a file-system-routed framework the URL is never written
+   * anywhere: `src/app/api/stripe/webhook/route.ts` IS the route. That covers the
+   * Next.js App Router, Remix, SvelteKit, Nuxt and Astro, so the check reported "no
+   * webhook route" for a correctly verified webhook and marked the whole control
+   * partial.
+   *
+   * A `webhook` path segment is required, not a substring, so `webhooks.test.ts`
+   * beside a handler does not count as a route on its own.
+   */
+  const webhookPathHits = hasStrongStripeSignal
+    ? ctx.files.source.filter((file) => /(?:^|\/)webhooks?(?:\/|\.[cm]?[jt]sx?$)/i.test(file))
+    : [];
+
+  /**
+   * Reading the body without letting a JSON parser touch it first.
+   *
+   * This used to look for `express.raw(` and `req.rawBody` and nothing else, which
+   * made the check Express-only. A Stripe signature covers the exact bytes that were
+   * sent, so every framework has an idiom for this, and outside Express none of them
+   * mention "raw": a Web-standard handler (Next.js route handlers, Remix, SvelteKit,
+   * Hono, Bun, Deno, Cloudflare Workers) awaits `request.text()`, Django reads
+   * `request.body`, FastAPI awaits `request.body()`, Flask calls
+   * `request.get_data()`. Next.js is the most common stack among the repositories
+   * this tool is pointed at, so the omission failed the case it meets most often —
+   * and it failed it quietly, reporting `partial` on a webhook that was correctly
+   * verified.
+   *
+   * The Web-standard patterns are anchored to a request identifier rather than
+   * matching `.text()` anywhere: a `.text()` on a fetch *response* is a different
+   * thing entirely and is conventionally held in `res` or `response`.
+   */
   const rawBodyHits = hasStrongStripeSignal
-    ? await searchInFiles(ctx.root, ctx.files.source, [/express\.raw\(/i, /req\.rawBody/i], 20)
+    ? await searchInFiles(
+      ctx.root,
+      ctx.files.source,
+      [
+        // Express, and the body-parser spelling of the same thing.
+        /express\.raw\(/i,
+        /bodyParser\.raw\(/i,
+        /\braw_?[bB]ody\b/,
+        /getRawBody\(/i,
+        // Web-standard Request: Next.js route handlers, Remix, SvelteKit, Hono,
+        // Bun, Deno, Cloudflare Workers.
+        /\b(?:request|req)\.(?:text|arrayBuffer|blob)\(\s*\)/,
+        // Python: Django, FastAPI, Flask.
+        /\brequest\.body\b/,
+        /\brequest\.get_data\(/,
+        /\bawait\s+request\.body\(\s*\)/,
+        // Go's net/http.
+        /io\.ReadAll\(\s*r\.Body\s*\)/,
+      ],
+      20
+    )
     : [];
 
   const secretHits = hasStrongStripeSignal
@@ -68,6 +123,10 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
   }
 
+  for (const file of webhookPathHits) {
+    evidence.push({ type: 'file', value: file, file });
+  }
+
   return [
     {
       key: 'billing.stripe',
@@ -79,8 +138,11 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     },
     {
       key: 'billing.webhook.route',
-      present: webhookRouteHits.length > 0,
-      evidence: toEvidence(webhookRouteHits),
+      present: webhookRouteHits.length > 0 || webhookPathHits.length > 0,
+      evidence: [
+        ...toEvidence(webhookRouteHits),
+        ...webhookPathHits.map((file) => ({ type: 'file' as const, value: file, file })),
+      ],
     },
     {
       key: 'billing.webhook.rawBody',
