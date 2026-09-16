@@ -149,9 +149,29 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 ## Supported stacks
 
-- Backend: Express, NestJS, Fastify, Next.js (Node); Django, FastAPI, Flask (Python)
-- Frontend: React, Vue, Svelte, Angular, Nuxt, Vite
+- **Backend (Node):** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS,
+  SvelteKit, Remix, Nuxt, Nitro
+- **Backend (Python):** Django, FastAPI, Flask, Litestar, Starlette, Sanic, Tornado,
+  aiohttp
+- **Frontend:** React, Vue, Svelte, Angular, Solid, Qwik, Preact, Astro, Nuxt, Remix,
+  Vite, Tailwind, htmx
+- **Databases:** Postgres, MySQL, SQLite, MongoDB, Redis
+- **Hosted data platforms:** Supabase, Firebase, Neon, PlanetScale, Vercel Postgres,
+  Turso, Upstash, DynamoDB, Convex
+- **ORMs:** Prisma, Drizzle, TypeORM, Sequelize, Knex, MikroORM, Kysely, SQLAlchemy,
+  Tortoise, Peewee
 - Generic unknown app fallback
+
+Two of these distinctions are deliberate rather than incidental.
+
+A hosted platform is recorded separately from the engine underneath it. Supabase is
+Postgres and Turso is SQLite, so rules written about an engine keep working without
+knowing about the host, while "this data lives on infrastructure someone else
+operates" stays a question the report can ask on its own.
+
+Astro counts as a backend only when it is configured to serve requests — `output` set
+to `server` or `hybrid`, or an adapter installed. A static Astro site is a static
+site, and is not marked down for missing the things an application needs.
 
 ## Current limitations
 
