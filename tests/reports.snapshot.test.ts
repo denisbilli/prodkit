@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { promises as fs } from 'fs';
 import * as path from 'path';
+import { analyzeProject } from '../src/analyzer/analyzeProject';
+import { buildReport } from '../src/report/buildReport';
+import { renderMarkdown } from '../src/report/markdownReport';
 
 interface ReportSnapshot {
   score: number;
@@ -50,20 +52,32 @@ function parseReport(markdown: string): ReportSnapshot {
   };
 }
 
-async function loadReport(fileName: string): Promise<string> {
-  const reportPath = path.resolve(__dirname, '..', 'reports', fileName);
-  return fs.readFile(reportPath, 'utf8');
+/**
+ * Renders a report from a fixture in this repository.
+ *
+ * These snapshots used to read checked-in reports of real private projects. That made
+ * the suite depend on someone's application weaknesses being committed here, and those
+ * files could not survive the repository becoming public. Generating from a fixture is
+ * also the better test: it exercises the pipeline end to end and cannot drift from the
+ * code that produces it.
+ */
+async function renderFixtureReport(
+  fixtureName: string,
+  profile?: Parameters<typeof buildReport>[1],
+): Promise<string> {
+  const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', fixtureName));
+  return renderMarkdown(buildReport(analysis, profile));
 }
 
-describe('real report snapshots', () => {
-  it('matches structured snapshot for transcribeai report', async () => {
-    const markdown = await loadReport('transcribeai.md');
+describe('report snapshots', () => {
+  it('matches structured snapshot for a hardened express fixture', async () => {
+    const markdown = await renderFixtureReport('express-secure', { profile: 'b2b-saas' });
     const parsed = parseReport(markdown);
     expect(parsed).toMatchSnapshot();
   });
 
-  it('matches structured snapshot for movie-generator report', async () => {
-    const markdown = await loadReport('movie-generator.md');
+  it('matches structured snapshot for an unhardened express fixture', async () => {
+    const markdown = await renderFixtureReport('express-basic', { profile: 'b2b-saas' });
     const parsed = parseReport(markdown);
     expect(parsed).toMatchSnapshot();
   });

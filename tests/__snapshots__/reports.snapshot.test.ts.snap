@@ -1,8 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`real report snapshots > matches structured snapshot for movie-generator report 1`] = `
+exports[`report snapshots > matches structured snapshot for a hardened express fixture 1`] = `
 {
-  "criticalCount": 1,
+  "criticalCount": 3,
   "findings": [
     {
       "id": "auth.core",
@@ -17,22 +17,117 @@ exports[`real report snapshots > matches structured snapshot for movie-generator
     {
       "id": "billing.webhook-signature",
       "severity": "medium",
-      "status": "missing",
+      "status": "unknown",
     },
     {
       "id": "deployment.readiness",
-      "severity": "info",
-      "status": "passed",
+      "severity": "low",
+      "status": "partial",
     },
     {
       "id": "docker.presence",
-      "severity": "info",
-      "status": "passed",
+      "severity": "low",
+      "status": "missing",
     },
     {
       "id": "env.example",
       "severity": "info",
       "status": "passed",
+    },
+    {
+      "id": "expectation.audit.recommended",
+      "severity": "low",
+      "status": "partial",
+    },
+    {
+      "id": "expectation.auth.api-keys.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.email-verification.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.mfa.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.password-reset.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.password-reset.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.billing.model.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.deployment.required",
+      "severity": "medium",
+      "status": "partial",
+    },
+    {
+      "id": "expectation.docker.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.consent.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.erasure.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.export.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.retention.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.observability.logging.recommended",
+      "severity": "low",
+      "status": "partial",
+    },
+    {
+      "id": "expectation.tenancy.isolation.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.tenancy.isolation.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.tenancy.organization.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.tenancy.organization.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.uploads.required",
+      "severity": "medium",
+      "status": "partial",
     },
     {
       "id": "gdpr.privacy",
@@ -43,6 +138,248 @@ exports[`real report snapshots > matches structured snapshot for movie-generator
       "id": "observability.health",
       "severity": "info",
       "status": "passed",
+    },
+    {
+      "id": "observability.logging",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.cors-origin",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.django-debug",
+      "severity": "critical",
+      "status": "unknown",
+    },
+    {
+      "id": "security.django-secure-cookies",
+      "severity": "high",
+      "status": "unknown",
+    },
+    {
+      "id": "security.helmet",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.rate-limit-auth",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "security.weak-secret",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "stack.detected",
+      "severity": "info",
+      "status": "passed",
+    },
+    {
+      "id": "tenancy.b2b",
+      "severity": "high",
+      "status": "unknown",
+    },
+    {
+      "id": "uploads.public-exposure",
+      "severity": "info",
+      "status": "passed",
+    },
+  ],
+  "highCount": 3,
+  "maturity": "partial",
+  "mediumCount": 9,
+  "score": 76,
+}
+`;
+
+exports[`report snapshots > matches structured snapshot for an unhardened express fixture 1`] = `
+{
+  "criticalCount": 7,
+  "findings": [
+    {
+      "id": "auth.core",
+      "severity": "medium",
+      "status": "partial",
+    },
+    {
+      "id": "authz.resource-level",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "billing.webhook-signature",
+      "severity": "medium",
+      "status": "unknown",
+    },
+    {
+      "id": "deployment.readiness",
+      "severity": "low",
+      "status": "missing",
+    },
+    {
+      "id": "docker.presence",
+      "severity": "low",
+      "status": "missing",
+    },
+    {
+      "id": "env.example",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.audit.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.api-keys.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.email-verification.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.mfa.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.password-reset.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.auth.password-reset.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.authz.ownership.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.authz.roles.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.billing.model.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.deployment.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.docker.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.consent.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.erasure.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.export.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.gdpr.retention.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.observability.health.required",
+      "severity": "high",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.observability.logging.recommended",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.security.cors.required",
+      "severity": "medium",
+      "status": "partial",
+    },
+    {
+      "id": "expectation.security.headers.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.security.headers.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.security.rate-limit.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.security.rate-limit.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.tenancy.isolation.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.tenancy.isolation.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.tenancy.organization.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.tenancy.organization.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.uploads.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "expectation.uploads.required",
+      "severity": "critical",
+      "status": "missing",
+    },
+    {
+      "id": "gdpr.privacy",
+      "severity": "medium",
+      "status": "missing",
+    },
+    {
+      "id": "observability.health",
+      "severity": "low",
+      "status": "missing",
     },
     {
       "id": "observability.logging",
@@ -92,7 +429,7 @@ exports[`real report snapshots > matches structured snapshot for movie-generator
     {
       "id": "tenancy.b2b",
       "severity": "high",
-      "status": "missing",
+      "status": "unknown",
     },
     {
       "id": "uploads.public-exposure",
@@ -100,116 +437,9 @@ exports[`real report snapshots > matches structured snapshot for movie-generator
       "status": "missing",
     },
   ],
-  "highCount": 3,
+  "highCount": 9,
   "maturity": "prototype",
-  "mediumCount": 4,
-  "score": 33,
-}
-`;
-
-exports[`real report snapshots > matches structured snapshot for transcribeai report 1`] = `
-{
-  "criticalCount": 1,
-  "findings": [
-    {
-      "id": "auth.core",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "authz.resource-level",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "billing.webhook-signature",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "deployment.readiness",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "docker.presence",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "env.example",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "gdpr.privacy",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "observability.health",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "observability.logging",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "security.cors-origin",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "security.django-debug",
-      "severity": "critical",
-      "status": "unknown",
-    },
-    {
-      "id": "security.django-secure-cookies",
-      "severity": "high",
-      "status": "unknown",
-    },
-    {
-      "id": "security.helmet",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "security.rate-limit-auth",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "security.weak-secret",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "security.weak-secret",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "stack.detected",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "tenancy.b2b",
-      "severity": "info",
-      "status": "passed",
-    },
-    {
-      "id": "uploads.public-exposure",
-      "severity": "info",
-      "status": "passed",
-    },
-  ],
-  "highCount": 0,
-  "maturity": "production_ready",
-  "mediumCount": 0,
-  "score": 85,
+  "mediumCount": 15,
+  "score": 30,
 }
 `;
