@@ -110,11 +110,13 @@ Optional AI layer:
 - **A separate package.** The AI features live in `@produtype/ai`, which is commercial
   and is not a dependency of this package. An open source install runs the
   deterministic analysis only, and `--ai` reports that the package is not installed
-  rather than failing.
+  rather than failing. That package brings its own model access; nothing needs to be
+  configured here to run the analysis.
 - ProdKit stays deterministic, offline, and read-only: nothing here makes a network
   call.
-- They require an `ANTHROPIC_API_KEY` and the optional `@anthropic-ai/sdk` package (`npm install @anthropic-ai/sdk`). Without them, the deterministic analysis is unaffected.
-- Repository content is redacted of secrets before anything is sent, and AI output is advisory only — it never changes the deterministic score.
+- When `@produtype/ai` is installed, it redacts secrets from repository content before
+  sending anything, and its output stays advisory — it never changes the deterministic
+  score.
 
 Profile warning:
 

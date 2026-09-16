@@ -227,8 +227,8 @@ export async function runCli(argv = process.argv): Promise<void> {
     .option('--output <path>', 'Output file path (optional)')
     .option('--fail-under <score>', 'Exit with an error if overall score is below this threshold (0-100)')
     .option('--min-maturity <level>', `Exit with an error if maturity is below this level: ${maturityOrder.join('|')}`)
-    .option('--ai', 'Add an AI stack/architecture insight (opt-in; requires ANTHROPIC_API_KEY; advisory only)')
-    .option('--ai-review', 'Add an AI semantic code review of fine-grained issues (opt-in; requires ANTHROPIC_API_KEY; advisory only)')
+    .option('--ai', 'Add an AI stack/architecture insight (opt-in; requires @produtype/ai; advisory only)')
+    .option('--ai-review', 'Add an AI semantic code review of fine-grained issues (opt-in; requires @produtype/ai; advisory only)')
     .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string; failUnder?: string; minMaturity?: string; ai?: boolean; aiReview?: boolean }) => {
       const format = options.format === 'json' ? 'json' : 'markdown';
       const formatSpecified = typeof options.format === 'string';
