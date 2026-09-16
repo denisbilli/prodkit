@@ -25,6 +25,13 @@ export type { BuildReportOptions } from './report/buildReport';
 export { PRODKit_VERSION } from './version';
 
 /**
+ * Safe file reading, exported because consumers that sample a repository need the
+ * same guarantees the analyzer relies on: binaries and oversized files are skipped,
+ * and a read never throws.
+ */
+export { readTextFileSafe, readJsonSafe } from './utils/readTextFileSafe';
+
+/**
  * The optional AI layer is NOT re-exported here.
  *
  * It lives behind its own entry point (`@prodkit/core/ai`) and is excluded from the

@@ -133,16 +133,41 @@ function renderPlanByFormat(format: OutputFormat, plan: ReturnType<typeof buildP
 }
 
 /**
- * Loads the AI layer on demand.
+ * Loads the optional AI layer.
  *
- * The layer is excluded from the published package, so in a published install these
- * modules are simply absent. Importing them lazily means the deterministic CLI keeps
- * working and only `--ai` reports that the feature is not part of this build, instead
- * of the whole binary failing to start.
+ * `@prodkit/ai` is a separate, commercial package. It is not a dependency of this one,
+ * so the import is resolved at run time and its absence is the normal case: the
+ * deterministic CLI is complete without it, and `--ai` says the feature is not
+ * installed rather than the binary failing to start.
  */
-async function loadAiLayer(): Promise<typeof import('./ai-api.js') | null> {
+interface AiLayer {
+  inferStackWithAi(analysis: ProjectAnalysis): Promise<{
+    frontend: string[];
+    backend: string[];
+    databases: string[];
+    architecture: string;
+    confidence: string;
+  }>;
+  reviewCodeWithAi(analysis: ProjectAnalysis): Promise<{
+    findings: Array<{
+      title: string;
+      severity: string;
+      confidence: string;
+      recommendation: string;
+      file?: string;
+      line?: number;
+    }>;
+  }>;
+}
+
+// A variable specifier, so `tsc` does not require the commercial package to be
+// installed in order to build the open source one. webpackIgnore keeps bundlers from
+// trying to resolve it: it is meant to be found by Node at run time, if it is there.
+const AI_PACKAGE = '@prodkit/ai';
+
+async function loadAiLayer(): Promise<AiLayer | null> {
   try {
-    return await import('./ai-api.js');
+    return (await import(/* webpackIgnore: true */ AI_PACKAGE)) as unknown as AiLayer;
   } catch {
     return null;
   }
@@ -157,7 +182,7 @@ async function runAiEnrichment(
   const ai = await loadAiLayer();
   if (!ai) {
     console.error(
-      '\nAI features are not included in this build of ProdKit. The deterministic analysis above is complete.',
+      '\nAI features require the @prodkit/ai package, which is not installed. The deterministic analysis above is complete.',
     );
     return;
   }

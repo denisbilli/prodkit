@@ -32,6 +32,14 @@ are called out here.
   calls.
 
 ### Changed
+- The AI layer is extracted into `@prodkit/ai`, a separate commercial package. This
+  package no longer contains it, depends on it, or ships it; the CLI resolves it at run
+  time and degrades when it is absent. `readTextFileSafe` and `readJsonSafe` are now
+  exported so a consumer sampling a repository gets the same safety guarantees the
+  analyzer relies on.
+- `npm run build` cleans `dist` first, and `prepublishOnly` refuses to publish if any
+  AI artefact is present — tsc does not clean its output, and a stale build from before
+  the extraction would otherwise have shipped the paid layer under MIT.
 - The optional AI layer moved behind its own entry point (`@prodkit/core/ai`) and is
   excluded from the published package. The deterministic analysis is what ships under
   MIT; the AI review is the paid part of the product. A published install runs the

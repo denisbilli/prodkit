@@ -78,16 +78,22 @@ describe('cli', () => {
     expect(logSpy.mock.calls.flat().join('\n')).toContain('INCONCLUSIVE');
   });
 
-  it('fails cleanly when --ai is used without an API key', async () => {
-    vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    const previous = process.env.ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
+  it('completes the deterministic analysis when --ai is used without the AI package', async () => {
+    // The AI layer lives in @prodkit/ai, a separate commercial package that is not a
+    // dependency of this one. Its absence is the normal case for an open source
+    // install, so --ai must report that and let the analysis finish — not abort the
+    // run the user actually asked for.
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
     try {
-      await expect(
-        runCli(['node', 'prodkit', 'analyze', fixture('express-basic'), '--summary', '--ai'])
-      ).rejects.toThrow(/Anthropic API key/);
+      await runCli(['node', 'prodkit', 'analyze', fixture('express-basic'), '--summary', '--ai']);
+
+      expect(logSpy.mock.calls.flat().join('\n')).toContain('ProdKit Analysis Summary');
+      expect(errorSpy.mock.calls.flat().join('\n')).toMatch(/@prodkit\/ai/);
     } finally {
-      if (previous !== undefined) process.env.ANTHROPIC_API_KEY = previous;
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
     }
   });
 });
