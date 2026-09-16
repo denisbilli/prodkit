@@ -25,6 +25,12 @@ export async function detectFrontend(ctx: DetectContext): Promise<{
     ['nuxt', ['nuxt']],
     ['svelte', ['svelte', '@sveltejs/kit']],
     ['angular', ['@angular/core']],
+    ['astro', ['astro']],
+    ['solid', ['solid-js']],
+    ['qwik', ['@builder.io/qwik']],
+    ['preact', ['preact']],
+    ['remix', ['@remix-run/react']],
+    ['htmx', ['htmx.org']],
   ];
   for (const [framework, names] of frameworkDeps) {
     const hits = hasAnyDep(ctx, names);

@@ -1,0 +1,1 @@
+{ "name": "astro-server", "version": "1.0.0", "dependencies": { "astro": "^5.0.0", "@astrojs/node": "^9.0.0" } }
