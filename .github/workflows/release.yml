@@ -30,6 +30,11 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      # npm's OIDC exchange with the registry landed in npm 11.5.1, and the npm that
+      # ships with Node 22 is older than that. Without this step the publish below
+      # finds no credentials at all and fails.
+      - run: npm install -g npm@latest
+
       - run: npm ci
 
       # The tag and the manifest must agree. A tag that says v0.3.0 while package.json
@@ -57,10 +62,12 @@ jobs:
       - name: Refuse to publish the AI layer
         run: node scripts/assert-no-ai.mjs
 
+      # No NODE_AUTH_TOKEN: the trusted publisher connection on npm lets this exact
+      # workflow, in this exact repository, mint a short-lived credential over OIDC.
+      # A token in the environment would be used in preference to that exchange, so
+      # its absence is what makes the publish go through the trusted path.
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create the GitHub release
         run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
