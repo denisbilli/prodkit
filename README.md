@@ -107,6 +107,10 @@ Options:
 
 Optional AI layer:
 
+- **Not included in the published package.** The AI features live behind a separate
+  entry point and are excluded from the npm tarball; a published install runs the
+  deterministic analysis only, and `--ai` reports that the feature is not part of that
+  build rather than failing.
 - The AI features are entirely opt-in and off by default: ProdKit stays deterministic, offline, and read-only unless you pass `--ai`/`--ai-review`.
 - They require an `ANTHROPIC_API_KEY` and the optional `@anthropic-ai/sdk` package (`npm install @anthropic-ai/sdk`). Without them, the deterministic analysis is unaffected.
 - Repository content is redacted of secrets before anything is sent, and AI output is advisory only — it never changes the deterministic score.

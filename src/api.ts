@@ -25,19 +25,10 @@ export type { BuildReportOptions } from './report/buildReport';
 export { PRODKit_VERSION } from './version';
 
 /**
- * Optional AI layer.
+ * The optional AI layer is NOT re-exported here.
  *
- * Advisory only: nothing here changes the deterministic score, and every entry point
- * requires an Anthropic API key plus the optional @anthropic-ai/sdk package, so the
- * deterministic analysis is unaffected when neither is present.
- *
- * Exported so the cloud can consume it as a library — until now it was reachable only
- * through the CLI flags, which meant a server-side caller could not use it at all.
- * When the AI layer moves to its own commercial package these exports move with it.
+ * It lives behind its own entry point (`@prodkit/core/ai`) and is excluded from the
+ * published package: the deterministic analysis is what ships under MIT, the AI review
+ * is the paid part. Importing it from here would put it back in the tarball through
+ * the dependency graph and undo that.
  */
-export { inferStackWithAi, reviewCodeWithAi } from './ai/enrich';
-export { AiUnavailableError, assertAiAvailable, REVIEW_MODEL, STACK_MODEL } from './ai/client';
-export { redactSecrets, containsSecret } from './ai/redact';
-export { buildRepoSample, selectSampleFiles } from './ai/sample';
-export type { RepoSample, RepoSampleFile, SampleOptions } from './ai/sample';
-export type { AiOptions, AiReview, AiFinding, AiStackHint, AiMode } from './ai/types';

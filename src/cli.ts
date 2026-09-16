@@ -12,7 +12,6 @@ import { resolveProjectPath } from './utils/pathUtils';
 import type { ProductProfile } from './expectations/types';
 import type { MaturityLevel } from './report/types';
 import type { ProjectAnalysis } from './analyzer/types';
-import { inferStackWithAi, reviewCodeWithAi } from './ai/enrich';
 
 type OutputFormat = 'markdown' | 'json';
 const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'auto'] as const;
@@ -133,12 +132,38 @@ function renderPlanByFormat(format: OutputFormat, plan: ReturnType<typeof buildP
   return format === 'json' ? renderJsonPlan(plan) : renderMarkdownPlan(plan);
 }
 
+/**
+ * Loads the AI layer on demand.
+ *
+ * The layer is excluded from the published package, so in a published install these
+ * modules are simply absent. Importing them lazily means the deterministic CLI keeps
+ * working and only `--ai` reports that the feature is not part of this build, instead
+ * of the whole binary failing to start.
+ */
+async function loadAiLayer(): Promise<typeof import('./ai-api.js') | null> {
+  try {
+    return await import('./ai-api.js');
+  } catch {
+    return null;
+  }
+}
+
 async function runAiEnrichment(
   analysis: ProjectAnalysis,
   opts: { ai?: boolean; aiReview?: boolean },
 ): Promise<void> {
+  if (!opts.ai && !opts.aiReview) return;
+
+  const ai = await loadAiLayer();
+  if (!ai) {
+    console.error(
+      '\nAI features are not included in this build of ProdKit. The deterministic analysis above is complete.',
+    );
+    return;
+  }
+
   if (opts.ai) {
-    const hint = await inferStackWithAi(analysis);
+    const hint = await ai.inferStackWithAi(analysis);
     console.log('\n## AI Stack Insight (advisory — does not affect score)');
     console.log(`- Frontend: ${hint.frontend.join(', ') || 'unknown'}`);
     console.log(`- Backend: ${hint.backend.join(', ') || 'unknown'}`);
@@ -147,7 +172,7 @@ async function runAiEnrichment(
     console.log(`- Confidence: ${hint.confidence}`);
   }
   if (opts.aiReview) {
-    const review = await reviewCodeWithAi(analysis);
+    const review = await ai.reviewCodeWithAi(analysis);
     console.log('\n## AI Code Review (advisory — does not affect score)');
     if (review.findings.length === 0) {
       console.log('- No issues reported.');

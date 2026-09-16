@@ -20,11 +20,24 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./ai": {
+      "types": "./dist/ai-api.d.ts",
+      "import": "./dist/ai-api.js",
+      "require": "./dist/ai-api.js",
+      "default": "./dist/ai-api.js"
     }
   },
   "files": [
     "dist",
-    "README.md"
+    "!dist/ai",
+    "!dist/ai-api.js",
+    "!dist/ai-api.d.ts",
+    "!dist/ai-api.js.map",
+    "!dist/ai-api.d.ts.map",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -43,9 +56,6 @@
     "commander": "^12.1.0",
     "fast-glob": "^3.3.2",
     "zod": "^3.23.8"
-  },
-  "optionalDependencies": {
-    "@anthropic-ai/sdk": "^0.68.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.3",

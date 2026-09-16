@@ -32,6 +32,12 @@ are called out here.
   calls.
 
 ### Changed
+- The optional AI layer moved behind its own entry point (`@prodkit/core/ai`) and is
+  excluded from the published package. The deterministic analysis is what ships under
+  MIT; the AI review is the paid part of the product. A published install runs the
+  deterministic analysis only, and `--ai` says so instead of failing.
+- `@anthropic-ai/sdk` is no longer declared as an optional dependency, since only the
+  excluded layer uses it.
 - Expected-capability scoring no longer saturates. It previously computed
   `100 - Σ penalty` clamped at zero, and a demanding profile accumulates more than 100
   points of penalty on a repository that satisfies nothing, so every demanding profile
