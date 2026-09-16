@@ -135,7 +135,7 @@ function renderPlanByFormat(format: OutputFormat, plan: ReturnType<typeof buildP
 /**
  * Loads the optional AI layer.
  *
- * `@prodkit/ai` is a separate, commercial package. It is not a dependency of this one,
+ * `@produtype/ai` is a separate, commercial package. It is not a dependency of this one,
  * so the import is resolved at run time and its absence is the normal case: the
  * deterministic CLI is complete without it, and `--ai` says the feature is not
  * installed rather than the binary failing to start.
@@ -163,7 +163,7 @@ interface AiLayer {
 // A variable specifier, so `tsc` does not require the commercial package to be
 // installed in order to build the open source one. webpackIgnore keeps bundlers from
 // trying to resolve it: it is meant to be found by Node at run time, if it is there.
-const AI_PACKAGE = '@prodkit/ai';
+const AI_PACKAGE = '@produtype/ai';
 
 async function loadAiLayer(): Promise<AiLayer | null> {
   try {
@@ -182,7 +182,7 @@ async function runAiEnrichment(
   const ai = await loadAiLayer();
   if (!ai) {
     console.error(
-      '\nAI features require the @prodkit/ai package, which is not installed. The deterministic analysis above is complete.',
+      '\nAI features require the @produtype/ai package, which is not installed. The deterministic analysis above is complete.',
     );
     return;
   }

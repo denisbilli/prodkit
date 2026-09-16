@@ -32,10 +32,9 @@ export { PRODKit_VERSION } from './version';
 export { readTextFileSafe, readJsonSafe } from './utils/readTextFileSafe';
 
 /**
- * The optional AI layer is NOT re-exported here.
+ * The optional AI layer is NOT exported here.
  *
- * It lives behind its own entry point (`@prodkit/core/ai`) and is excluded from the
- * published package: the deterministic analysis is what ships under MIT, the AI review
- * is the paid part. Importing it from here would put it back in the tarball through
- * the dependency graph and undo that.
+ * It is a separate commercial package, `@produtype/ai`, which this one neither depends
+ * on nor ships. Re-exporting it would pull it back into this tarball through the
+ * dependency graph and undo the split.
  */

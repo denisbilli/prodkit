@@ -107,7 +107,7 @@ Options:
 
 Optional AI layer:
 
-- **A separate package.** The AI features live in `@prodkit/ai`, which is commercial
+- **A separate package.** The AI features live in `@produtype/ai`, which is commercial
   and is not a dependency of this package. An open source install runs the
   deterministic analysis only, and `--ai` reports that the package is not installed
   rather than failing.

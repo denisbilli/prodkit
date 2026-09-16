@@ -79,7 +79,7 @@ describe('cli', () => {
   });
 
   it('completes the deterministic analysis when --ai is used without the AI package', async () => {
-    // The AI layer lives in @prodkit/ai, a separate commercial package that is not a
+    // The AI layer lives in @produtype/ai, a separate commercial package that is not a
     // dependency of this one. Its absence is the normal case for an open source
     // install, so --ai must report that and let the analysis finish — not abort the
     // run the user actually asked for.
@@ -90,7 +90,7 @@ describe('cli', () => {
       await runCli(['node', 'prodkit', 'analyze', fixture('express-basic'), '--summary', '--ai']);
 
       expect(logSpy.mock.calls.flat().join('\n')).toContain('ProdKit Analysis Summary');
-      expect(errorSpy.mock.calls.flat().join('\n')).toMatch(/@prodkit\/ai/);
+      expect(errorSpy.mock.calls.flat().join('\n')).toMatch(/@produtype\/ai/);
     } finally {
       logSpy.mockRestore();
       errorSpy.mockRestore();

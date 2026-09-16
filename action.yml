@@ -59,7 +59,7 @@ runs:
         # gate. Capture the report first so the summary is written even on a failure —
         # a check that fails without saying why is worse than no check.
         set +e
-        npx --yes @prodkit/core "${args[@]}" > prodkit-report.json
+        npx --yes @produtype/core "${args[@]}" > prodkit-report.json
         status=$?
         set -e
 
