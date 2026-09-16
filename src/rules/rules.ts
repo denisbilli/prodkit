@@ -90,7 +90,7 @@ export const rules: Rule[] = [
         category: 'stack',
         status,
         severity: status === 'passed' ? 'info' : 'low',
-        description: hasStack ? 'ProdKit identified known stack signals.' : 'Stack is generic/unknown for this MVP.',
+        description: hasStack ? 'ProdKit identified known stack signals.' : 'Stack is generic or unknown to ProdKit.',
         recommendation: hasStack
           ? 'No action required.'
           : 'Add explicit framework manifests or keep this as generic app baseline.',

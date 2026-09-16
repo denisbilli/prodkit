@@ -4,7 +4,7 @@ ProdKit is a deterministic local CLI that analyzes an existing web application r
 
 It is designed for early-stage and AI-generated apps where architecture and security quality can vary significantly.
 
-ProdKit MVP is read-only: it never modifies the target repository.
+ProdKit is read-only: it never modifies the target repository.
 
 ## What ProdKit does
 
@@ -147,7 +147,7 @@ prodkit plan ../my-app --format json
 prodkit plan ../my-app --output prodkit-plan.md
 ```
 
-## Supported stacks in MVP
+## Supported stacks
 
 - Backend: Express, NestJS, Fastify, Next.js (Node); Django, FastAPI, Flask (Python)
 - Frontend: React, Vue, Svelte, Angular, Nuxt, Vite
@@ -170,11 +170,11 @@ prodkit plan tests/fixtures/express-basic --output prodkit-plan.md
 
 ## Current limitations
 
-- Deterministic heuristics only, with no AI explanation layer yet
+- Deterministic heuristics only: the AI layer is a separate package (see above)
 - Signal-based stack coverage across common Node/Python/JS frameworks + fallback
 - Signal-based detection can produce false positives/negatives
 - Plan output is deterministic and read-only only
-- No cloud dashboard/UI in MVP
+- No cloud dashboard or UI: this package is the CLI and the library
 
 ## Roadmap
 
