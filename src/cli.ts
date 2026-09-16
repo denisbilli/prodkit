@@ -95,6 +95,13 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     `Detected frontend: ${report.detectedStack.frontend.join(', ') || 'unknown'}`,
     `Detected backend: ${report.detectedStack.backend.join(', ') || 'unknown'}`,
     `Detected databases: ${report.detectedStack.databases.join(', ') || 'unknown'}`,
+    // Named on their own line rather than folded into the databases list. A reader
+    // whose data layer is entirely Supabase needs to see that the tool recognised
+    // Supabase, not only that it worked out the engine underneath is Postgres.
+    ...(report.detectedStack.dataPlatforms.length > 0
+      ? [`Data platform: ${report.detectedStack.dataPlatforms.join(', ')}`]
+      : []),
+    ...(report.detectedStack.orms.length > 0 ? [`ORM: ${report.detectedStack.orms.join(', ')}`] : []),
     `Package manager: ${report.detectedStack.packageManager} (${report.detectedStack.packageManagerConfidence})`,
     report.detectedStack.warnings.length > 0 ? `Warnings: ${report.detectedStack.warnings.join('; ')}` : 'Warnings: none',
     `Workspaces: ${workspaceSummary}`,

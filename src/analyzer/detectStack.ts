@@ -16,6 +16,8 @@ export function buildStackInfo(input: {
   frontend: string[];
   backend: string[];
   databases: string[];
+  dataPlatforms?: string[];
+  orms?: string[];
   packageManager: StackInfo['packageManager'];
   packageManagerConfidence: StackInfo['packageManagerConfidence'];
   warnings: string[];
@@ -26,6 +28,8 @@ export function buildStackInfo(input: {
     frontend: unique(input.frontend),
     backend: unique(input.backend),
     databases: unique(input.databases),
+    dataPlatforms: unique(input.dataPlatforms ?? []),
+    orms: unique(input.orms ?? []),
     packageManager: input.packageManager,
     packageManagerConfidence: input.packageManagerConfidence,
     warnings: unique(input.warnings),

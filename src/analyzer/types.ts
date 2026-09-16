@@ -23,6 +23,13 @@ export interface StackInfo {
   frontend: string[]; // e.g. ['react', 'vite', 'tailwind']
   backend: string[]; // e.g. ['express'] or ['django']
   databases: string[]; // ['postgres', 'redis']
+  /**
+   * Hosted data services: ['supabase'], ['firebase']. Separate from `databases`,
+   * which holds the engine — Supabase appears in both, as 'supabase' here and
+   * 'postgres' there, because it is both.
+   */
+  dataPlatforms: string[];
+  orms: string[]; // ['prisma', 'drizzle']
   languages: string[]; // ['typescript', 'javascript', 'python']
   packageManager: PackageManager;
   packageManagerConfidence: PackageManagerConfidence;

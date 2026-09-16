@@ -2,8 +2,76 @@ import type { DetectorResult, DetectorEvidence } from './types';
 import { hasAnyDep, hasAnyPyDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 
+/**
+ * Managed data platforms, and the engine each one actually is.
+ *
+ * A repository built with an AI tool often has no database driver at all: the whole
+ * data layer is a hosted service reached over HTTP. Read only for drivers, the
+ * analyzer reported "Detected databases: unknown" for an app whose data layer was
+ * perfectly clear — the first line of the report telling the reader the tool had not
+ * understood their project. Supabase, the default in Lovable, Bolt and v0, was the
+ * most common case of it.
+ *
+ * The engine matters as much as the platform: Supabase is Postgres and Turso is
+ * SQLite, so rules written about an engine keep working without knowing about the
+ * host. The platform is recorded separately, because whether the data sits on
+ * infrastructure someone else operates is its own question for a readiness report.
+ */
+const MANAGED_PLATFORMS: Array<{
+  platform: string;
+  engine: string | null;
+  npm: string[];
+  py: string[];
+}> = [
+  {
+    platform: 'supabase',
+    engine: 'postgres',
+    npm: ['@supabase/supabase-js', '@supabase/ssr', '@supabase/auth-helpers-nextjs', '@supabase/postgrest-js'],
+    py: ['supabase', 'supabase-py'],
+  },
+  { platform: 'firebase', engine: 'firestore', npm: ['firebase', 'firebase-admin', '@angular/fire'], py: ['firebase-admin'] },
+  { platform: 'planetscale', engine: 'mysql', npm: ['@planetscale/database'], py: [] },
+  { platform: 'neon', engine: 'postgres', npm: ['@neondatabase/serverless'], py: [] },
+  { platform: 'vercel-postgres', engine: 'postgres', npm: ['@vercel/postgres'], py: [] },
+  { platform: 'turso', engine: 'sqlite', npm: ['@libsql/client', 'libsql'], py: ['libsql-client'] },
+  { platform: 'upstash', engine: 'redis', npm: ['@upstash/redis'], py: ['upstash-redis'] },
+  { platform: 'dynamodb', engine: 'dynamodb', npm: ['@aws-sdk/client-dynamodb', 'dynamoose'], py: [] },
+  { platform: 'convex', engine: 'convex', npm: ['convex'], py: [] },
+];
+
+/**
+ * Object-relational mappers. These prove there is a data layer without naming the
+ * engine, so they are recorded on their own key; where the engine is written in a
+ * schema file, it is read from there below.
+ */
+const ORMS: Array<{ orm: string; npm: string[]; py: string[] }> = [
+  { orm: 'prisma', npm: ['@prisma/client', 'prisma'], py: [] },
+  { orm: 'drizzle', npm: ['drizzle-orm'], py: [] },
+  { orm: 'typeorm', npm: ['typeorm'], py: [] },
+  { orm: 'sequelize', npm: ['sequelize'], py: [] },
+  { orm: 'knex', npm: ['knex'], py: [] },
+  { orm: 'mikro-orm', npm: ['@mikro-orm/core'], py: [] },
+  { orm: 'kysely', npm: ['kysely'], py: [] },
+  { orm: 'sqlalchemy', npm: [], py: ['sqlalchemy', 'alembic'] },
+  { orm: 'tortoise', npm: [], py: ['tortoise-orm'] },
+  { orm: 'peewee', npm: [], py: ['peewee'] },
+];
+
+/** Prisma and Drizzle both write the engine into a config file; this reads it. */
+const SCHEMA_ENGINES: Array<[RegExp, string]> = [
+  [/provider\s*=\s*['"]postgresql['"]/i, 'postgres'],
+  [/provider\s*=\s*['"]mysql['"]/i, 'mysql'],
+  [/provider\s*=\s*['"]sqlite['"]/i, 'sqlite'],
+  [/provider\s*=\s*['"]mongodb['"]/i, 'mongodb'],
+  [/provider\s*=\s*['"]cockroachdb['"]/i, 'postgres'],
+  [/dialect\s*:\s*['"]postgresql['"]/i, 'postgres'],
+  [/dialect\s*:\s*['"]mysql['"]/i, 'mysql'],
+  [/dialect\s*:\s*['"]sqlite['"]/i, 'sqlite'],
+];
+
 export async function detectDatabase(ctx: DetectContext): Promise<{
   result: DetectorResult;
+  extra: DetectorResult[];
   databases: string[];
 }> {
   const databases = new Set<string>();
@@ -72,14 +140,71 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
   // DATABASE_URL env reference
   // (kept lightweight; not adding DB type from this alone)
 
+  const platforms = new Set<string>();
+  const platformEvidence: DetectorEvidence[] = [];
+
+  for (const entry of MANAGED_PLATFORMS) {
+    const hits = [...hasAnyDep(ctx, entry.npm), ...hasAnyPyDep(ctx, entry.py)];
+    if (!hits.length) continue;
+
+    platforms.add(entry.platform);
+    if (entry.engine) databases.add(entry.engine);
+    for (const h of hits) platformEvidence.push({ type: 'dependency', value: h });
+  }
+
+  const orms = new Set<string>();
+  const ormEvidence: DetectorEvidence[] = [];
+
+  for (const entry of ORMS) {
+    const hits = [...hasAnyDep(ctx, entry.npm), ...hasAnyPyDep(ctx, entry.py)];
+    if (!hits.length) continue;
+
+    orms.add(entry.orm);
+    for (const h of hits) ormEvidence.push({ type: 'dependency', value: h });
+  }
+
+  // The ORM names the engine in its own schema, which is more reliable than guessing
+  // from a driver that a project using an ORM often does not depend on directly.
+  const schemaFiles = ctx.files.all.filter((f) =>
+    /(^|\/)schema\.prisma$/.test(f) || /(^|\/)drizzle\.config\.[cm]?[jt]s$/.test(f)
+  );
+
+  for (const file of schemaFiles) {
+    const text = (await readTextFileSafe(ctx.root, file)) ?? '';
+
+    for (const [pattern, engine] of SCHEMA_ENGINES) {
+      if (!pattern.test(text)) continue;
+
+      databases.add(engine);
+      ormEvidence.push({ type: 'file', value: `${engine} declared in ${file}`, file });
+    }
+  }
+
   const dbs = Array.from(databases);
+  const platformList = Array.from(platforms);
+  const ormList = Array.from(orms);
+
   return {
     databases: dbs,
     result: {
       key: 'stack.database',
       present: dbs.length > 0,
-      evidence,
+      evidence: [...evidence, ...platformEvidence, ...ormEvidence],
       details: { databases: dbs },
     },
+    extra: [
+      {
+        key: 'stack.dataPlatform',
+        present: platformList.length > 0,
+        evidence: platformEvidence,
+        details: { platforms: platformList },
+      },
+      {
+        key: 'stack.orm',
+        present: ormList.length > 0,
+        evidence: ormEvidence,
+        details: { orms: ormList },
+      },
+    ],
   };
 }

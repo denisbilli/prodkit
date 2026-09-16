@@ -1,0 +1,15 @@
+// The engine is named here and nowhere else: a project on Prisma has no `pg` in its
+// dependencies, so the schema is the only place that says what it talks to.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Project {
+  id   String @id @default(cuid())
+  name String
+}
