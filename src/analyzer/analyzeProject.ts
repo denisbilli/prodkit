@@ -343,10 +343,18 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    * group and artifact, without the version — because every rule downstream asks which
    * library is used, never which release of it.
    *
-   * Version catalogs (`libs.androidx.core.ktx`) are deliberately not resolved. They
-   * name an alias defined in a TOML file, and following it would mean a second reader
-   * for a second format to learn the same fact; a project using them reports fewer
-   * libraries rather than wrong ones.
+   * Version catalogs are read too, from their own file rather than by following the
+   * alias. That decision was made the other way this morning and was wrong in
+   * practice: pointed at android/nowinandroid — Google's own sample, built to
+   * demonstrate offline-first — the analyzer reported no local database, because every
+   * module says `implementation(libs.room.runtime)` and the coordinates live in
+   * `gradle/libs.versions.toml`. Version catalogs are the recommended practice, so
+   * skipping them failed precisely on the projects that follow it.
+   *
+   * No alias resolution is needed: the catalog declares `group` and `name` outright.
+   * The cost is that a library declared in the catalog and used by no module is still
+   * reported, which is the direction to err in — the catalog is the project's own
+   * statement about what it builds with.
    */
   const gradleDeps: string[] = [];
 
@@ -358,6 +366,25 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     )) {
       const [group, artifact] = match[1].split(':');
       if (group && artifact) gradleDeps.push(`${group}:${artifact}`.toLowerCase());
+    }
+  }
+
+  for (const file of allFiles.filter((f) => /(^|\/)libs\.versions\.toml$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    // Two spellings, both common: group and name as separate keys, or one `module`
+    // holding the coordinate. Order within the line varies, so each is matched on its
+    // own rather than as one pattern per line.
+    for (const line of raw.split('\n')) {
+      const module = /module\s*=\s*["']([^"':]+):([^"']+)["']/.exec(line);
+      if (module) {
+        gradleDeps.push(`${module[1]}:${module[2]}`.toLowerCase());
+        continue;
+      }
+
+      const group = /group\s*=\s*["']([^"']+)["']/.exec(line);
+      const name = /\bname\s*=\s*["']([^"']+)["']/.exec(line);
+      if (group && name) gradleDeps.push(`${group[1]}:${name[1]}`.toLowerCase());
     }
   }
 

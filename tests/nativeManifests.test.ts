@@ -35,17 +35,38 @@ describe('gradle', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  it('ignores a version catalog alias rather than reporting it as a library', async () => {
+  it('reads the version catalog, because that is where modern Android keeps its coordinates', async () => {
     const root = await project({
-      'build.gradle.kts': `dependencies {\n  implementation(libs.androidx.room.runtime)\n}\n`,
+      'build.gradle.kts': `dependencies {\n  implementation(libs.room.runtime)\n}\n`,
+      'gradle/libs.versions.toml':
+        `[versions]\nroom = "2.8.3"\n\n[libraries]\n`
+        + `room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }\n`
+        + `okhttp = { module = "com.squareup.okhttp3:okhttp", version = "4.12.0" }\n`,
       'AndroidManifest.xml': '<manifest/>\n',
     });
 
     const analysis = await analyzeProject(root);
 
-    // `libs.androidx.room.runtime` names an alias defined in a TOML file. Following it
-    // would mean a second reader for a second format; reporting fewer libraries is the
-    // right failure, and reporting Room without evidence would be the wrong one.
+    // This was the other way round until android/nowinandroid was pointed at: Google's
+    // own offline-first sample reported no local database, because every module says
+    // `implementation(libs.room.runtime)` and the coordinates are in the TOML. Skipping
+    // catalogs failed precisely on the projects following the recommended practice.
+    expect(analysis.detectors['mobile.offline']?.present).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not invent a library from an alias with no catalog behind it', async () => {
+    const root = await project({
+      'build.gradle.kts': `dependencies {\n  implementation(libs.room.runtime)\n}\n`,
+      'AndroidManifest.xml': '<manifest/>\n',
+    });
+
+    const analysis = await analyzeProject(root);
+
+    // The alias names something defined elsewhere. With no catalog in the tree there is
+    // no evidence of what it resolves to, and guessing from the alias text would report
+    // Room on the strength of a variable name.
     expect(analysis.detectors['mobile.offline']?.present).toBe(false);
 
     await fs.rm(root, { recursive: true, force: true });
