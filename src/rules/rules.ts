@@ -9,8 +9,26 @@ function statusFromFlags(present: boolean, complete?: boolean): FindingStatus {
   return 'unknown';
 }
 
+/**
+ * `unknown` is not a severity, it is the absence of one.
+ *
+ * A rule that does not apply — the Django DEBUG check on an Express project, say —
+ * returned `unknown` while keeping the severity it would have had if it had applied.
+ * The JSON report therefore carried `severity: 'critical'` on a finding whose own
+ * evidence read "Django stack not detected", and a scan of a repository with no
+ * Python in it published three of them.
+ *
+ * Nothing shipped was misled: every consumer, in the CLI summary, the markdown report
+ * and the cloud, filters `status !== 'unknown'` alongside the severity. But that pair
+ * is written out in four separate places, and each one is a chance to write only half
+ * of it — which anyone reading the JSON from outside this repository, through the MCP
+ * server or the Action, would have no reason to know they had to do at all.
+ *
+ * Carrying `info` makes `severity === 'critical'` a safe question on its own. Scoring
+ * is unaffected: score.ts already skips `unknown` before it looks at severity.
+ */
 function sevForStatus(status: FindingStatus, missing: Severity): Severity {
-  return status === 'passed' ? 'info' : missing;
+  return status === 'passed' || status === 'unknown' ? 'info' : missing;
 }
 
 function detectorEvidence(evidence: DetectorEvidence[] | undefined): DetectorEvidence[] {
@@ -89,7 +107,7 @@ export const rules: Rule[] = [
         title: 'Application stack fingerprint',
         category: 'stack',
         status,
-        severity: status === 'passed' ? 'info' : 'low',
+        severity: sevForStatus(status, 'low'),
         description: hasStack ? 'ProdKit identified known stack signals.' : 'Stack is generic or unknown to ProdKit.',
         recommendation: hasStack
           ? 'No action required.'
@@ -116,7 +134,7 @@ export const rules: Rule[] = [
         title: 'Environment template file',
         category: 'env',
         status,
-        severity: status === 'passed' ? 'info' : 'medium',
+        severity: sevForStatus(status, 'medium'),
         description: missing
           ? 'The project reads environment variables but no .env.example was detected.'
           : 'Environment template looks available or env usage was not detected.',
@@ -226,7 +244,7 @@ export const rules: Rule[] = [
         title: 'CORS origin restrictions',
         category: 'security',
         status,
-        severity: status === 'passed' ? 'info' : status === 'partial' ? 'high' : 'medium',
+        severity: status === 'partial' ? sevForStatus(status, 'high') : sevForStatus(status, 'medium'),
         description:
           status === 'passed'
             ? 'CORS appears configured with explicit origins.'
@@ -253,7 +271,7 @@ export const rules: Rule[] = [
         title: 'Django DEBUG hardening',
         category: 'security',
         status,
-        severity: status === 'passed' ? 'info' : 'critical',
+        severity: sevForStatus(status, 'critical'),
         description: !isDjango
           ? 'Django stack not detected.'
           : debugTrue
@@ -363,7 +381,7 @@ export const rules: Rule[] = [
         title: 'Authorization depth',
         category: 'authz',
         status,
-        severity: status === 'passed' ? 'info' : 'medium',
+        severity: sevForStatus(status, 'medium'),
         description:
           status === 'passed'
             ? 'Permission-level authorization signals detected.'
@@ -395,7 +413,7 @@ export const rules: Rule[] = [
         title: 'Tenant and organization boundaries',
         category: 'tenancy',
         status,
-        severity: status === 'passed' ? 'info' : status === 'partial' ? 'medium' : 'high',
+        severity: status === 'partial' ? sevForStatus(status, 'medium') : sevForStatus(status, 'high'),
         description: status === 'unknown'
           ? (backendDetected
             ? 'No B2B/SaaS signals detected.'

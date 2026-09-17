@@ -16,7 +16,7 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
     },
     {
       "id": "billing.webhook-signature",
-      "severity": "medium",
+      "severity": "info",
       "status": "unknown",
     },
     {
@@ -151,12 +151,12 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
     },
     {
       "id": "security.django-debug",
-      "severity": "critical",
+      "severity": "info",
       "status": "unknown",
     },
     {
       "id": "security.django-secure-cookies",
-      "severity": "high",
+      "severity": "info",
       "status": "unknown",
     },
     {
@@ -181,7 +181,7 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
     },
     {
       "id": "tenancy.b2b",
-      "severity": "high",
+      "severity": "info",
       "status": "unknown",
     },
     {
@@ -213,7 +213,7 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
     },
     {
       "id": "billing.webhook-signature",
-      "severity": "medium",
+      "severity": "info",
       "status": "unknown",
     },
     {
@@ -393,12 +393,12 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
     },
     {
       "id": "security.django-debug",
-      "severity": "critical",
+      "severity": "info",
       "status": "unknown",
     },
     {
       "id": "security.django-secure-cookies",
-      "severity": "high",
+      "severity": "info",
       "status": "unknown",
     },
     {
@@ -428,7 +428,7 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
     },
     {
       "id": "tenancy.b2b",
-      "severity": "high",
+      "severity": "info",
       "status": "unknown",
     },
     {
