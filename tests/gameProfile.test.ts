@@ -48,8 +48,8 @@ describe('game detection and profile', () => {
     const report = buildReport(await analyzeProject(fixture('phaser-game')), { profile: 'game' });
     const ids = (report.productProfile?.capabilities ?? []).map((c) => c.capabilityId);
 
-    expect(ids).toContain('game.state-persistence');
-    expect(ids).toContain('game.asset-delivery');
+    expect(ids).toContain('app.state-durability');
+    expect(ids).toContain('app.asset-delivery');
     // The point of the profile: a game has no tenants to separate and no audit trail
     // anyone will read, so it is not marked down for missing them.
     expect(ids).not.toContain('tenancy.organization');
@@ -58,7 +58,7 @@ describe('game detection and profile', () => {
 
   it('calls out progress kept only in the browser', async () => {
     const analysis = await analyzeProject(fixture('phaser-game'));
-    const saves = analysis.detectors['game.statePersistence'];
+    const saves = analysis.detectors['app.stateDurability'];
 
     expect(saves?.present).toBe(true);
     // Present but not complete: it saves, until it does not.
@@ -75,8 +75,12 @@ describe('a browser application is not a static site', () => {
     const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
     const inference = inferProductProfile(await analyzeProject(fixture('browser-app')));
 
+    // When this was written there was no profile for such an application, so the code
+    // could only suggest one. `client-app` exists now, so it is judged rather than
+    // merely described — which is the better answer, and the reason this assertion
+    // changed rather than the behaviour being reverted to satisfy it.
     expect(inference.inferredProfile).not.toBe('static-site');
-    expect(inference.suggestion?.reason).toMatch(/not a static site/i);
+    expect(inference.inferredProfile).toBe('client-app');
   });
 
   it('still calls an actual brochure site a static site', async () => {
@@ -86,5 +90,37 @@ describe('a browser application is not a static site', () => {
 
     expect(inference.inferredProfile).toBe('static-site');
     expect(inference.confidence).toBe('high');
+  });
+});
+
+describe('client-app', () => {
+  it('judges a browser application as one instead of leaving it unjudged', async () => {
+    const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
+    const inference = inferProductProfile(await analyzeProject(fixture('browser-app')));
+
+    expect(inference.inferredProfile).toBe('client-app');
+    expect(inference.confidence).toBe('medium');
+  });
+
+  it('asks a client application about crashes, and not about tenants', async () => {
+    // On a server a crash is in the logs whether anyone planned for it or not. In code
+    // running on someone else's device it is not: the screen goes white, the person
+    // closes the tab, and nothing records that it happened.
+    const report = buildReport(await analyzeProject(fixture('browser-app')), { profile: 'client-app' });
+    const ids = (report.productProfile?.capabilities ?? []).map((c) => c.capabilityId);
+
+    expect(ids).toContain('client.error-reporting');
+    expect(ids).toContain('app.state-durability');
+    expect(ids).not.toContain('tenancy.organization');
+    expect(ids).not.toContain('audit.baseline');
+  });
+
+  it('prefers the game suggestion over the client-app one', async () => {
+    // A game is a client application, so the more specific answer has to be reached
+    // first. It was not: the client-app branch shadowed it until the order was fixed.
+    const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
+    const inference = inferProductProfile(await analyzeProject(fixture('three-multiplayer-game')));
+
+    expect(inference.suggestion?.profile).toBe('game');
   });
 });

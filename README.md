@@ -99,7 +99,7 @@ Options:
 - `--format markdown|json` output format for the report or plan payload
 - `--summary` print summary only
 - `--output <path>` write output to file
-- `--profile <name>` evaluate expected product capabilities (`static-site`, `internal-tool`, `b2c-app`, `b2b-saas`, `ai-saas`, `marketplace`, `game`, `auto`, `observed-only`)
+- `--profile <name>` evaluate expected product capabilities (`static-site`, `internal-tool`, `b2c-app`, `b2b-saas`, `ai-saas`, `marketplace`, `game`, `client-app`, `auto`, `observed-only`)
 - `--fail-under <score>` (analyze only) exit with code 1 if the overall score is below the threshold — useful as a CI quality gate
 - `--min-maturity <level>` (analyze only) exit with code 1 if maturity is below `prototype|early|partial|production_ready`
 - `--ai` (analyze only) add an AI stack/architecture insight — opt-in, advisory only, does not affect the score
@@ -151,6 +151,8 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 - **Backend (Node):** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS,
   SvelteKit, Remix, Nuxt, Nitro
+- **Backend (PHP):** Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, and plain PHP
+  read from `composer.json`
 - **Backend (Python):** Django, FastAPI, Flask, Litestar, Starlette, Sanic, Tornado,
   aiohttp
 - **Frontend:** React, Vue, Svelte, Angular, Solid, Qwik, Preact, Astro, Nuxt, Remix,

@@ -31,7 +31,7 @@ export const CATEGORIES = [
   'billing',
   'audit',
   'observability',
-  'game',
+  'client',
   'jobs',
   'deployment',
 ] as const;

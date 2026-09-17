@@ -209,23 +209,32 @@ const CAPABILITIES = {
     description: 'Sensitive actions are attributable for support, compliance and investigations.',
     recommendation: 'Log actor, action, target, timestamp and request id for sensitive events.',
   }),
-  'game.state-persistence': blueprint({
-    id: 'game.state-persistence',
+  'app.state-durability': blueprint({
+    id: 'app.state-durability',
     title: 'Player progress survives the browser',
-    category: 'game',
-    detectorKeys: ['game.statePersistence'],
+    category: 'client',
+    detectorKeys: ['app.stateDurability'],
     description:
       'Progress is kept somewhere durable rather than only in browser storage, which is emptied by a cleared cache, a private window or a new device — without the player ever being told the save was not real.',
     recommendation: 'Persist progress server-side, and treat browser storage as a cache of it rather than as the record.',
   }),
-  'game.asset-delivery': blueprint({
-    id: 'game.asset-delivery',
+  'app.asset-delivery': blueprint({
+    id: 'app.asset-delivery',
     title: 'Assets are cached',
-    category: 'game',
-    detectorKeys: ['game.assetDelivery'],
+    category: 'client',
+    detectorKeys: ['app.assetDelivery'],
     description:
       'Sprites, audio and models are most of what a player downloads. Served without cache headers they are fetched again on every visit, which is the difference between a game that starts and one abandoned while it loads.',
     recommendation: 'Serve static assets with long-lived cache headers and fingerprinted filenames, or put a CDN in front of them.',
+  }),
+  'client.error-reporting': blueprint({
+    id: 'client.error-reporting',
+    title: 'Crashes reach someone who can fix them',
+    category: 'client',
+    detectorKeys: ['observability.errorReporting'],
+    description:
+      'On a server a crash is in the logs whether anyone planned for it or not. In code running on someone else\'s device it is not: the screen goes white, the person closes the tab, and nothing records that it happened.',
+    recommendation: 'Report unhandled errors and rejections from the browser to a service you actually read.',
   }),
   'jobs.background': blueprint({
     id: 'jobs.background',
@@ -408,8 +417,9 @@ export const productProfiles: Record<
     title: 'Game',
     description: 'A game served to players, judged on whether progress survives and assets arrive.',
     importance: {
-      'game.state-persistence': 'required',
-      'game.asset-delivery': 'required',
+      'app.state-durability': 'required',
+      'app.asset-delivery': 'required',
+      'client.error-reporting': 'recommended',
       'auth.baseline': 'optional',
       'auth.password-reset': 'optional',
       'gdpr.export': 'optional',
@@ -421,6 +431,42 @@ export const productProfiles: Record<
       'security.rate-limit': 'recommended',
       'uploads.protection': 'optional',
       'observability.health': 'recommended',
+      'observability.logging': 'recommended',
+      'deployment.readiness': 'required',
+      'deployment.docker': 'recommended',
+    },
+  }),
+
+  /**
+   * An application someone uses to do something, without accounts to manage or
+   * subscriptions to sell.
+   *
+   * Two shapes, one profile. A simulator or an editor with all its logic in the browser
+   * and no backend at all; and a tool with a backend and an API but no sign-up and
+   * nothing to bill. The expectations are the same in both — the user's work survives,
+   * the bundle arrives, a crash is heard about — and the presence of a backend changes
+   * which of them apply, not which of them matter.
+   *
+   * What it deliberately does not ask for: tenants to separate, an audit trail, consent
+   * to collect. Holding a fuel-price finder to those produces findings nobody can act
+   * on, which is the failure this profile exists to stop.
+   */
+  'client-app': defineProfile({
+    id: 'client-app',
+    title: 'Client application',
+    description: 'A tool people use, without accounts to manage or subscriptions to sell.',
+    importance: {
+      'app.state-durability': 'required',
+      'app.asset-delivery': 'required',
+      'client.error-reporting': 'required',
+      'auth.baseline': 'optional',
+      'gdpr.export': 'optional',
+      'gdpr.erasure': 'optional',
+      'security.headers': 'recommended',
+      'security.cors': 'recommended',
+      'security.rate-limit': 'recommended',
+      'uploads.protection': 'optional',
+      'observability.health': 'optional',
       'observability.logging': 'recommended',
       'deployment.readiness': 'required',
       'deployment.docker': 'recommended',

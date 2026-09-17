@@ -193,7 +193,7 @@ async function detectStatePersistence(ctx: DetectContext): Promise<DetectorResul
   const saves = clientOnly.length > 0 || saveRoutes.length > 0;
 
   return {
-    key: 'game.statePersistence',
+    key: 'app.stateDurability',
     present: saves || durable,
     // Client storage alone is the partial case: it saves, until it does not.
     complete: durable,
@@ -236,7 +236,7 @@ async function detectAssetDelivery(ctx: DetectContext): Promise<DetectorResult> 
   for (const file of headerFiles) evidence.push({ type: 'file', value: file, file });
 
   return {
-    key: 'game.assetDelivery',
+    key: 'app.assetDelivery',
     present: hits.length > 0 || headerFiles.length > 0,
     evidence,
     details: { inCode: hits.length, headerFiles: headerFiles.length },

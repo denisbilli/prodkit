@@ -8,6 +8,7 @@ export type ProductProfile =
   | 'b2b-saas'
   | 'ai-saas'
   | 'game'
+  | 'client-app'
   | 'marketplace'
   | 'auto'
   | 'observed-only';
@@ -37,7 +38,7 @@ export type CapabilityCategory =
   | 'deployment'
   | 'audit'
   | 'jobs'
-  | 'game';
+  | 'client';
 
 export interface ExpectedCapability {
   id: string;

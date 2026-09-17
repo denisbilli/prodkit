@@ -48,14 +48,9 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
     }
 
     return {
-      inferredProfile: null,
-      confidence: 'low',
-      reason: 'A front end with state and logic but no backend: an application that runs in the browser, which no profile currently describes.',
-      suggestion: {
-        profile: 'static-site',
-        reason:
-          'This runs entirely in the browser but holds real state and logic, so it is not a static site — and judging it as one would hold it to almost nothing. There is no profile for a client-side application yet; --profile static-site is the closest, and it will understate what this needs.',
-      },
+      inferredProfile: 'client-app',
+      confidence: 'medium',
+      reason: 'A front end holding state and logic with no backend: an application that runs in the browser.',
     };
   }
 
@@ -136,6 +131,27 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
       suggestion: {
         profile: 'game',
         reason: `This looks like a game — ${named.join(', ')} — but nothing here proves it. Re-run with --profile game to judge it as one.`,
+      },
+    };
+  }
+
+  /**
+   * A tool with a backend and nothing to sell.
+   *
+   * Suggested rather than inferred, unlike the browser-only shape. There the evidence
+   * is positive — state and logic, measured. Here it is the absence of billing, tenancy
+   * and accounts, and an absence is a weaker thing to build a judgement on: it is also
+   * what an unfinished B2B SaaS looks like three weeks in.
+   */
+  if (backendPresent && !billing && !tenancy && !auth && analysis.files.source.length > 12) {
+    return {
+      inferredProfile: null,
+      confidence: 'low',
+      reason: 'A backend with no accounts, tenants or billing: nothing here says what kind of product it is.',
+      suggestion: {
+        profile: 'client-app',
+        reason:
+          'This looks like a tool people use rather than a product with accounts to manage — no sign-up, nothing to bill, no tenants to separate. Re-run with --profile client-app to judge it as one.',
       },
     };
   }

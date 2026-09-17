@@ -15,7 +15,7 @@ import type { ProjectAnalysis } from './analyzer/types';
 import { PRODKit_VERSION } from './version';
 
 type OutputFormat = 'markdown' | 'json';
-const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'game', 'auto'] as const;
+const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'game', 'client-app', 'auto'] as const;
 const maturityOrder: MaturityLevel[] = ['prototype', 'early', 'partial', 'production_ready'];
 
 function normalizeProfile(profile: string | undefined): ProductProfile {
