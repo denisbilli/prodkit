@@ -16,6 +16,14 @@ export interface DetectContext {
   files: ProjectFiles;
   packageJson: PackageJson | null;
   pythonDeps: string[]; // lowercase names
+  /**
+   * Composer requirements, lowercase, vendor/package as written.
+   *
+   * Added because a published PHP application in the test corpus was reported with a
+   * backend of "unknown": nothing here read composer.json, so the framework it is
+   * built on was invisible while 57 source files sat next to it.
+   */
+  phpDeps: string[];
   /** Lowercased combined dependency map (deps + devDeps). */
   npmDeps: Record<string, string>;
   workspaces: WorkspaceManifest[];
@@ -35,4 +43,12 @@ export function hasPyDep(ctx: DetectContext, name: string): boolean {
 
 export function hasAnyPyDep(ctx: DetectContext, names: string[]): string[] {
   return names.filter((n) => hasPyDep(ctx, n));
+}
+
+export function hasPhpDep(ctx: DetectContext, name: string): boolean {
+  return ctx.phpDeps.includes(name.toLowerCase());
+}
+
+export function hasAnyPhpDep(ctx: DetectContext, names: string[]): string[] {
+  return names.filter((name) => hasPhpDep(ctx, name));
 }

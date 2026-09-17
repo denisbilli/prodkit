@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasDep, hasPyDep, type DetectContext } from './detectContext';
+import { hasDep, hasPyDep, hasAnyPhpDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 
@@ -55,6 +55,40 @@ export async function detectBackend(ctx: DetectContext): Promise<{
       frameworks.push(framework);
       evidence.push({ type: 'dependency', value: dep });
     }
+  }
+
+  /**
+   * PHP, read from composer.json.
+   *
+   * A framework here is as conclusive as one in package.json: nobody requires
+   * laravel/framework for a reason other than building on Laravel. Plain `php` in the
+   * requirements is enough to say the backend is PHP even when the framework is not
+   * one of these — which is better than the "unknown" this used to report for a
+   * published application with 57 PHP files in it.
+   */
+  const phpFrameworks: Array<[string, string[]]> = [
+    ['laravel', ['laravel/framework', 'laravel/laravel']],
+    ['symfony', ['symfony/framework-bundle', 'symfony/symfony']],
+    ['slim', ['slim/slim']],
+    ['codeigniter', ['codeigniter4/framework']],
+    ['cakephp', ['cakephp/cakephp']],
+    ['yii', ['yiisoft/yii2']],
+  ];
+
+  let namedPhpFramework = false;
+
+  for (const [framework, deps] of phpFrameworks) {
+    const hits = hasAnyPhpDep(ctx, deps);
+    if (!hits.length) continue;
+
+    namedPhpFramework = true;
+    frameworks.push(framework);
+    for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
+  }
+
+  if (!namedPhpFramework && (hasAnyPhpDep(ctx, ['php']).length > 0 || ctx.files.source.some((f) => f.endsWith('.php')))) {
+    frameworks.push('php');
+    evidence.push({ type: 'note', value: 'PHP sources with no framework named in composer.json' });
   }
 
   /**

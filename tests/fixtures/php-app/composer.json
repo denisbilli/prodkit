@@ -1,0 +1,7 @@
+{
+  "name": "acme/diary",
+  "require": {
+    "php": "^8.2",
+    "aws/aws-sdk-php": "^3.0"
+  }
+}

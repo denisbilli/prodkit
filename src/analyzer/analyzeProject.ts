@@ -107,8 +107,48 @@ function isTestOrExamplePath(file: string): boolean {
     || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file);
 }
 
+/**
+ * Extensions the detectors can read.
+ *
+ * PHP, Go, Ruby, Java, C# and Rust are here because a detector that greps for a
+ * hardcoded secret, an open CORS policy or an unprotected upload does not care what
+ * language surrounds the line. Stack detection still leans on manifests, so a Laravel
+ * application is not fully understood by being readable — but being readable is the
+ * difference between a partial reading and none.
+ */
+const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift)$/;
+
 function pickSource(files: string[]): string[] {
-  return files.filter((f) => /\.(ts|tsx|js|jsx|mjs|cjs|py)$/.test(f) && !isTestOrExamplePath(f));
+  return files.filter((f) => SOURCE_EXTENSIONS.test(f) && !isTestOrExamplePath(f));
+}
+
+/**
+ * Languages present in the repository that nothing here can read.
+ *
+ * The failure this exists to stop: a published PHP application, 57 source files, was
+ * analysed from the single JavaScript file in it. The report named a backend of
+ * "unknown", raised a critical for missing authentication that is written in PHP, and
+ * said "Warnings: none" — confident, detailed, and built on two per cent of the code.
+ *
+ * Being wrong is recoverable. Being wrong while announcing no reservations is not.
+ */
+const KNOWN_UNREADABLE: Array<[RegExp, string]> = [
+  [/\.(ex|exs)$/, 'Elixir'],
+  [/\.(scala|sc)$/, 'Scala'],
+  [/\.(clj|cljs)$/, 'Clojure'],
+  [/\.(dart)$/, 'Dart'],
+  [/\.(cpp|cc|hpp)$/, 'C++'],
+  [/\.(erl|hrl)$/, 'Erlang'],
+  [/\.(hs)$/, 'Haskell'],
+  [/\.(pl|pm)$/, 'Perl'],
+  [/\.(lua)$/, 'Lua'],
+];
+
+function unreadableLanguages(files: string[]): Array<{ language: string; files: number }> {
+  return KNOWN_UNREADABLE
+    .map(([pattern, language]) => ({ language, files: files.filter((f) => pattern.test(f)).length }))
+    .filter((entry) => entry.files > 0)
+    .sort((a, b) => b.files - a.files);
 }
 
 function pickConfig(files: string[]): string[] {
@@ -232,6 +272,32 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
 
   const pythonDeps = unique(workspaces.flatMap((w) => [...w.requirementsDeps, ...w.pyprojectDeps]));
 
+  /**
+   * Composer requirements. A published PHP application in the corpus reported a
+   * backend of "unknown" because nothing read this file, while 57 source files sat
+   * beside it saying plainly what the project was.
+   */
+  const composerFiles = allFiles.filter((file) => /(^|\/)composer\.json$/.test(file));
+  const phpDeps: string[] = [];
+
+  for (const file of composerFiles) {
+    const raw = await readTextFileSafe(root, file);
+    if (!raw) continue;
+
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      const require_ = (parsed as { require?: Record<string, string> })?.require ?? {};
+      const requireDev = (parsed as { 'require-dev'?: Record<string, string> })?.['require-dev'] ?? {};
+
+      for (const name of [...Object.keys(require_), ...Object.keys(requireDev)]) {
+        phpDeps.push(name.toLowerCase());
+      }
+    } catch {
+      // A composer.json that does not parse tells us nothing; it is not an error worth
+      // failing an analysis over.
+    }
+  }
+
   const npmDeps: Record<string, string> = {};
   for (const workspace of workspaces) {
     mergeDeps(npmDeps, workspace.packageJson?.dependencies);
@@ -266,6 +332,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     files: { all: allFiles, source: sourceFiles, config: configFiles },
     packageJson,
     pythonDeps,
+    phpDeps: unique(phpDeps),
     npmDeps,
     workspaces,
   };
@@ -329,7 +396,19 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       orms: (database.extra.find((d) => d.key === 'stack.orm')?.details?.orms as string[] | undefined) ?? [],
       packageManager: pm.manager,
       packageManagerConfidence: pm.confidence,
-      warnings: pm.warnings,
+      /**
+       * A reading built on part of the code says so.
+       *
+       * The report for a published PHP application said "Warnings: none" while it had
+       * seen one file out of 57. Being wrong is recoverable; being wrong while
+       * announcing no reservations is not.
+       */
+      warnings: [
+        ...pm.warnings,
+        ...unreadableLanguages(allFiles).map(
+          (entry) => `${entry.files} ${entry.language} files were not analysed: this reading covers only part of the repository`
+        ),
+      ],
       workspaces: workspaceStacks,
       files: allFiles,
     }),
