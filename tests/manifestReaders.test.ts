@@ -65,3 +65,40 @@ describe('manifests beyond npm and pip', () => {
     expect(analysis.stack.databases).toContain('postgres');
   });
 });
+
+describe('Flutter', () => {
+  it('reads pubspec.yaml for the framework and the local store', async () => {
+    const analysis = await analyzeProject(fixture('flutter-app'));
+
+    expect(analysis.stack.frontend).toContain('flutter');
+    expect(analysis.stack.databases).toContain('sqlite');
+  });
+
+  it('does not call a Flutter application a backend', async () => {
+    // It has a user interface and talks to a server that is somewhere else, usually not
+    // in this repository at all.
+    const analysis = await analyzeProject(fixture('flutter-app'));
+
+    expect(analysis.stack.backend).toEqual([]);
+  });
+
+  it('does not call a mobile application a static site', async () => {
+    // The same failure as a browser application, arriving from mobile: a front end, no
+    // backend, no database of its own — and the static-site profile expects almost
+    // nothing, so a real application would have been told it was fine. Dart state and
+    // storage packages are what stop it.
+    const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
+    const inference = inferProductProfile(await analyzeProject(fixture('flutter-app')));
+
+    expect(inference.inferredProfile).toBe('client-app');
+    expect(inference.inferredProfile).not.toBe('static-site');
+  });
+
+  it('stops reading dependencies at the next top-level key', async () => {
+    // Without that, everything below `dependencies:` to the end of the file is read as
+    // a package — including dev_dependencies entries and any block that follows.
+    const analysis = await analyzeProject(fixture('flutter-app'));
+
+    expect(analysis.stack.frontend).not.toContain('environment');
+  });
+});

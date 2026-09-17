@@ -117,7 +117,7 @@ function isTestOrExamplePath(file: string): boolean {
  * application is not fully understood by being readable — but being readable is the
  * difference between a partial reading and none.
  */
-const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift)$/;
+const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift|dart)$/;
 
 function pickSource(files: string[]): string[] {
   return files.filter((f) => SOURCE_EXTENSIONS.test(f) && !isTestOrExamplePath(f));
@@ -137,7 +137,6 @@ const KNOWN_UNREADABLE: Array<[RegExp, string]> = [
   [/\.(ex|exs)$/, 'Elixir'],
   [/\.(scala|sc)$/, 'Scala'],
   [/\.(clj|cljs)$/, 'Clojure'],
-  [/\.(dart)$/, 'Dart'],
   [/\.(cpp|cc|hpp)$/, 'C++'],
   [/\.(erl|hrl)$/, 'Erlang'],
   [/\.(hs)$/, 'Haskell'],
@@ -300,6 +299,41 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   }
 
   /**
+   * pubspec.yaml, read for its two dependency blocks.
+   *
+   * YAML with a hand-written reader again, and the shape here is forgiving: the blocks
+   * are `dependencies:` and `dev_dependencies:`, and each entry is a name at one level
+   * of indentation. Nested constraints — a git source, an sdk pin — sit deeper and are
+   * skipped, which is right: what matters is which package is used, not where it comes
+   * from.
+   */
+  const dartDeps: string[] = [];
+
+  for (const file of allFiles.filter((f) => /(^|\/)pubspec\.yaml$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+    let inDeps = false;
+
+    for (const line of raw.split('\n')) {
+      if (/^(dev_)?dependencies\s*:/.test(line)) {
+        inDeps = true;
+        continue;
+      }
+
+      // Any other top-level key ends the block. Without this, everything below
+      // `dependencies:` to the end of the file would be read as a package.
+      if (/^[a-z_]+\s*:/i.test(line)) {
+        inDeps = false;
+        continue;
+      }
+
+      if (!inDeps) continue;
+
+      const match = /^\s{2}([a-z0-9_]+)\s*:/i.exec(line);
+      if (match) dartDeps.push(match[1].toLowerCase());
+    }
+  }
+
+  /**
    * .csproj, which is XML rather than JSON or one-entry-per-line.
    *
    * Parsed with regular expressions like the others, and here that decision needs more
@@ -403,6 +437,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     rubyDeps: unique(rubyDeps),
     dotnetDeps: unique(dotnetDeps),
     dotnetWebSdk,
+    dartDeps: unique(dartDeps),
     npmDeps,
     workspaces,
   };

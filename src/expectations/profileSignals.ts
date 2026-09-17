@@ -150,14 +150,14 @@ const RULES: ProfileRule[] = [
     signals: [
       { identifies: true, label: 'a front end with no backend, database or sign-in', weight: 3, holds: () => true },
       // What stopped a factory simulator being called a brochure site.
-      { identifies: true, label: 'state and logic in the browser', weight: -4, holds: (f) => f.clientLogic },
+      { identifies: true, label: 'state and logic held by the application itself', weight: -4, holds: (f) => f.clientLogic },
     ],
   },
   {
     profile: 'client-app',
     admissible: (f) => f.frontend || f.backend,
     signals: [
-      { identifies: true, label: 'state and logic in the browser', weight: 3, holds: (f) => f.clientLogic },
+      { identifies: true, label: 'state and logic held by the application itself', weight: 3, holds: (f) => f.clientLogic },
       { label: 'enough code to be an application', weight: 1, holds: (f) => f.sourceFiles > 12 },
       { label: 'a substantial codebase', weight: 1, holds: (f) => f.sourceFiles > 40 },
       { label: 'an API of its own', weight: 1, holds: (f) => f.apiSurface },

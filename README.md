@@ -151,6 +151,8 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 - **Backend (Node):** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS,
   SvelteKit, Remix, Nuxt, Nitro
+- **Mobile:** Flutter read from `pubspec.yaml`, classified as a client application
+  rather than as a backend or a static site
 - **Backend (.NET):** ASP.NET Core read from `.csproj`, distinguished from a class
   library by the SDK attribute rather than by its packages
 - **Backend (Go):** Gin, Echo, Fiber, chi, Gorilla, Beego, and plain `net/http` read

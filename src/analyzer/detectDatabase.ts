@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
+import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, hasAnyDartDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 
 /**
@@ -146,6 +146,19 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
   ];
   for (const [db, names] of dotnetHits) {
     const hits = hasAnyDotnetDep(ctx, names);
+    if (!hits.length) continue;
+
+    databases.add(db);
+    for (const hit of hits) evidence.push({ type: 'dependency', value: hit });
+  }
+
+  const dartHits: Array<[string, string[]]> = [
+    ['sqlite', ['sqflite', 'drift', 'sqflite_common_ffi']],
+    ['firestore', ['cloud_firestore', 'firebase_core']],
+    ['postgres', ['supabase_flutter', 'postgres']],
+  ];
+  for (const [db, names] of dartHits) {
+    const hits = hasAnyDartDep(ctx, names);
     if (!hits.length) continue;
 
     databases.add(db);

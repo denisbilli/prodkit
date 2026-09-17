@@ -32,6 +32,8 @@ export interface DetectContext {
   dotnetDeps: string[];
   /** Whether any project file declares the web SDK, which no dependency reveals. */
   dotnetWebSdk: boolean;
+  /** Package names from pubspec.yaml, lowercase. */
+  dartDeps: string[];
   /** Lowercased combined dependency map (deps + devDeps). */
   npmDeps: Record<string, string>;
   workspaces: WorkspaceManifest[];
@@ -93,6 +95,10 @@ export function hasAnyRubyDep(ctx: DetectContext, names: string[]): string[] {
  * `Npgsql.EntityFrameworkCore.PostgreSQL`, and a rule should be able to ask for
  * `Npgsql` without listing every provider package that starts with it.
  */
+export function hasAnyDartDep(ctx: DetectContext, names: string[]): string[] {
+  return hasAnyIn(ctx.dartDeps, names);
+}
+
 export function hasAnyDotnetDep(ctx: DetectContext, names: string[]): string[] {
   return names.filter((name) =>
     ctx.dotnetDeps.some((dep) => dep === name.toLowerCase() || dep.startsWith(`${name.toLowerCase()}.`))

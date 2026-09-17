@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasAnyDep, type DetectContext } from './detectContext';
+import { hasAnyDep, hasAnyDartDep, type DetectContext } from './detectContext';
 
 export async function detectFrontend(ctx: DetectContext): Promise<{
   result: DetectorResult;
@@ -38,6 +38,14 @@ export async function detectFrontend(ctx: DetectContext): Promise<{
       frameworks.push(framework);
       for (const d of hits) evidence.push({ type: 'dependency', value: d });
     }
+  }
+
+  // Flutter, read from pubspec.yaml. Counted as a front end and deliberately not as a
+  // backend: a Flutter application has a user interface and talks to a server that is
+  // somewhere else, usually not in this repository at all.
+  if (hasAnyDartDep(ctx, ['flutter']).length > 0) {
+    frameworks.push('flutter');
+    evidence.push({ type: 'dependency', value: 'flutter' });
   }
 
   const extras = hasAnyDep(ctx, ['react-router-dom', 'axios', 'tailwindcss', 'electron']);

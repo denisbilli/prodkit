@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep } from './detectContext';
+import { hasAnyDep, hasAnyDartDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 
 /**
@@ -40,12 +40,21 @@ const STATE_DEPS = [
 ];
 
 /** Directory names that hold logic rather than presentation. */
+/**
+ * Dart state and storage. Without these a Flutter application has a front end, no
+ * backend and no database, which is the exact shape this file exists to stop being
+ * called a static site — the same failure as a browser application, arriving from
+ * mobile instead.
+ */
+const DART_STATE_DEPS = ['provider', 'riverpod', 'flutter_riverpod', 'bloc', 'flutter_bloc', 'get', 'mobx', 'redux'];
+const DART_STORAGE_DEPS = ['shared_preferences', 'hive', 'isar', 'objectbox', 'sqflite', 'drift', 'flutter_secure_storage'];
+
 const LOGIC_DIR = /(^|\/)(store|stores|state|engine|simulation|simulations|models|domain|reducers|machines)\//i;
 
 export async function detectClientLogic(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
-  const stateDeps = hasAnyDep(ctx, STATE_DEPS);
+  const stateDeps = [...hasAnyDep(ctx, STATE_DEPS), ...hasAnyDartDep(ctx, DART_STATE_DEPS)];
   for (const dep of stateDeps) evidence.push({ type: 'dependency', value: dep });
 
   const logicDirs = [
@@ -58,6 +67,9 @@ export async function detectClientLogic(ctx: DetectContext): Promise<DetectorRes
   for (const dir of logicDirs.slice(0, 5)) {
     evidence.push({ type: 'file', value: `logic lives in ${dir}` });
   }
+
+  const dartStorage = hasAnyDartDep(ctx, DART_STORAGE_DEPS);
+  for (const dep of dartStorage) evidence.push({ type: 'dependency', value: dep });
 
   const persistence = await searchInFiles(
     ctx.root,
@@ -82,7 +94,7 @@ export async function detectClientLogic(ctx: DetectContext): Promise<DetectorRes
   const signals = [
     stateDeps.length > 0,
     logicDirs.length > 0,
-    persistence.length > 0,
+    persistence.length > 0 || dartStorage.length > 0,
     drawing.length > 0,
   ].filter(Boolean).length;
 
@@ -92,6 +104,6 @@ export async function detectClientLogic(ctx: DetectContext): Promise<DetectorRes
     // banner writing to localStorage, or a marketing page with a hero canvas.
     present: signals >= 2,
     evidence,
-    details: { stateDeps, logicDirs: logicDirs.length, persistence: persistence.length, drawing: drawing.length, signals },
+    details: { stateDeps, logicDirs: logicDirs.length, persistence: persistence.length + dartStorage.length, drawing: drawing.length, signals },
   };
 }
