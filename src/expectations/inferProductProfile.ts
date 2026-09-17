@@ -1,164 +1,70 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import type { ProductProfileInference } from './types';
+import { readFacts, scoreProfiles } from './profileSignals';
+
+/**
+ * How sure the tool is, derived rather than declared.
+ *
+ * Every branch of the cascade this replaces carried its confidence as a literal —
+ * whoever wrote the rule decided, in advance, how sure the tool would be about every
+ * repository it would ever see. Here it comes from two things that are actually
+ * measured: how much of a profile's evidence is present, and how far ahead of the
+ * runner-up it is. A repository that looks equally like two products is one the tool
+ * is not sure about, and now says so by arithmetic rather than by assertion.
+ */
+const FLOOR = 3;
+const CLEAR_MARGIN = 2;
+const COMFORTABLE = 5;
 
 export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileInference {
-  const backendPresent = analysis.stack.backend.length > 0;
-  const frontendPresent = analysis.stack.frontend.length > 0;
-  const dbPresent = analysis.stack.databases.length > 0;
+  const facts = readFacts(analysis);
+  const ranked = scoreProfiles(facts);
+  const [winner, runnerUp] = ranked;
 
-  const auth = analysis.detectors['auth.core']?.present === true;
-  const billing = analysis.detectors['billing.stripe']?.present === true;
-  const tenancy = analysis.detectors['tenancy.organization']?.present === true || analysis.detectors['tenancy.membership']?.present === true;
-  const jobs = analysis.detectors['jobs.background']?.present === true;
-  const uploads = analysis.detectors['uploads.exposure']?.present === true;
-
-  /**
-   * A dependency on a model SDK, not a word that suggests one.
-   *
-   * This used to match /openai|anthropic|claude|gemini|llm|transcrib|generation|prompt|model/
-   * against the evidence strings of the billing, API-key and background-job detectors.
-   * "model" is in every ORM, "generation" and "prompt" are ordinary English, and the
-   * strings being searched were written to describe something else entirely.
-   */
-  const callsAModel = analysis.detectors['ai.modelProvider']?.present === true;
-
-  const sourceHints = analysis.files.source.join('\n');
-  const marketplaceHints = /seller|buyer|vendor|listing|order/i.test(sourceHints);
-  const adminHints = /admin|\/users|subscription|billing/i.test(sourceHints);
-
-  /**
-   * A static site is content. An application that happens to run entirely in the
-   * browser is not one, and this branch used to call it one with high confidence — then
-   * apply the profile that expects almost nothing, and report that it was fine.
-   *
-   * "No backend" was being read as "no application", but a client-side application has
-   * no backend by design: a calculator, an editor, a simulator, a visualisation tool.
-   * Measured across eleven repositories, two were caught this way — a factory simulator
-   * with a domain model, and a CAD application with a 3D renderer and a state store.
-   *
-   * This failure runs the other way from the ones it sits beside. It does not demand
-   * too much of a project; it demands nothing, which is harder to notice and worse to
-   * act on.
-   */
-  const clientLogic = analysis.detectors['stack.clientLogic']?.present === true;
-
-  if (frontendPresent && !backendPresent && !dbPresent && !auth) {
-    if (!clientLogic) {
-      return { inferredProfile: 'static-site', confidence: 'high', reason: 'Frontend-only structure with no backend/db/auth signals.' };
-    }
-
-    return {
-      inferredProfile: 'client-app',
-      confidence: 'medium',
-      reason: 'A front end holding state and logic with no backend: an application that runs in the browser.',
-    };
-  }
-
-  /**
-   * Background jobs used to be sufficient here, in `(aiEvidence || jobs)`. They are
-   * orthogonal: every serious application has a queue, and this branch sits second,
-   * ahead of b2b-saas, marketplace and b2c — so an ordinary application with a worker
-   * was judged against the most demanding profile in the catalogue, which accumulates
-   * roughly 185 points of expectation. The score came out wrong for a reason the
-   * reader had no way to see.
-   *
-   * Measured: of ten unrelated local repositories, five were called ai-saas. One was a
-   * pirate game, promoted on a local variable named `queue` in a flood fill.
-   */
-  if (callsAModel && (uploads || jobs || backendPresent)) {
-    return {
-      inferredProfile: 'ai-saas',
-      confidence: 'medium',
-      reason: 'A model SDK dependency with a backend or a processing pipeline.',
-    };
-  }
-
-  if (marketplaceHints && billing) {
-    return { inferredProfile: 'marketplace', confidence: 'medium', reason: 'Marketplace vocabulary and billing signals detected.' };
-  }
-
-  if (billing || tenancy || adminHints) {
-    return { inferredProfile: 'b2b-saas', confidence: billing || tenancy ? 'high' : 'medium', reason: 'Billing/tenant/admin signals are consistent with B2B SaaS.' };
-  }
-
-  if (auth && !tenancy) {
-    return { inferredProfile: 'b2c-app', confidence: 'medium', reason: 'Auth signals without tenant boundaries suggest consumer app.' };
-  }
-
-  /**
-   * No profile. Not `internal-tool`.
-   *
-   * There used to be a branch here for a deliberate internal tool —
-   * `backendPresent && auth && !billing && !tenancy` — and an exhaustive search over
-   * its inputs returns zero combinations that reach it: anything with auth and no
-   * tenancy has already returned b2c-app, and anything with billing or tenancy has
-   * already returned b2b-saas. It was dead code, so every internal-tool ever reported
-   * came from the fallback below and meant "I do not know".
-   *
-   * A positive signal for an internal tool is worth designing — enterprise identity
-   * with no public signup and no billing is the shape of one — but inventing the
-   * distinction without evidence is what produced a wrong profile on five of ten real
-   * repositories. Until there is evidence, the answer is nothing.
-   */
-  /**
-   * Nothing conclusive. Before giving up, say what it looks like.
-   *
-   * No single game signal is a game: a renderer is a product configurator, a frame loop
-   * is any animated interface, a realtime transport is a chat. Three of them together
-   * are a reasonable suspicion. The threshold is measured rather than chosen — across
-   * eleven real repositories the only one reaching three is a multiplayer board game,
-   * and a CAD application, which is precisely the false positive to fear, sits at two
-   * with a renderer and a frame loop.
-   *
-   * Commerce disqualifies: something selling subscriptions or separating tenants is
-   * being judged on those, whatever else it draws on a canvas.
-   */
-  const game = analysis.detectors['game.engine'];
-  const signals = Number(game?.details?.supportingSignals ?? 0);
-
-  if (signals >= 3 && !billing && !tenancy) {
-    const named = [
-      game?.details?.supporting ? `renderer (${(game.details.supporting as string[]).join(', ')})` : null,
-      game?.details?.frameLoop ? 'a frame loop' : null,
-      (game?.details?.realtime as string[] | undefined)?.length ? 'realtime multiplayer' : null,
-      (game?.details?.assetScripts as string[] | undefined)?.length ? 'an asset pipeline' : null,
-    ].filter(Boolean);
+  if (!winner || winner.score < FLOOR) {
+    /**
+     * Nothing scored well enough. The runner-up is still worth naming: saying "this
+     * looks like a game, run it as one" costs nothing and changes no number, while
+     * applying a profile on this much evidence is exactly what went wrong before.
+     */
+    const best = ranked[0];
 
     return {
       inferredProfile: null,
       confidence: 'low',
       reason: 'No profile-specific evidence: the repository does not identify what kind of product it is.',
-      suggestion: {
-        profile: 'game',
-        reason: `This looks like a game — ${named.join(', ')} — but nothing here proves it. Re-run with --profile game to judge it as one.`,
-      },
+      ...(best && best.score >= 2
+        ? {
+          suggestion: {
+            profile: best.profile,
+            reason: `This looks like ${best.profile} — ${best.reasons.join(', ')} — but nothing here proves it. Re-run with --profile ${best.profile} to judge it as one.`,
+          },
+        }
+        : {}),
     };
   }
 
-  /**
-   * A tool with a backend and nothing to sell.
-   *
-   * Suggested rather than inferred, unlike the browser-only shape. There the evidence
-   * is positive — state and logic, measured. Here it is the absence of billing, tenancy
-   * and accounts, and an absence is a weaker thing to build a judgement on: it is also
-   * what an unfinished B2B SaaS looks like three weeks in.
-   */
-  if (backendPresent && !billing && !tenancy && !auth && analysis.files.source.length > 12) {
-    return {
-      inferredProfile: null,
-      confidence: 'low',
-      reason: 'A backend with no accounts, tenants or billing: nothing here says what kind of product it is.',
-      suggestion: {
-        profile: 'client-app',
-        reason:
-          'This looks like a tool people use rather than a product with accounts to manage — no sign-up, nothing to bill, no tenants to separate. Re-run with --profile client-app to judge it as one.',
-      },
-    };
-  }
+  const margin = winner.score - (runnerUp?.score ?? 0);
+  const confidence = winner.score >= COMFORTABLE && margin >= CLEAR_MARGIN
+    ? 'high'
+    : margin >= CLEAR_MARGIN || winner.score >= COMFORTABLE
+      ? 'medium'
+      : 'low';
 
   return {
-    inferredProfile: null,
-    confidence: 'low',
-    reason: 'No profile-specific evidence: the repository does not identify what kind of product it is.',
+    inferredProfile: winner.profile,
+    confidence,
+    reason: `${winner.reasons.join(', ')}.`,
+    // The second-best reading, when it is close enough to be worth a second look. This
+    // used to be hand-written for one profile at a time; it is now every profile's, for
+    // free, and it is what a reader needs to disagree with the first.
+    ...(runnerUp && margin < CLEAR_MARGIN
+      ? {
+        suggestion: {
+          profile: runnerUp.profile,
+          reason: `It could also be ${runnerUp.profile} — ${runnerUp.reasons.join(', ')}. Re-run with --profile ${runnerUp.profile} to judge it as one.`,
+        },
+      }
+      : {}),
   };
 }

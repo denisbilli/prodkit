@@ -29,9 +29,13 @@ describe('game detection and profile', () => {
     const analysis = await analyzeProject(fixture('three-multiplayer-game'));
     const inference = inferProductProfile(analysis);
 
-    expect(inference.inferredProfile).toBeNull();
-    expect(inference.suggestion?.profile).toBe('game');
-    expect(inference.suggestion?.reason).toMatch(/--profile game/);
+    // Written when inference was a cascade that refused to name anything it could not
+    // prove. Scoring puts these four signals above the floor, so the profile is named
+    // rather than hinted at — and at medium confidence, which is what decides whether
+    // the expectations are actually applied. The assertion changed because the answer
+    // improved, not to accommodate it.
+    expect(inference.inferredProfile).toBe('game');
+    expect(inference.reason).toMatch(/renderer|frame loop|asset pipeline/i);
   });
 
   it('does not suggest a game for a renderer and a frame loop alone', async () => {
@@ -89,7 +93,10 @@ describe('a browser application is not a static site', () => {
     const inference = inferProductProfile(await analyzeProject(fixture('brochure-site')));
 
     expect(inference.inferredProfile).toBe('static-site');
-    expect(inference.confidence).toBe('high');
+    // Medium, not high. One signal — a front end with no backend, database or sign-in —
+    // is enough to name a brochure site and not enough to be sure of it. The old `high`
+    // was a literal written into the branch; this is derived from the evidence.
+    expect(inference.confidence).toBe('medium');
   });
 });
 
@@ -116,11 +123,14 @@ describe('client-app', () => {
   });
 
   it('prefers the game suggestion over the client-app one', async () => {
-    // A game is a client application, so the more specific answer has to be reached
-    // first. It was not: the client-app branch shadowed it until the order was fixed.
+    // A game is a client application, so the specific answer must win. Under the
+    // cascade this depended on which branch came first, and broke the moment client-app
+    // was added above it. It is now declared — `game` refines `client-app` — so no
+    // amount of reordering can break it again, and there is no ordering left to get
+    // wrong.
     const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
     const inference = inferProductProfile(await analyzeProject(fixture('three-multiplayer-game')));
 
-    expect(inference.suggestion?.profile).toBe('game');
+    expect(inference.inferredProfile).toBe('game');
   });
 });
