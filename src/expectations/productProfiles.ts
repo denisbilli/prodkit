@@ -209,6 +209,24 @@ const CAPABILITIES = {
     description: 'Sensitive actions are attributable for support, compliance and investigations.',
     recommendation: 'Log actor, action, target, timestamp and request id for sensitive events.',
   }),
+  'game.state-persistence': blueprint({
+    id: 'game.state-persistence',
+    title: 'Player progress survives the browser',
+    category: 'game',
+    detectorKeys: ['game.statePersistence'],
+    description:
+      'Progress is kept somewhere durable rather than only in browser storage, which is emptied by a cleared cache, a private window or a new device — without the player ever being told the save was not real.',
+    recommendation: 'Persist progress server-side, and treat browser storage as a cache of it rather than as the record.',
+  }),
+  'game.asset-delivery': blueprint({
+    id: 'game.asset-delivery',
+    title: 'Assets are cached',
+    category: 'game',
+    detectorKeys: ['game.assetDelivery'],
+    description:
+      'Sprites, audio and models are most of what a player downloads. Served without cache headers they are fetched again on every visit, which is the difference between a game that starts and one abandoned while it loads.',
+    recommendation: 'Serve static assets with long-lived cache headers and fingerprinted filenames, or put a CDN in front of them.',
+  }),
   'jobs.background': blueprint({
     id: 'jobs.background',
     title: 'Background jobs or queue processing',
@@ -369,6 +387,42 @@ export const productProfiles: Record<
       'observability.logging': 'recommended',
       'audit.baseline': 'recommended',
       'deployment.readiness': 'recommended',
+      'deployment.docker': 'recommended',
+    },
+  }),
+
+  /**
+   * A game is the clearest case for what this product exists to do: judge a repository
+   * by what its kind of product needs. Almost everything a B2B SaaS is held to is
+   * irrelevant here — there are no tenants to isolate, no audit trail anyone will ever
+   * read, no organisation model — and marking a game down for missing them says
+   * nothing true about whether it is ready for players.
+   *
+   * What replaces them is specific: progress that survives, and assets that arrive.
+   * Accounts and their privacy duties stay optional, because plenty of games have no
+   * accounts at all — and become required through the capabilities themselves once
+   * auth is detected.
+   */
+  game: defineProfile({
+    id: 'game',
+    title: 'Game',
+    description: 'A game served to players, judged on whether progress survives and assets arrive.',
+    importance: {
+      'game.state-persistence': 'required',
+      'game.asset-delivery': 'required',
+      'auth.baseline': 'optional',
+      'auth.password-reset': 'optional',
+      'gdpr.export': 'optional',
+      'gdpr.erasure': 'optional',
+      'security.headers': 'recommended',
+      'security.cors': 'recommended',
+      // Multiplayer is abuse-exposed in a way a single-player game is not, and a
+      // rate limit is the cheapest thing standing between a lobby and a script.
+      'security.rate-limit': 'recommended',
+      'uploads.protection': 'optional',
+      'observability.health': 'recommended',
+      'observability.logging': 'recommended',
+      'deployment.readiness': 'required',
       'deployment.docker': 'recommended',
     },
   }),

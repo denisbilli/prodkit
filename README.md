@@ -99,7 +99,7 @@ Options:
 - `--format markdown|json` output format for the report or plan payload
 - `--summary` print summary only
 - `--output <path>` write output to file
-- `--profile <name>` evaluate expected product capabilities (`static-site`, `internal-tool`, `b2c-app`, `b2b-saas`, `ai-saas`, `marketplace`, `auto`, `observed-only`)
+- `--profile <name>` evaluate expected product capabilities (`static-site`, `internal-tool`, `b2c-app`, `b2b-saas`, `ai-saas`, `marketplace`, `game`, `auto`, `observed-only`)
 - `--fail-under <score>` (analyze only) exit with code 1 if the overall score is below the threshold — useful as a CI quality gate
 - `--min-maturity <level>` (analyze only) exit with code 1 if maturity is below `prototype|early|partial|production_ready`
 - `--ai` (analyze only) add an AI stack/architecture insight — opt-in, advisory only, does not affect the score

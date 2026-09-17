@@ -9,21 +9,34 @@ export type FindingStatus = 'passed' | 'missing' | 'partial' | 'unknown';
 export type FindingConfidence = 'low' | 'medium' | 'high';
 export type EvidenceQuality = 'weak' | 'medium' | 'strong';
 
-export type Category =
-  | 'meta'
-  | 'stack'
-  | 'env'
-  | 'auth'
-  | 'authz'
-  | 'tenancy'
-  | 'gdpr'
-  | 'security'
-  | 'uploads'
-  | 'billing'
-  | 'audit'
-  | 'observability'
-  | 'jobs'
-  | 'deployment';
+/**
+ * The canonical list, with the type derived from it rather than written twice.
+ *
+ * buildReport builds a findings-by-category map by iterating an array, and that array
+ * used to be a second hand-written copy of this union. Adding `game` to the union
+ * compiled cleanly and then crashed at run time on `findingsByCategory[f.category].push`,
+ * because the array had never heard of it. Deriving one from the other makes that
+ * impossible rather than merely unlikely.
+ */
+export const CATEGORIES = [
+  'meta',
+  'stack',
+  'env',
+  'auth',
+  'authz',
+  'tenancy',
+  'gdpr',
+  'security',
+  'uploads',
+  'billing',
+  'audit',
+  'observability',
+  'game',
+  'jobs',
+  'deployment',
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
 
 export interface Finding {
   id: string;

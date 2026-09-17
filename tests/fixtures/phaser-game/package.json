@@ -1,0 +1,5 @@
+{
+  "name": "phaser-game",
+  "version": "1.0.0",
+  "dependencies": { "phaser": "^3.86.0" }
+}

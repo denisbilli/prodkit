@@ -36,6 +36,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
   billing: 'taking payments',
   audit: 'traceability of sensitive actions',
   observability: 'knowing what happens in production',
+  game: 'saving progress and loading the game',
   jobs: 'background processing',
   deployment: 'deploying repeatably',
 };

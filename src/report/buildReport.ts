@@ -1,6 +1,7 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import { runRules } from '../rules/ruleEngine';
 import { computeMaturity, computeScore } from './score';
+import { CATEGORIES } from './types';
 import type { Category, ExpectationMode, Finding, ProductionReadinessReport } from './types';
 import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectations';
 import { inferProductProfile } from '../expectations/inferProductProfile';
@@ -15,22 +16,7 @@ export interface BuildReportOptions {
   profile?: ProductProfile;
 }
 
-const categories: Category[] = [
-  'meta',
-  'stack',
-  'env',
-  'auth',
-  'authz',
-  'tenancy',
-  'gdpr',
-  'security',
-  'uploads',
-  'billing',
-  'audit',
-  'observability',
-  'jobs',
-  'deployment',
-];
+// Derived from the union in report/types.ts, so a new category cannot be missed here.
 
 function bySeverityPriority(f: Finding): number {
   const order: Record<Finding['severity'], number> = {
@@ -162,7 +148,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   const overallScore = inconclusive ? Math.min(combinedScore, 39) : combinedScore;
   const maturityLevel = computeMaturity(overallScore);
 
-  const findingsByCategory = Object.fromEntries(categories.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
+  const findingsByCategory = Object.fromEntries(CATEGORIES.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
   for (const f of findings) findingsByCategory[f.category].push(f);
 
   const criticalIssues = findings.filter((f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown');
