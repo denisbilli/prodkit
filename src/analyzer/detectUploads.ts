@@ -53,12 +53,51 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
   }
 
   const source = ctx.files.source;
+
+  /**
+   * Django media served to the public, which is a route and not a setting.
+   *
+   * This matched `MEDIA_URL` and `MEDIA_ROOT` — two lines in settings.py that say where
+   * uploaded files live on disk and under which prefix they *would* be served. Neither
+   * serves anything. Django exposes them only when a URL pattern says so, and the
+   * idiomatic one is wrapped in `if settings.DEBUG`.
+   *
+   * A real report on a real school platform called its uploads publicly exposed on the
+   * strength of those two lines, with no pattern serving media anywhere in the project.
+   */
   const djangoPublicSignals = await searchInFiles(
     ctx.root,
     source,
-    [/MEDIA_ROOT/i, /MEDIA_URL/i],
+    [
+      /static\s*\(\s*settings\.MEDIA_URL/i,
+      /document_root\s*=/i,
+      /re_path\s*\(\s*r?['"][^'"]*media/i,
+      /url\s*\(\s*r?['"][^'"]*media/i,
+    ],
     15
   );
+
+  /**
+   * Django's own way of protecting a view: a decorator or a mixin, not middleware on a
+   * route. The Express-shaped route scan cannot see either, so a project whose upload
+   * view is `@login_required` read as having no protection at all.
+   */
+  const djangoProtectionSignals = await searchInFiles(
+    ctx.root,
+    source,
+    [
+      /@login_required/,
+      /LoginRequiredMixin/,
+      /PermissionRequiredMixin/,
+      /@user_passes_test/,
+      /@permission_required/,
+    ],
+    15
+  );
+
+  for (const m of djangoProtectionSignals) {
+    evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  }
   const validationSignals = await searchInFiles(
     ctx.root,
     source,
@@ -76,6 +115,7 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
   for (const m of validationSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
 
   const publicExposure = unprotectedRoutes.length > 0 || djangoPublicSignals.length > 0;
+  const protectedSomehow = protectedRoutes.length > 0 || djangoProtectionSignals.length > 0;
 
   return {
     key: 'uploads.exposure',
@@ -84,7 +124,7 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
     evidence,
     details: {
       publicExposure,
-      protectedUploads: protectedRoutes.length > 0,
+      protectedUploads: protectedSomehow,
       protectedUploadsSameRoute: protectedRoutes.length > 0,
       unprotectedUploadRoutes: unprotectedRoutes.length,
       validation: validationSignals.length > 0,

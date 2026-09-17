@@ -105,7 +105,21 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       const loose = boolDetail(sec, 'corsLoose');
       if (strict) return 'present';
       if (loose) return 'partial';
-      return 'missing';
+
+      /**
+       * A cross-origin policy is only a question for something that answers
+       * cross-origin requests.
+       *
+       * A server-rendered monolith with no API, no CORS library installed and no
+       * cross-origin handling anywhere is not missing a policy — the browser's own
+       * default already refuses those requests, and the absence *is* the safe
+       * configuration. Reporting it as a critical gap rewards adding middleware that
+       * can only loosen what is currently closed.
+       *
+       * An independent review of a report on a Django school platform put it as
+       * "not applicable, and inverted". It was right.
+       */
+      return servesCrossOrigin(analysis) ? 'missing' : 'not_applicable';
     }
     case 'security.rate-limit': {
       return boolDetail(sec, 'rateLimit') ? 'present' : 'missing';
@@ -264,6 +278,23 @@ function evidenceFor(analysis: ProjectAnalysis, capability: ExpectedCapability):
   return capability.detectorKeys
     .map((key) => detector(analysis, key))
     .filter(Boolean) as DetectorResult[];
+}
+
+/**
+ * Whether anything here could receive a cross-origin request.
+ *
+ * An API surface, a framework built to serve one, or a CORS library someone installed
+ * on purpose. None of the three means the question does not arise.
+ */
+function servesCrossOrigin(analysis: ProjectAnalysis): boolean {
+  // Somebody wrote cross-origin handling, however badly: the question plainly arises.
+  const sec = detector(analysis, 'security.core');
+  if (sec?.evidence.some((item) => /cors/i.test(String(item.value)))) return true;
+
+  // An API meant for other callers.
+  if (detector(analysis, 'auth.apiKeys')?.present) return true;
+
+  return analysis.files.source.some((file) => /(^|\/)(api|routes?|controllers?|serializers?|graphql)(\/|\.)/i.test(file));
 }
 
 function evidenceQualityFor(detectors: DetectorResult[]): EvidenceQuality {
