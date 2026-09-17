@@ -70,3 +70,71 @@ describe('a report does not contradict itself', () => {
     expect(headers?.recommendation).not.toMatch(/helmet\(\)/);
   });
 });
+
+/**
+ * The detector settled years ago that headers are headers whatever sets them — it looks
+ * for the headers, not only for the helmet package. The rule never followed, and
+ * returned `unknown` for anything that was not Express.
+ */
+describe('a report gives the answer it has', () => {
+  it('credits a Django application that sets security headers', async () => {
+    // Filed under "Not Applicable / Unknown", with four snippets proving it does, at
+    // strong evidence quality, and no credit for it anywhere in the score. A report
+    // that knows the answer and declines to give it is worse than one that asks: the
+    // reader paid for the answer.
+    const report = buildReport(await analyzeProject(fixture('django-security-headers')), { profile: 'observed-only' });
+    const headers = report.findings.find((f) => f.id === 'security.helmet');
+
+    expect(headers?.status).toBe('passed');
+    expect(headers?.description).toMatch(/django/i);
+  });
+
+  it('still reports the absence against a backend that owns its responses', async () => {
+    const report = buildReport(await analyzeProject(fixture('django-basic')), { profile: 'observed-only' });
+
+    expect(report.findings.find((f) => f.id === 'security.helmet')?.status).toBe('missing');
+  });
+
+  it('blames nobody for headers set by whoever hosts the build', async () => {
+    // A front end with no server of its own is served by Vercel, Netlify or a bucket
+    // behind a CDN, and that configuration is not in the repository.
+    const report = buildReport(await analyzeProject(fixture('react-vite')), { profile: 'observed-only' });
+
+    expect(report.findings.find((f) => f.id === 'security.helmet')?.status).toBe('unknown');
+  });
+
+  it('does not credit a package for containing the words it searches for', async () => {
+    // This analyzer searches source for the header names, so a tool that looks for
+    // `Content-Security-Policy` contains the string it looks for. A command-line
+    // package with no server anywhere came back "security headers are configured".
+    const report = buildReport(await analyzeProject(fixture('pattern-scanner')), { profile: 'observed-only' });
+
+    expect(report.findings.find((f) => f.id === 'security.helmet')?.status).not.toBe('passed');
+  });
+});
+
+describe('the next steps are a list of actions', () => {
+  it('does not restate four steps as a fifth', async () => {
+    // The report listed consent, export, erasure and retention, and then "Privacy
+    // compliance signals: implement consent, export/erasure workflows, and retention
+    // policies". A reader following the list does the work and then meets a step
+    // telling them to do it.
+    const report = buildReport(await analyzeProject(fixture('django-basic')), { profile: 'b2c-app' });
+    const steps = report.suggestedNextSteps.join('\n');
+
+    if (/Consent capture/.test(steps)) {
+      expect(steps).not.toMatch(/Privacy compliance signals/);
+    }
+  });
+
+  it('gives one instruction per job', async () => {
+    // "Health endpoint: add a /health or /healthz endpoint" and "Healthcheck endpoint:
+    // add /health or /healthz endpoint for runtime and deployment checks" are one
+    // instruction written twice; the catalogue says so by giving both findings the
+    // same task id.
+    const report = buildReport(await analyzeProject(fixture('django-basic')), { profile: 'b2c-app' });
+    const health = report.suggestedNextSteps.filter((s) => /health/i.test(s));
+
+    expect(health.length).toBeLessThanOrEqual(1);
+  });
+});

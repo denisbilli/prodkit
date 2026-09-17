@@ -235,40 +235,68 @@ export const rules: Rule[] = [
   },
   {
     id: 'security.helmet',
-    title: 'Helmet security headers for Express',
+    title: 'Security headers',
     category: 'security',
     severity: 'medium',
     evaluate: ({ analysis }) => {
       const isExpress = analysis.stack.backend.includes('express');
       const det = analysis.detectors['security.core'];
-      const hasHelmet = Boolean(det?.details?.helmet);
-      const status: FindingStatus = !isExpress ? 'unknown' : hasHelmet ? 'passed' : 'missing';
+      const hasHeaders = Boolean(det?.details?.helmet);
+
+      /**
+       * Headers are headers, whatever sets them.
+       *
+       * The detector settled this years ago — it looks for the headers themselves, not
+       * only for the helmet package, because "a framework-native app sets the same
+       * headers itself, in a Next proxy, a Nuxt route rule, a Django setting". The rule
+       * never followed. It returned `unknown` for anything that was not Express, so a
+       * Django project that configures HSTS through the environment was filed under
+       * "Not Applicable / Unknown" with four snippets proving it does, strong evidence
+       * quality, and no credit for it anywhere in the score.
+       *
+       * A report that knows the answer and declines to give it is worse than one that
+       * asks: the reader paid for the answer.
+       */
+      /**
+       * Only a backend in this repository can be held responsible for the absence.
+       *
+       * A front end with no server of its own is served by whatever hosts the build —
+       * Vercel, Netlify, a bucket behind a CDN — and that configuration is usually not
+       * in the repository at all. Reporting "no security headers" against it is a
+       * finding about somebody else's infrastructure.
+       *
+       * The credit is gated on the same thing, and has to be: this analyzer searches
+       * source for the header names, so a tool that looks for `Content-Security-Policy`
+       * contains the string it looks for. Reported against itself, a command-line
+       * package with no server anywhere came back "security headers are configured" —
+       * a false credit, counted among the checks the report says it verified. A string
+       * is not a response.
+       */
+      const ownsResponses = analysis.stack.backend.length > 0;
+      const status: FindingStatus = !ownsResponses
+        ? 'unknown'
+        : hasHeaders ? 'passed' : 'missing';
+
+      const stackName = analysis.stack.backend.join(', ') || analysis.stack.frontend.join(', ');
+
       return mkFinding({
         id: 'security.helmet',
-        title: 'Security headers middleware',
+        title: 'Security headers',
         category: 'security',
         status,
         severity: sevForStatus(status, 'medium'),
+        description: !ownsResponses
+          ? 'Nothing in this repository serves the responses, so the headers are set by whatever hosts it.'
+          : hasHeaders
+            ? `Security headers are configured in this ${stackName} application.`
+            : `No security headers detected in this ${stackName} application.`,
         /**
-         * The description used to branch on `hasHelmet` alone, so a project that is not
-         * an Express application at all — status `unknown` — still read "Helmet
-         * detected." A Django repository was told that, which is a contradiction inside
-         * one finding and exactly the kind of thing that costs a report its credibility.
+         * Naming the package for the stack in front of the reader, rather than naming
+         * Express to everyone. A Django project was told to install an Express package.
          */
-        description: !isExpress
-          ? `This check is about Express middleware; the backend here is ${analysis.stack.backend.join(', ') || 'not an Express application'}.`
-          : hasHelmet
-            ? 'Helmet detected.'
-            : 'Helmet/security headers not detected for Express app.',
-        /**
-         * The description already branches on whether this is an Express application;
-         * the recommendation did not, so a Django project was told to install an
-         * Express package. Half a fix reads as confusion, which costs the same trust as
-         * being wrong.
-         */
-        recommendation: !isExpress
-          ? 'Set security headers the way this stack does: SECURE_HSTS_SECONDS, SECURE_SSL_REDIRECT and a content security policy in Django settings, or the equivalent for your framework.'
-          : 'Enable helmet() and review CSP/HSTS settings for your deployment model.',
+        recommendation: isExpress
+          ? 'Enable helmet() and review CSP/HSTS settings for your deployment model.'
+          : 'Set security headers the way this stack does — SECURE_HSTS_SECONDS, SECURE_SSL_REDIRECT and a content security policy in Django settings, the equivalent middleware elsewhere — or terminate them at the proxy in front of it.',
         evidence: evidenceForClaim(det?.evidence, 'headers'),
       });
     },

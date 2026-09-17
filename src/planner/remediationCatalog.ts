@@ -166,6 +166,7 @@ export const remediationCatalog: Record<string, RemediationCatalogEntry> = {
       'Credentials and sessions are handled securely.',
     ],
     dependencies: [],
+    supersededBy: ['expectation.auth.required', 'expectation.auth.password-reset.required', 'expectation.auth.email-verification.required', 'expectation.auth.mfa.required'],
   }),
   'billing.webhook-signature': entry({
     taskId: 'remediate.billing.webhook-signature',
@@ -308,6 +309,7 @@ export const remediationCatalog: Record<string, RemediationCatalogEntry> = {
       'Privacy event is audited.',
     ],
     dependencies: ['remediate.auth.core'],
+    supersededBy: ['expectation.gdpr.consent.required', 'expectation.gdpr.export.required', 'expectation.gdpr.erasure.required', 'expectation.gdpr.retention.recommended'],
   }),
   'observability.logging': entry({
     taskId: 'remediate.observability.logging',

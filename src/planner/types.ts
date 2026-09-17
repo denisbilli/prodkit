@@ -58,6 +58,16 @@ export interface RemediationCatalogEntry {
   suggestedTests: string[];
   acceptanceCriteria: string[];
   dependencies: string[];
+  /**
+   * This task is the general form of work that other capabilities describe precisely.
+   *
+   * `gdpr.privacy` says "implement consent, export/erasure workflows, and retention
+   * policies" — which is the four GDPR capabilities restated as one sentence. Listed
+   * beside them in the next steps, a reader does that work and then meets a step
+   * telling them to do it. Marked here rather than inferred, so nothing is guessed:
+   * naming the capabilities keeps the relationship checkable.
+   */
+  supersededBy?: string[];
 }
 
 export interface PlannedTaskSeed {

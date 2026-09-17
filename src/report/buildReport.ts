@@ -11,6 +11,7 @@ import { buildCategoryScores } from './categoryScores';
 import { withBusinessImpact } from './businessImpact';
 import { buildComplianceMapping } from './complianceMapping';
 import { buildExecutiveSummary } from './executiveSummary';
+import { remediationCatalog } from '../planner/remediationCatalog';
 
 export interface BuildReportOptions {
   profile?: ProductProfile;
@@ -198,8 +199,40 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   const warnings = findings.filter((f) => ['high', 'medium', 'low'].includes(f.severity) && f.status !== 'passed' && f.status !== 'unknown');
   const passedChecks = findings.filter((f) => f.status === 'passed');
 
+  /**
+   * A list of actions, with nothing in it that is the sum of the others.
+   *
+   * The report listed "Consent capture", "Data export", "Data erasure" and "Retention
+   * limits", and then "Privacy compliance signals: implement consent, export/erasure
+   * workflows, and retention policies" — the same work restated as one vaguer sentence.
+   * A reader following the list does the work and then meets a step telling them to do
+   * it, which is how a list of actions stops being read as one.
+   *
+   * The catalogue says which general tasks are superseded and by what, so the
+   * relationship is written down rather than inferred from wording.
+   */
+  const openFindingIds = new Set(
+    findings.filter((f) => f.status !== 'passed' && f.status !== 'unknown').map((f) => f.id),
+  );
+
+  const seenTasks = new Set<string>();
+
   const suggestedNextSteps = findings
     .filter((f) => f.status !== 'passed' && f.status !== 'unknown')
+    .filter((f) => {
+      const entry = remediationCatalog[f.id];
+      if (entry?.supersededBy?.some((capabilityFindingId) => openFindingIds.has(capabilityFindingId))) return false;
+
+      // One step per job. "Health endpoint: add a /health or /healthz endpoint" and
+      // "Healthcheck endpoint: add /health or /healthz endpoint for runtime and
+      // deployment checks" are one instruction written twice; the catalogue says so by
+      // giving both findings the same task id.
+      if (!entry) return true;
+      if (seenTasks.has(entry.taskId)) return false;
+
+      seenTasks.add(entry.taskId);
+      return true;
+    })
     .slice(0, 10)
     .map((f) => `${f.title}: ${f.recommendation}`);
 
