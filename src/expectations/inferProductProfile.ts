@@ -61,9 +61,24 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
     return { inferredProfile: 'b2c-app', confidence: 'medium', reason: 'Auth signals without tenant boundaries suggest consumer app.' };
   }
 
-  if (backendPresent && auth && !billing && !tenancy) {
-    return { inferredProfile: 'internal-tool', confidence: 'low', reason: 'Some internal-tool signals exist but confidence is low.' };
-  }
-
-  return { inferredProfile: 'internal-tool', confidence: 'low', reason: 'Insufficient profile-specific evidence.' };
+  /**
+   * No profile. Not `internal-tool`.
+   *
+   * There used to be a branch here for a deliberate internal tool —
+   * `backendPresent && auth && !billing && !tenancy` — and an exhaustive search over
+   * its inputs returns zero combinations that reach it: anything with auth and no
+   * tenancy has already returned b2c-app, and anything with billing or tenancy has
+   * already returned b2b-saas. It was dead code, so every internal-tool ever reported
+   * came from the fallback below and meant "I do not know".
+   *
+   * A positive signal for an internal tool is worth designing — enterprise identity
+   * with no public signup and no billing is the shape of one — but inventing the
+   * distinction without evidence is what produced a wrong profile on five of ten real
+   * repositories. Until there is evidence, the answer is nothing.
+   */
+  return {
+    inferredProfile: null,
+    confidence: 'low',
+    reason: 'No profile-specific evidence: the repository does not identify what kind of product it is.',
+  };
 }

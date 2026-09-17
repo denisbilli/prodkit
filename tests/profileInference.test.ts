@@ -20,6 +20,26 @@ describe('product profile inference', () => {
     expect(result.inferredProfile).not.toBe('ai-saas');
   });
 
+  it('says nothing rather than naming a profile it cannot support', async () => {
+    // The fallback used to return `internal-tool` while its own reason read
+    // "Insufficient profile-specific evidence": the code knew it did not know and put
+    // a label on it anyway. Worse, every internal-tool came from here — the deliberate
+    // branch for one was unreachable, proven by exhaustive search over its inputs — so
+    // the label never once meant "this is an internal tool".
+    const result = await infer('python-bfs-queue');
+
+    expect(result.inferredProfile).toBeNull();
+    expect(result.confidence).toBe('low');
+    expect(result.reason).toMatch(/no profile-specific evidence/i);
+  });
+
+  it('still names a profile when the evidence is there', async () => {
+    // The other half: saying "I do not know" must not become the answer to everything.
+    const result = await infer('express-model-provider');
+
+    expect(result.inferredProfile).toBe('ai-saas');
+  });
+
   it('calls a product that depends on a model SDK an AI SaaS', async () => {
     // The other half: narrowing the rule must not empty it.
     const result = await infer('express-model-provider');

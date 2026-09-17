@@ -98,7 +98,19 @@ export interface ProductExpectationResult {
 }
 
 export interface ProductProfileInference {
-  inferredProfile: ProductProfile;
+  /**
+   * `null` when the evidence does not identify a profile.
+   *
+   * This used to fall back to `internal-tool`, whose own reason string said
+   * "Insufficient profile-specific evidence" — the code knew it did not know and named
+   * a profile anyway. Every `internal-tool` in the wild came from that fallback: an
+   * exhaustive search over the inputs showed the deliberate internal-tool branch was
+   * unreachable, so the label never once meant "this is an internal tool".
+   *
+   * Saying nothing is the honest answer, and this product is sold on saying only what
+   * it can show.
+   */
+  inferredProfile: ProductProfile | null;
   confidence: 'low' | 'medium' | 'high';
   reason: string;
 }

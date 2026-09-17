@@ -95,7 +95,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
       if (inferred.confidence === 'low') {
         productProfile = {
           selectedProfile: 'auto',
-          inferredProfile: inferred.inferredProfile,
+          inferredProfile: inferred.inferredProfile ?? undefined,
           inferenceConfidence: inferred.confidence,
           profileTitle: 'Auto (inconclusive)',
           profileDescription: 'Profile inference was inconclusive; expected capabilities were not applied.',
@@ -118,7 +118,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
           analysis,
           selectedProfile: inferred.inferredProfile as Exclude<ProductProfile, 'auto' | 'observed-only'>,
           requestedProfile,
-          inferredProfile: inferred.inferredProfile,
+          inferredProfile: inferred.inferredProfile ?? undefined,
           inferenceConfidence: inferred.confidence,
         });
         productProfile = evaluated.result;
