@@ -40,6 +40,16 @@ From the report, ProdKit can also build a deterministic remediation plan with ph
 
 ## Installation
 
+```bash
+npm install -g @produtype/core
+prodkit analyze .
+```
+
+The command is `prodkit`; the package is `@produtype/core`. They differ on purpose:
+`prodkit` on npm is an unrelated and actively maintained package, so this one is
+published under the `@produtype` scope. `npm i prodkit` installs somebody else's
+project.
+
 ### Local development install
 
 1. Install dependencies:
