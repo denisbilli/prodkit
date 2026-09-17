@@ -23,6 +23,14 @@ import type { ProductProfile } from './types';
 /** Everything a rule is allowed to look at, read once. */
 export interface ProfileFacts {
   backend: boolean;
+  /**
+   * A backend somebody else runs: Supabase, Firebase, Appwrite and their kind.
+   *
+   * Kept apart from `backend` because the two mean different things to an expectation.
+   * The product has accounts and a database either way, which is what decides its
+   * profile; who is responsible for the rate limit is a separate question.
+   */
+  managedBackend: boolean;
   frontend: boolean;
   database: boolean;
   auth: boolean;
@@ -60,6 +68,7 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
 
   return {
     backend: analysis.stack.backend.length > 0,
+    managedBackend: analysis.stack.dataPlatforms.length > 0,
     frontend: analysis.stack.frontend.length > 0,
     database: analysis.stack.databases.length > 0,
     auth: present('auth.core'),
@@ -171,7 +180,33 @@ const RULES: ProfileRule[] = [
     profile: 'client-app',
     admissible: (f) => f.frontend || f.backend,
     signals: [
-      { identifies: true, label: 'state and logic held by the application itself', weight: 3, holds: (f) => f.clientLogic },
+      /**
+       * Two readings of the same identity, in one signal.
+       *
+       * This profile's own description is "an application someone uses to do something,
+       * without accounts to manage or subscriptions to sell", and only the first half
+       * of that was ever checked: logic held in the browser. Six repositories in the
+       * verification corpus had a backend, a front end and over a hundred source files
+       * between them, scored two against a floor of three, and were reported as
+       * unidentifiable.
+       *
+       * They are one signal rather than two because they are alternative descriptions
+       * of one thing, not evidence that accumulates. Saturation divides what a profile
+       * earned by what it could earn, so adding a second identifying signal quietly
+       * halved the confidence of every browser application that matched the first — a
+       * test written one release ago caught it.
+       *
+       * A model called from its own backend is excluded for the same reason it is
+       * penalised below: that is an AI product, and this profile would otherwise
+       * outrank the one that says so.
+       */
+      {
+        identifies: true,
+        label: 'an application in its own right, with nothing to sign in to',
+        weight: 3,
+        holds: (f) => f.clientLogic
+          || (f.frontend && f.backend && !f.auth && !f.billing && !f.tenancy && !f.callsAModel),
+      },
       { label: 'enough code to be an application', weight: 1, holds: (f) => f.sourceFiles > 12 },
       { label: 'a substantial codebase', weight: 1, holds: (f) => f.sourceFiles > 40 },
       { label: 'an API of its own', weight: 1, holds: (f) => f.apiSurface },
@@ -312,7 +347,15 @@ const RULES: ProfileRule[] = [
   },
   {
     profile: 'b2c-app',
-    admissible: (f) => f.auth && f.backend,
+    /**
+     * A backend somebody else runs is still a backend.
+     *
+     * Two consumer applications in the verification corpus — accounts, a Postgres
+     * database, user data — received no profile at all because their server is
+     * Supabase's rather than their own. Nothing about what the product is depends on
+     * where the server is hosted.
+     */
+    admissible: (f) => f.auth && (f.backend || f.managedBackend),
     signals: [
       { identifies: true, label: 'accounts on a backend', weight: 3, holds: () => true },
       { label: 'a front end', weight: 1, holds: (f) => f.frontend },
