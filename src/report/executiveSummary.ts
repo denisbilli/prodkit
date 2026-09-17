@@ -37,6 +37,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
   audit: 'traceability of sensitive actions',
   observability: 'knowing what happens in production',
   client: 'saving work and loading the app',
+  mobile: 'running on somebody else\u2019s phone',
   jobs: 'background processing',
   deployment: 'deploying repeatably',
 };

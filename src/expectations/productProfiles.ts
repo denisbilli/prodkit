@@ -213,12 +213,15 @@ const CAPABILITIES = {
   }),
   'app.state-durability': blueprint({
     id: 'app.state-durability',
-    title: 'Player progress survives the browser',
+    // Worded for every profile that asks it, not only for the one it was written for.
+    // A mobile app was being told its "player progress" had to survive "the browser",
+    // which is two wrong words in a report meant to be believed.
+    title: 'The user\u2019s work survives leaving the app',
     category: 'client',
     detectorKeys: ['app.stateDurability'],
     description:
-      'Progress is kept somewhere durable rather than only in browser storage, which is emptied by a cleared cache, a private window or a new device — without the player ever being told the save was not real.',
-    recommendation: 'Persist progress server-side, and treat browser storage as a cache of it rather than as the record.',
+      'What the person has done is kept somewhere durable rather than only in the storage the platform is free to clear — a cleared cache, a private window, a reinstall, a new device — without them ever being told the save was not real.',
+    recommendation: 'Persist progress outside volatile storage, and treat the local copy as a cache of the record rather than as the record.',
   }),
   'app.asset-delivery': blueprint({
     id: 'app.asset-delivery',
@@ -237,6 +240,52 @@ const CAPABILITIES = {
     description:
       'On a server a crash is in the logs whether anyone planned for it or not. In code running on someone else\'s device it is not: the screen goes white, the person closes the tab, and nothing records that it happened.',
     recommendation: 'Report unhandled errors and rejections from the browser to a service you actually read.',
+  }),
+  'mobile.permissions': blueprint({
+    id: 'mobile.permissions',
+    title: 'Permissions asked in context, with a reason',
+    category: 'mobile',
+    detectorKeys: ['mobile.permissions'],
+    description:
+      'A permission declared with nothing next to it is a prompt with no explanation. Apple requires a purpose string and reads it in review; Android has none, so the equivalent is asking at the moment of use rather than at launch. An app that asks for the camera on its first screen is refused by the stores before it is refused by users.',
+    recommendation:
+      'Give every declared permission a purpose string, and request it at the point the feature needs it rather than on startup.',
+  }),
+  'mobile.credential-storage': blueprint({
+    id: 'mobile.credential-storage',
+    title: 'Credentials in the keychain',
+    category: 'mobile',
+    detectorKeys: ['mobile.credentialStorage'],
+    description:
+      'On a phone the file system is not a security boundary. A token in preferences or a plain file is readable on a rooted device and often present in a backup, which is a different exposure from the same mistake on a server nobody else holds.',
+    recommendation: 'Keep tokens and keys in Keychain or Keystore, through the platform API or a wrapper over it.',
+  }),
+  'mobile.offline': blueprint({
+    id: 'mobile.offline',
+    title: 'It works when the network does not',
+    category: 'mobile',
+    detectorKeys: ['mobile.offline'],
+    description:
+      'A network that comes and goes is the normal state of a phone, not an error case. An app with no local store renders a spinner in a lift, on a train and in a basement — none of which its author sees at a desk.',
+    recommendation: 'Keep what the person is working on locally, and reconcile with the server when the connection returns.',
+  }),
+  'mobile.forced-update': blueprint({
+    id: 'mobile.forced-update',
+    title: 'The old version can be told to stop',
+    category: 'mobile',
+    detectorKeys: ['mobile.forcedUpdate'],
+    description:
+      'A web application changes for everyone at once. A client on someone else\u2019s phone stays installed for months whatever the release notes say, so the server either keeps supporting every version it ever shipped or can refuse the ones it no longer does.',
+    recommendation: 'Send a minimum supported version from the server and have the client act on it.',
+  }),
+  'mobile.privacy-declaration': blueprint({
+    id: 'mobile.privacy-declaration',
+    title: 'The privacy declaration is in the repository',
+    category: 'mobile',
+    detectorKeys: ['mobile.privacyDeclaration'],
+    description:
+      'The App Store and Play listings are a public, checkable commitment about what the app collects. Written in a dashboard rather than kept beside the code, it stops matching what the code does, and nobody reviewing the code can tell.',
+    recommendation: 'Keep the privacy manifest (PrivacyInfo.xcprivacy, or the data-safety declaration) in the repository, next to what it describes.',
   }),
   'jobs.background': blueprint({
     id: 'jobs.background',
@@ -472,6 +521,49 @@ export const productProfiles: Record<
       'observability.logging': 'recommended',
       'deployment.readiness': 'required',
       'deployment.docker': 'recommended',
+    },
+  }),
+
+  /**
+   * An application that ships to somebody else's phone.
+   *
+   * It used to land in `client-app`, which is the nearest profile and underestimates
+   * it: that one asks that the user's work survives, that the bundle arrives and that
+   * crashes are heard about, and asks nothing about the fact that this code runs on a
+   * device its author does not own, behind a review process, on a network that comes
+   * and goes, in a version that may still be installed in a year.
+   *
+   * What it deliberately does not ask for, exactly as client-app does not: tenants,
+   * an audit trail, a billing path. A mobile app is a client. The five capabilities
+   * that are its own are the ones no web application has.
+   */
+  'mobile-app': defineProfile({
+    id: 'mobile-app',
+    title: 'Mobile application',
+    description: 'An app installed on a device its author does not own, shipped through a store.',
+    importance: {
+      'mobile.permissions': 'required',
+      'mobile.credential-storage': 'required',
+      'mobile.offline': 'required',
+      'mobile.forced-update': 'recommended',
+      'mobile.privacy-declaration': 'recommended',
+      'app.state-durability': 'required',
+      'client.error-reporting': 'required',
+      // The bundle is delivered by the store, not by us — so asset delivery, which
+      // client-app requires, is not this profile's problem.
+      'app.asset-delivery': 'optional',
+      'auth.baseline': 'optional',
+      'gdpr.export': 'optional',
+      'gdpr.erasure': 'optional',
+      'security.rate-limit': 'optional',
+      'uploads.protection': 'optional',
+      // Neither of these is a mobile application's problem when the repository is only
+      // the app: a store ships it rather than a pipeline deploying it, and the logs
+      // that matter are on a server that lives somewhere else. Asking for them
+      // produces findings nobody can act on, which is what this profile exists to
+      // avoid.
+      'observability.logging': 'optional',
+      'deployment.readiness': 'optional',
     },
   }),
 

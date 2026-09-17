@@ -16,6 +16,7 @@ const nothing: ProfileFacts = {
   clientLogic: false,
   gameEngine: false,
   gameSignals: 0,
+  mobilePlatforms: [],
   sourceFiles: 0,
 };
 

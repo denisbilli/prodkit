@@ -9,6 +9,7 @@ import { detectDatabase } from './detectDatabase';
 import { detectAudit } from './detectAudit';
 import { detectGame } from './detectGame';
 import { detectClientLogic } from './detectClientLogic';
+import { detectMobile } from './detectMobile';
 import { detectErrorReporting } from './detectErrorReporting';
 import { detectDocker } from './detectDocker';
 import { detectEnv } from './detectEnv';
@@ -442,7 +443,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     workspaces,
   };
 
-  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, engagement, deployment, audit, game, clientLogic, errorReporting] =
+  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, engagement, deployment, audit, game, clientLogic, mobile, errorReporting] =
     await Promise.all([
       detectPackageManager(ctx),
       detectFrontend(ctx),
@@ -464,6 +465,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       detectAudit(ctx),
       detectGame(ctx),
       detectClientLogic(ctx),
+      detectMobile(ctx),
       detectErrorReporting(ctx),
     ]);
 
@@ -476,6 +478,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     audit,
     ...game,
     clientLogic,
+    ...mobile,
     errorReporting,
     docker,
     ...env,

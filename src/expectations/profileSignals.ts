@@ -42,6 +42,8 @@ export interface ProfileFacts {
   containerised: boolean;
   gameEngine: boolean;
   gameSignals: number;
+  /** Ships to a phone: Flutter, React Native, or an iOS/Android project in the tree. */
+  mobilePlatforms: string[];
   sourceFiles: number;
 }
 
@@ -70,6 +72,7 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
     containerised: present('deployment.docker'),
     gameEngine: present('game.engine'),
     gameSignals: Number(analysis.detectors['game.engine']?.details?.supportingSignals ?? 0),
+    mobilePlatforms: (analysis.detectors['mobile.platform']?.details?.platforms as string[] | undefined) ?? [],
     sourceFiles: analysis.files.source.length,
   };
 }
@@ -165,6 +168,33 @@ const RULES: ProfileRule[] = [
       { identifies: true, label: 'subscriptions', weight: -3, holds: (f) => f.billing },
       { identifies: true, label: 'tenant boundaries', weight: -3, holds: (f) => f.tenancy },
       { label: 'accounts to manage', weight: -1, holds: (f) => f.auth },
+    ],
+  },
+  {
+    /**
+     * A mobile application refines client-app for the same reason `game` does: it is a
+     * client, and the expectations that separate it are ones no web application has.
+     *
+     * The platform is what identifies it, and one signal is enough — a repository with
+     * an AndroidManifest.xml is an Android application, and no amount of other evidence
+     * makes it less one. What the rest of the signals do is separate a real app from a
+     * web project that happens to carry a Capacitor shell.
+     */
+    profile: 'mobile-app',
+    refines: 'client-app',
+    admissible: (f) => f.mobilePlatforms.length > 0 && !f.tenancy,
+    signals: [
+      { identifies: true, label: 'a mobile project in the repository', weight: 5, holds: (f) => f.mobilePlatforms.length > 0 },
+      {
+        identifies: true,
+        label: 'built for both iOS and Android',
+        weight: 1,
+        holds: (f) => f.mobilePlatforms.includes('ios') && f.mobilePlatforms.includes('android'),
+      },
+      { label: 'enough code to be an application', weight: 1, holds: (f) => f.sourceFiles > 12 },
+      // A backend in the same repository does not stop it being a mobile app, but a
+      // repository that is mostly a server with a thin client is a server.
+      { label: 'a server of its own in the same repository', weight: -1, holds: (f) => f.backend && f.database },
     ],
   },
   {

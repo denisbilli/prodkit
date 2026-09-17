@@ -32,6 +32,7 @@ export const CATEGORIES = [
   'audit',
   'observability',
   'client',
+  'mobile',
   'jobs',
   'deployment',
 ] as const;

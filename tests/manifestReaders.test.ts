@@ -82,15 +82,16 @@ describe('Flutter', () => {
     expect(analysis.stack.backend).toEqual([]);
   });
 
-  it('does not call a mobile application a static site', async () => {
-    // The same failure as a browser application, arriving from mobile: a front end, no
-    // backend, no database of its own — and the static-site profile expects almost
-    // nothing, so a real application would have been told it was fine. Dart state and
-    // storage packages are what stop it.
+  it('recognises a mobile application as one', async () => {
+    // It used to land in client-app, which was the nearest profile available and an
+    // improvement on static-site — the failure this test was written for, where a real
+    // application was told it was fine because the profile expected almost nothing.
+    // mobile-app is nearer still: it asks for the things that are true of code running
+    // on somebody else's phone and of nothing else.
     const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
     const inference = inferProductProfile(await analyzeProject(fixture('flutter-app')));
 
-    expect(inference.inferredProfile).toBe('client-app');
+    expect(inference.inferredProfile).toBe('mobile-app');
     expect(inference.inferredProfile).not.toBe('static-site');
   });
 
