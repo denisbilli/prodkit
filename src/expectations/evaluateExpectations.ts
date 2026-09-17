@@ -1,4 +1,4 @@
-import type { DetectorResult, ProjectAnalysis } from '../analyzer/types';
+import type { DetectorEvidence, DetectorResult, ProjectAnalysis } from '../analyzer/types';
 import type { Finding } from '../report/types';
 import type {
   CapabilityEvaluation,
@@ -297,16 +297,29 @@ function servesCrossOrigin(analysis: ProjectAnalysis): boolean {
   return analysis.files.source.some((file) => /(^|\/)(api|routes?|controllers?|serializers?|graphql)(\/|\.)/i.test(file));
 }
 
-function evidenceQualityFor(detectors: DetectorResult[]): EvidenceQuality {
-  if (detectors.some((detectorResult) => detectorResult.evidence.some((item) => item.type === 'file' && typeof item.line === 'number'))) {
+/**
+ * How good the evidence is, judged on the evidence the reader is actually shown.
+ *
+ * This used to read the detectors whole, while the finding displayed only the lines
+ * tagged with its own claim. The two came apart the moment claims were introduced: the
+ * one critical finding in a real report — "rate limiting on risk surfaces", the finding
+ * that decided "launch ready: no" — announced high confidence and strong evidence
+ * quality directly above the line "no direct evidence captured". It had been graded on
+ * four `SECURE_HSTS_SECONDS` snippets it no longer showed, because they are evidence
+ * about headers.
+ *
+ * A claim is only as good as what can be put in front of the reader.
+ */
+function evidenceQualityFor(evidence: DetectorEvidence[]): EvidenceQuality {
+  if (evidence.some((item) => item.type === 'file' && typeof item.line === 'number')) {
     return 'strong';
   }
 
-  if (detectors.some((detectorResult) => detectorResult.evidence.some((item) => item.type === 'file' || item.type === 'snippet'))) {
+  if (evidence.some((item) => item.type === 'file' || item.type === 'snippet')) {
     return 'strong';
   }
 
-  if (detectors.some((detectorResult) => detectorResult.evidence.some((item) => item.type === 'dependency'))) {
+  if (evidence.some((item) => item.type === 'dependency')) {
     return 'medium';
   }
 
@@ -487,7 +500,7 @@ export function evaluateExpectedCapabilities(args: {
       const tagged = d.evidence.filter((item) => item.claim === cap.claim);
       return tagged.length > 0 ? tagged : d.evidence.filter((item) => item.claim === undefined);
     });
-    const quality = evidenceQualityFor(evidenceFor(args.analysis, cap));
+    const quality = evidenceQualityFor(detectorEvidence);
     const confidence = confidenceFor(status, quality);
     const severity = severityForConfidence(claimedSeverity, confidence);
 

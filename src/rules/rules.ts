@@ -260,7 +260,15 @@ export const rules: Rule[] = [
           : hasHelmet
             ? 'Helmet detected.'
             : 'Helmet/security headers not detected for Express app.',
-        recommendation: 'Enable helmet() and review CSP/HSTS settings for your deployment model.',
+        /**
+         * The description already branches on whether this is an Express application;
+         * the recommendation did not, so a Django project was told to install an
+         * Express package. Half a fix reads as confusion, which costs the same trust as
+         * being wrong.
+         */
+        recommendation: !isExpress
+          ? 'Set security headers the way this stack does: SECURE_HSTS_SECONDS, SECURE_SSL_REDIRECT and a content security policy in Django settings, or the equivalent for your framework.'
+          : 'Enable helmet() and review CSP/HSTS settings for your deployment model.',
         evidence: evidenceForClaim(det?.evidence, 'headers'),
       });
     },

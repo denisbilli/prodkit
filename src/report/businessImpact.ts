@@ -80,8 +80,26 @@ export function businessImpactFor(finding: Finding): string | undefined {
 }
 
 /** Attaches the business impact to every actionable finding. */
+/**
+ * These sentences describe a consequence of something being wrong.
+ *
+ * Attached to every finding regardless of status, they contradicted the finding they
+ * sat under. A Django project was told, three lines apart, that the security-headers
+ * check is about Express middleware and does not apply — and then that "the browser is
+ * not told to defend the page, leaving ordinary injection and framing attacks
+ * available". An upload check that found nothing exposed still announced that
+ * "uploaded files are reachable by anyone who knows or guesses the path".
+ *
+ * A reader cannot tell a confused report from a wrong one, and stops trusting both.
+ */
+function describesADefect(finding: Finding): boolean {
+  return finding.status === 'missing' || finding.status === 'partial';
+}
+
 export function withBusinessImpact(findings: Finding[]): Finding[] {
   return findings.map((finding) => {
+    if (!describesADefect(finding)) return finding;
+
     const businessImpact = businessImpactFor(finding);
     return businessImpact ? { ...finding, businessImpact } : finding;
   });

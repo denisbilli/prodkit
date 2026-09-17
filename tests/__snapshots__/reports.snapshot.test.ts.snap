@@ -184,7 +184,7 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
 
 exports[`report snapshots > matches structured snapshot for an unhardened express fixture 1`] = `
 {
-  "criticalCount": 4,
+  "criticalCount": 2,
   "findings": [
     {
       "id": "auth.core",
@@ -303,22 +303,12 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
     },
     {
       "id": "expectation.security.headers.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.security.headers.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
       "id": "expectation.security.rate-limit.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.security.rate-limit.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
@@ -407,7 +397,7 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
       "status": "missing",
     },
   ],
-  "highCount": 11,
+  "highCount": 13,
   "maturity": "prototype",
   "mediumCount": 16,
   "score": 31,
