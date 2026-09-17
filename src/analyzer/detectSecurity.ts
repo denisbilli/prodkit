@@ -89,10 +89,10 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   );
   const rateLimit = rateLimitDep || rateLimitSignals.length > 0;
 
-  if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet' });
-  if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package' });
-  for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
-  for (const m of rateLimitSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet', claim: 'headers' });
+  if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package', claim: 'rate-limit' });
+  for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
+  for (const m of rateLimitSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'rate-limit' });
 
   const corsLoose: CorsHit[] = [];
   const corsStrict: CorsHit[] = [];
@@ -114,16 +114,16 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     corsLoose.push(...detected.loose);
     corsStrict.push(...detected.strict);
   }
-  for (const m of corsLoose) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
-  for (const m of corsStrict) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  for (const m of corsLoose) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'cors' });
+  for (const m of corsStrict) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'cors' });
 
   const webhookSig = await searchInFiles(ctx.root, source, [/constructEvent\(/, /webhook.*signature/i], 10);
   const bodyLimit = await searchInFiles(ctx.root, source, [/express\.json\(\s*\{[^}]*limit\s*:/i], 10);
   const contentTypeCheck = await searchInFiles(ctx.root, source, [/content-type/i, /req\.is\(/], 10);
 
-  for (const m of webhookSig) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
-  for (const m of bodyLimit) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
-  for (const m of contentTypeCheck) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  for (const m of webhookSig) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'webhook-signature' });
+  for (const m of bodyLimit) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'body-size' });
+  for (const m of contentTypeCheck) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'content-type' });
 
   const djangoSettings = ctx.files.all.find((f) => f.endsWith('settings.py'));
   let djangoDebugTrue = false;
@@ -132,13 +132,13 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     const text = (await readTextFileSafe(ctx.root, djangoSettings)) ?? '';
     if (/DEBUG\s*=\s*True/.test(text)) {
       djangoDebugTrue = true;
-      evidence.push({ type: 'snippet', value: 'DEBUG = True', file: djangoSettings });
+      evidence.push({ type: 'snippet', value: 'DEBUG = True', file: djangoSettings, claim: 'django-debug' });
     }
     const insecureSession = /SESSION_COOKIE_SECURE\s*=\s*False/.test(text);
     const insecureCsrf = /CSRF_COOKIE_SECURE\s*=\s*False/.test(text);
     djangoSecureCookies = !(insecureSession || insecureCsrf);
-    if (insecureSession) evidence.push({ type: 'snippet', value: 'SESSION_COOKIE_SECURE = False', file: djangoSettings });
-    if (insecureCsrf) evidence.push({ type: 'snippet', value: 'CSRF_COOKIE_SECURE = False', file: djangoSettings });
+    if (insecureSession) evidence.push({ type: 'snippet', value: 'SESSION_COOKIE_SECURE = False', file: djangoSettings, claim: 'django-cookies' });
+    if (insecureCsrf) evidence.push({ type: 'snippet', value: 'CSRF_COOKIE_SECURE = False', file: djangoSettings, claim: 'django-cookies' });
   }
 
   return {

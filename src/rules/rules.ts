@@ -32,6 +32,28 @@ function sevForStatus(status: FindingStatus, missing: Severity): Severity {
   return status === 'passed' || status === 'unknown' ? 'info' : missing;
 }
 
+/**
+ * The evidence for one claim, out of a detector that answers several.
+ *
+ * `security.core` decides headers, rate limiting, CORS, DEBUG and cookie flags in one
+ * pass and returns one array, which every rule derived from it used to show in full. On
+ * a real Django project that made the same four `SECURE_HSTS_SECONDS` lines the cited
+ * evidence for missing rate limiting, for CORS and for cookie flags — forty-four reused
+ * items in one report. An independent review called it out, and it is the kind of thing
+ * that costs a reader's trust in everything else on the page.
+ *
+ * Untagged evidence is returned when a detector tags nothing, so a detector that has not
+ * been given claims behaves exactly as before.
+ */
+function evidenceForClaim(evidence: DetectorEvidence[] | undefined, claim: string): DetectorEvidence[] {
+  if (!evidence || evidence.length === 0) return [];
+
+  const tagged = evidence.filter((item) => item.claim === claim);
+  if (tagged.length > 0) return tagged;
+
+  return evidence.filter((item) => item.claim === undefined);
+}
+
 function detectorEvidence(evidence: DetectorEvidence[] | undefined): DetectorEvidence[] {
   return evidence && evidence.length > 0 ? evidence : [{ type: 'note', value: 'no direct evidence captured' }];
 }
@@ -239,7 +261,7 @@ export const rules: Rule[] = [
             ? 'Helmet detected.'
             : 'Helmet/security headers not detected for Express app.',
         recommendation: 'Enable helmet() and review CSP/HSTS settings for your deployment model.',
-        evidence: det?.evidence ?? [],
+        evidence: evidenceForClaim(det?.evidence, 'headers'),
       });
     },
   },
@@ -263,7 +285,15 @@ export const rules: Rule[] = [
         severity: sevForStatus(status, 'medium'),
         description: hasRate ? 'Rate limiting signals detected.' : 'No auth-focused rate limiting detected.',
         recommendation: 'Apply express-rate-limit (or equivalent) to login/register/password reset endpoints.',
-        evidence: [...(auth?.evidence ?? []), ...(sec?.evidence ?? [])],
+        /**
+         * The claim is about rate limiting, so the evidence is about rate limiting.
+         *
+         * This used to prepend the whole auth detector's evidence, which on a Django
+         * project meant `"django.contrib.auth"` from INSTALLED_APPS was cited as
+         * evidence for a missing rate limit. That an application has authentication is
+         * why the check applies; it is not evidence about the answer.
+         */
+        evidence: evidenceForClaim(sec?.evidence, 'rate-limit'),
       });
     },
   },
@@ -290,7 +320,7 @@ export const rules: Rule[] = [
               ? 'CORS middleware detected without explicit origin restrictions.'
               : 'CORS configuration not detected.',
         recommendation: 'Configure allowlist origins and avoid permissive defaults in production.',
-        evidence: sec?.evidence ?? [],
+        evidence: evidenceForClaim(sec?.evidence, 'cors'),
       });
     },
   },
@@ -316,7 +346,7 @@ export const rules: Rule[] = [
             ? 'Django settings contain DEBUG=True.'
             : 'No DEBUG=True signal found.',
         recommendation: 'Set DEBUG=False for non-local environments and enforce via environment variables.',
-        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : sec?.evidence ?? [],
+        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : evidenceForClaim(sec?.evidence, 'django-debug'),
       });
     },
   },
@@ -342,7 +372,7 @@ export const rules: Rule[] = [
             ? 'Secure cookie settings appear configured.'
             : 'SESSION/CSRF secure cookie flags are weak.',
         recommendation: 'Enable SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE in production.',
-        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : sec?.evidence ?? [],
+        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : evidenceForClaim(sec?.evidence, 'django-cookies'),
       });
     },
   },
@@ -588,7 +618,7 @@ export const rules: Rule[] = [
         severity: sevForStatus(status, 'low'),
         description: health ? 'Health endpoint detected.' : 'No health endpoint detected.',
         recommendation: 'Add /health or /healthz endpoint for runtime and deployment checks.',
-        evidence: obs?.evidence ?? [],
+        evidence: evidenceForClaim(obs?.evidence, 'health'),
       });
     },
   },
@@ -609,7 +639,7 @@ export const rules: Rule[] = [
         severity: sevForStatus(status, 'low'),
         description: logs ? 'Structured logger dependency detected.' : 'No structured logging dependency detected.',
         recommendation: 'Adopt structured logs with request correlation ids.',
-        evidence: obs?.evidence ?? [],
+        evidence: evidenceForClaim(obs?.evidence, 'logging'),
       });
     },
   },

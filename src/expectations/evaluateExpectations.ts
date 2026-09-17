@@ -471,7 +471,22 @@ export function evaluateExpectedCapabilities(args: {
 
     const findingId = toFindingId(cap, effectiveImportance);
     const claimedSeverity = severityFor(cap, status, effectiveImportance);
-    const detectorEvidence = evidenceFor(args.analysis, cap).flatMap((d) => d.evidence);
+    /**
+     * Only the evidence for this capability's own claim.
+     *
+     * A detector that answers several questions returns one array, and a capability
+     * naming that detector used to show all of it. On a real Django project that made
+     * the same four `SECURE_HSTS_SECONDS` lines the cited evidence for missing rate
+     * limiting — the reader opens the finding, sees an unrelated line, and stops
+     * believing the report. A capability with no claim, or a detector that tags
+     * nothing, behaves exactly as before.
+     */
+    const detectorEvidence = evidenceFor(args.analysis, cap).flatMap((d) => {
+      if (!cap.claim) return d.evidence;
+
+      const tagged = d.evidence.filter((item) => item.claim === cap.claim);
+      return tagged.length > 0 ? tagged : d.evidence.filter((item) => item.claim === undefined);
+    });
     const quality = evidenceQualityFor(evidenceFor(args.analysis, cap));
     const confidence = confidenceFor(status, quality);
     const severity = severityForConfidence(claimedSeverity, confidence);

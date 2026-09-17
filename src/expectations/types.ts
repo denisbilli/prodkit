@@ -71,6 +71,15 @@ export interface ExpectedCapability {
   category: CapabilityCategory;
   importance: CapabilityImportance;
   detectorKeys: string[];
+  /**
+   * Which claim inside those detectors this capability is about.
+   *
+   * `security.core` decides headers, rate limiting, CORS, DEBUG and cookie flags in one
+   * pass, so a capability naming it received the lot: "rate limiting is missing",
+   * evidenced by four `SECURE_HSTS_SECONDS` lines. Set this and the capability is shown
+   * only the evidence for its own claim.
+   */
+  claim?: string;
   description: string;
   recommendation: string;
 }

@@ -42,6 +42,20 @@ export interface DetectorEvidence {
   value: string;
   file?: string;
   line?: number;
+  /**
+   * Which claim this line actually supports.
+   *
+   * A detector that answers several questions used to hand its whole evidence array to
+   * every finding derived from it, so the same four `SECURE_HSTS_SECONDS` lines from a
+   * Django settings file were cited as the evidence for missing rate limiting, for
+   * CORS, for DEBUG and for cookie flags. A reader who opens "no rate limiting" and
+   * finds an HSTS line stops believing the rest of the report, and an independent
+   * review of a real project said exactly that.
+   *
+   * Optional: evidence with no claim is general to its detector and still shown to
+   * everything, which is what every untagged detector relies on.
+   */
+  claim?: string;
 }
 
 export interface DetectorResult {
