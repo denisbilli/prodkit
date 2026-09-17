@@ -28,6 +28,10 @@ export interface DetectContext {
   goDeps: string[];
   /** Gem names from the Gemfile, lowercase. */
   rubyDeps: string[];
+  /** PackageReference and FrameworkReference names from .csproj, lowercase. */
+  dotnetDeps: string[];
+  /** Whether any project file declares the web SDK, which no dependency reveals. */
+  dotnetWebSdk: boolean;
   /** Lowercased combined dependency map (deps + devDeps). */
   npmDeps: Record<string, string>;
   workspaces: WorkspaceManifest[];
@@ -82,4 +86,15 @@ export function hasAnyGoDep(ctx: DetectContext, names: string[]): string[] {
 
 export function hasAnyRubyDep(ctx: DetectContext, names: string[]): string[] {
   return hasAnyIn(ctx.rubyDeps, names);
+}
+
+/**
+ * .NET package names are matched on a prefix: a project references
+ * `Npgsql.EntityFrameworkCore.PostgreSQL`, and a rule should be able to ask for
+ * `Npgsql` without listing every provider package that starts with it.
+ */
+export function hasAnyDotnetDep(ctx: DetectContext, names: string[]): string[] {
+  return names.filter((name) =>
+    ctx.dotnetDeps.some((dep) => dep === name.toLowerCase() || dep.startsWith(`${name.toLowerCase()}.`))
+  );
 }

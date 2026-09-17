@@ -151,6 +151,8 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 - **Backend (Node):** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS,
   SvelteKit, Remix, Nuxt, Nitro
+- **Backend (.NET):** ASP.NET Core read from `.csproj`, distinguished from a class
+  library by the SDK attribute rather than by its packages
 - **Backend (Go):** Gin, Echo, Fiber, chi, Gorilla, Beego, and plain `net/http` read
   from `go.mod`
 - **Backend (Ruby):** Rails, Sinatra, Hanami, Roda, Grape read from the `Gemfile`
@@ -160,7 +162,7 @@ prodkit plan ../my-app --output prodkit-plan.md
   aiohttp
 - **Frontend:** React, Vue, Svelte, Angular, Solid, Qwik, Preact, Astro, Nuxt, Remix,
   Vite, Tailwind, htmx
-- **Databases:** Postgres, MySQL, SQLite, MongoDB, Redis
+- **Databases:** Postgres, MySQL, SQLite, SQL Server, MongoDB, Redis
 - **Hosted data platforms:** Supabase, Firebase, Neon, PlanetScale, Vercel Postgres,
   Turso, Upstash, DynamoDB, Convex
 - **ORMs:** Prisma, Drizzle, TypeORM, Sequelize, Knex, MikroORM, Kysely, SQLAlchemy,

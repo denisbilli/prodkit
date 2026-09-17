@@ -299,6 +299,36 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     }
   }
 
+  /**
+   * .csproj, which is XML rather than JSON or one-entry-per-line.
+   *
+   * Parsed with regular expressions like the others, and here that decision needs more
+   * defending: XML has real nesting, and a regex cannot see it. What is being read is
+   * two flat things — the Sdk attribute on the root element and the Include attribute
+   * of each PackageReference — and neither depends on where it sits in the tree. A
+   * project file this cannot read yields nothing, which is the same failure as an
+   * unreadable package.json.
+   *
+   * The Sdk attribute carries more than any dependency: `Microsoft.NET.Sdk.Web` is
+   * what makes a project a web application, and it appears in no package list.
+   */
+  const dotnetDeps: string[] = [];
+  let dotnetWebSdk = false;
+
+  for (const file of allFiles.filter((f) => /\.(csproj|fsproj|vbproj)$/i.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    if (/Sdk\s*=\s*["']Microsoft\.NET\.Sdk\.Web["']/i.test(raw)) dotnetWebSdk = true;
+
+    for (const match of raw.matchAll(/<PackageReference\s+Include\s*=\s*["']([^"']+)["']/gi)) {
+      dotnetDeps.push(match[1].toLowerCase());
+    }
+    // A framework reference is how an application declares it needs the web runtime.
+    for (const match of raw.matchAll(/<FrameworkReference\s+Include\s*=\s*["']([^"']+)["']/gi)) {
+      dotnetDeps.push(match[1].toLowerCase());
+    }
+  }
+
   const rubyDeps: string[] = [];
 
   for (const file of allFiles.filter((f) => /(^|\/)Gemfile$/.test(f))) {
@@ -371,6 +401,8 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     phpDeps: unique(phpDeps),
     goDeps: unique(goDeps),
     rubyDeps: unique(rubyDeps),
+    dotnetDeps: unique(dotnetDeps),
+    dotnetWebSdk,
     npmDeps,
     workspaces,
   };

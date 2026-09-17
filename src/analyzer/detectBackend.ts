@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, type DetectContext } from './detectContext';
+import { hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 
@@ -145,6 +145,24 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   if (!namedPhpFramework && (hasAnyPhpDep(ctx, ['php']).length > 0 || ctx.files.source.some((f) => f.endsWith('.php')))) {
     frameworks.push('php');
     evidence.push({ type: 'note', value: 'PHP sources with no framework named in composer.json' });
+  }
+
+  /**
+   * .NET. The SDK attribute decides, not a package.
+   *
+   * `Microsoft.NET.Sdk.Web` is what turns a project into a web application, and it is
+   * declared on the project element rather than in any dependency list — so a
+   * detector reading only packages would miss the plainest statement in the file.
+   */
+  if (ctx.dotnetWebSdk || hasAnyDotnetDep(ctx, ['Microsoft.AspNetCore']).length > 0) {
+    frameworks.push('aspnet-core');
+    evidence.push({
+      type: 'note',
+      value: ctx.dotnetWebSdk ? 'a project declaring Microsoft.NET.Sdk.Web' : 'an ASP.NET Core package reference',
+    });
+  } else if (ctx.dotnetDeps.length > 0 || ctx.files.all.some((f) => /\.csproj$/i.test(f))) {
+    frameworks.push('dotnet');
+    evidence.push({ type: 'note', value: 'a .NET project with no web SDK' });
   }
 
   /**

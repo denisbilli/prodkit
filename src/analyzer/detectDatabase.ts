@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyRubyDep, type DetectContext } from './detectContext';
+import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 
 /**
@@ -130,6 +130,22 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
   ];
   for (const [db, names] of rubyHits) {
     const hits = hasAnyRubyDep(ctx, names);
+    if (!hits.length) continue;
+
+    databases.add(db);
+    for (const hit of hits) evidence.push({ type: 'dependency', value: hit });
+  }
+
+  const dotnetHits: Array<[string, string[]]> = [
+    ['postgres', ['Npgsql']],
+    ['mysql', ['MySql.Data', 'Pomelo.EntityFrameworkCore.MySql']],
+    ['sqlite', ['Microsoft.Data.Sqlite', 'Microsoft.EntityFrameworkCore.Sqlite']],
+    ['sqlserver', ['Microsoft.Data.SqlClient', 'Microsoft.EntityFrameworkCore.SqlServer', 'System.Data.SqlClient']],
+    ['mongodb', ['MongoDB.Driver']],
+    ['redis', ['StackExchange.Redis']],
+  ];
+  for (const [db, names] of dotnetHits) {
+    const hits = hasAnyDotnetDep(ctx, names);
     if (!hits.length) continue;
 
     databases.add(db);
