@@ -91,11 +91,39 @@ export async function detectClientLogic(ctx: DetectContext): Promise<DetectorRes
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
   }
 
+  /**
+   * A render loop. The application is deciding what the screen shows, frame by frame.
+   *
+   * Counted here because canvas drawing on its own was one signal short of the two this
+   * detector needs, so half a dozen browser games in the verification corpus came back
+   * as `static-site` — a brochure page — when their whole product is a loop over a
+   * canvas. A marketing page that animates on scroll uses the same call and has no
+   * canvas, so it still reaches only one signal and is still a static site.
+   */
+  const frameLoop = await searchInFiles(
+    ctx.root,
+    ctx.files.source,
+    /**
+     * `setInterval` is deliberately absent. It was here for one revision and was wrong:
+     * it matched a countdown in a React modal and a polling sync in an API client,
+     * neither of which is the application deciding what the screen shows. Both projects
+     * were real products that this demoted to plain client applications, and a demoted
+     * profile is judged by fewer expectations — so the change quietly raised their
+     * scores. `requestAnimationFrame` means a render loop and nothing else.
+     */
+    [/requestAnimationFrame\s*\(/],
+    6
+  );
+  for (const hit of frameLoop) {
+    evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
+  }
+
   const signals = [
     stateDeps.length > 0,
     logicDirs.length > 0,
     persistence.length > 0 || dartStorage.length > 0,
     drawing.length > 0,
+    frameLoop.length > 0,
   ].filter(Boolean).length;
 
   return {
@@ -104,6 +132,6 @@ export async function detectClientLogic(ctx: DetectContext): Promise<DetectorRes
     // banner writing to localStorage, or a marketing page with a hero canvas.
     present: signals >= 2,
     evidence,
-    details: { stateDeps, logicDirs: logicDirs.length, persistence: persistence.length + dartStorage.length, drawing: drawing.length, signals },
+    details: { stateDeps, logicDirs: logicDirs.length, persistence: persistence.length + dartStorage.length, drawing: drawing.length, frameLoop: frameLoop.length, signals },
   };
 }

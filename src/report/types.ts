@@ -66,6 +66,10 @@ export interface ReportDiagnostics {
   skippedFileCount: number;
   workspaceCount: number;
   detectorCount: number;
+  /** Checks that reached a verdict, rather than being left unknown. */
+  assessedChecks: number;
+  /** Of those, the ones that ran and found what they were looking for. */
+  verifiedChecks: number;
   detectors: Array<{
     id: string;
     status: 'completed' | 'skipped';

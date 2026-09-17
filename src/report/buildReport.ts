@@ -172,7 +172,12 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   // An unrecognized project has almost no applicable detectors, so the absence
   // of findings must not be rewarded with a high score: cap it at prototype.
   const overallScore = inconclusive ? Math.min(combinedScore, 39) : combinedScore;
-  const maturityLevel = computeMaturity(overallScore);
+  const passedChecksForMaturity = findings.filter((f) => f.status === 'passed').length;
+  const assessedChecks = findings.filter((f) => f.status !== 'unknown').length;
+  const maturityLevel = computeMaturity(overallScore, {
+    passed: passedChecksForMaturity,
+    assessed: assessedChecks,
+  });
 
   const findingsByCategory = Object.fromEntries(CATEGORIES.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
   for (const f of findings) findingsByCategory[f.category].push(f);
@@ -204,6 +209,10 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     skippedFileCount: Math.max(analysis.files.all.length - analysis.files.source.length, 0),
     workspaceCount: Math.max(analysis.workspaceStacks.length, 1),
     detectorCount: Object.keys(analysis.detectors).length,
+    // The denominator the score was missing. A reader comparing two reports is entitled
+    // to know that one rests on seventeen verdicts and the other on nine.
+    assessedChecks,
+    verifiedChecks: passedChecksForMaturity,
     detectors: detectorDiagnostics(analysis),
     selectedProfile: requestedProfile,
     inferredProfile: productProfile?.inferredProfile,

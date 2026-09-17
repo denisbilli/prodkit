@@ -167,6 +167,18 @@ const RULES: ProfileRule[] = [
       { label: 'shipped as a container', weight: 1, holds: (f) => f.containerised },
       { identifies: true, label: 'subscriptions', weight: -3, holds: (f) => f.billing },
       { identifies: true, label: 'tenant boundaries', weight: -3, holds: (f) => f.tenancy },
+      /**
+       * A client application does not run a model server.
+       *
+       * Weighted like subscriptions and tenant boundaries, and for the same reason: when
+       * a repository calls a model from a backend it owns, the expectations worth
+       * judging it against are the ones about prompts, cost and safety, not the ones
+       * about a client holding its own state. A site that animates a canvas and also
+       * runs two LLM services was read as a browser application the moment a render
+       * loop counted in its favour — and being judged by the more general profile
+       * raised its score from 59 to 75.
+       */
+      { identifies: true, label: 'a model called from its own backend', weight: -3, holds: (f) => f.callsAModel && f.backend },
       { label: 'accounts to manage', weight: -1, holds: (f) => f.auth },
     ],
   },

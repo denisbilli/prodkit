@@ -238,6 +238,17 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     `- Observed score: ${report.observedScore}/100`,
     ...(report.expectedCapabilityScore !== undefined ? [`- Expected capability score: ${report.expectedCapabilityScore}/100`] : []),
     `- Maturity level: ${report.maturityLevel}${report.inconclusive ? ' (inconclusive)' : ''}`,
+    /**
+     * The denominator the score was missing.
+     *
+     * A score that starts at 100 and only subtracts reads the same whether nothing was
+     * found or nothing was looked at. Two reports sat side by side at 90 and 94, and
+     * one of them rested on two verified checks while the other rested on twelve.
+     */
+    `- Verified: ${report.diagnostics.verifiedChecks} of ${report.diagnostics.assessedChecks} checks that reached a verdict`,
+    ...(report.overallScore > 84 && report.maturityLevel !== 'production_ready'
+      ? ['- Note: the score is high because little was found, not because much was verified. Too few checks apply to this repository to call it production ready.']
+      : []),
     ...(report.inconclusive
       ? [
         '- Assessment: INCONCLUSIVE — the score is capped because the project could not be recognized:',
