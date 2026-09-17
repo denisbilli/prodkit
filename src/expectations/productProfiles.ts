@@ -711,6 +711,52 @@ export const productProfiles: Record<
   }),
 };
 
+/**
+ * Every profile a report can be asked for, with the name and sentence a person reads.
+ *
+ * Exported because consumers were keeping their own copy of this list. The cloud
+ * application had its own `ProductProfile` union, its own array for the dropdown and
+ * its own label map — and had fallen three profiles behind, so `game`, `client-app` and
+ * `mobile-app` existed in the analyzer and could not be chosen in the product built on
+ * it. Same failure as the supported-stacks list, one layer up.
+ *
+ * `auto` and `observed-only` are included because they are choices a caller makes even
+ * though they are not profiles with expectations behind them: `auto` asks the analyzer
+ * to decide, `observed-only` asks it not to.
+ */
+export interface ProfileChoice {
+  id: ProductProfile;
+  title: string;
+  description: string;
+  /** Whether expectations exist for it, or it is an instruction about how to judge. */
+  judged: boolean;
+}
+
+export function productProfileChoices(): ProfileChoice[] {
+  const defined = (Object.keys(productProfiles) as Array<keyof typeof productProfiles>).map((id) => ({
+    id: productProfiles[id].id,
+    title: productProfiles[id].title,
+    description: productProfiles[id].description,
+    judged: true,
+  }));
+
+  return [
+    {
+      id: 'auto',
+      title: 'Detect automatically',
+      description: 'Let the analyzer decide what kind of product this is, and say how sure it is.',
+      judged: false,
+    },
+    ...defined,
+    {
+      id: 'observed-only',
+      title: 'Observed only',
+      description: 'Score what the code has, without asking what a product of any kind would need.',
+      judged: false,
+    },
+  ];
+}
+
 export function getProductProfile(
   profile: Exclude<ProductProfile, 'auto' | 'observed-only'>,
 ): ProductProfileDefinition {

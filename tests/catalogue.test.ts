@@ -94,3 +94,41 @@ describe('README stacks section', () => {
     expect(readme.slice(start, end + '<!-- stacks:end -->'.length)).toBe(renderSupportedStacksMarkdown());
   });
 });
+
+describe('profile choices', () => {
+  it('offers every profile the type allows, and nothing else', async () => {
+    const { productProfileChoices } = await import('../src/expectations/productProfiles');
+    const ids = productProfileChoices().map((choice) => choice.id);
+
+    // The list a consumer renders has to be the list the analyzer accepts. The cloud
+    // application kept its own and fell three profiles behind, so game, client-app and
+    // mobile-app existed and could not be chosen.
+    const declared: string[] = [
+      'static-site',
+      'internal-tool',
+      'b2c-app',
+      'b2b-saas',
+      'ai-saas',
+      'game',
+      'client-app',
+      'mobile-app',
+      'marketplace',
+      'auto',
+      'observed-only',
+    ];
+
+    expect([...ids].sort()).toEqual([...declared].sort());
+  });
+
+  it('separates a profile from an instruction about how to judge', async () => {
+    const { productProfileChoices } = await import('../src/expectations/productProfiles');
+    const choices = productProfileChoices();
+
+    // auto and observed-only are choices, not profiles: one asks the analyzer to
+    // decide, the other asks it not to. A caller rendering a dropdown needs both; a
+    // caller asking "what are the profiles?" needs neither.
+    expect(choices.find((c) => c.id === 'auto')?.judged).toBe(false);
+    expect(choices.find((c) => c.id === 'observed-only')?.judged).toBe(false);
+    expect(choices.find((c) => c.id === 'mobile-app')?.judged).toBe(true);
+  });
+});

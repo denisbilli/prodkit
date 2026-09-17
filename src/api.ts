@@ -32,6 +32,8 @@ export { PRODKit_VERSION } from './version';
  * consumer that wants to publish the list should read it from here.
  */
 export { supportedStacks, labelFor } from './analyzer/catalogue';
+export { productProfileChoices, getProductProfile } from './expectations/productProfiles';
+export type { ProfileChoice } from './expectations/productProfiles';
 export type { StackCatalogue, CatalogueEntry } from './analyzer/catalogue';
 
 /**
