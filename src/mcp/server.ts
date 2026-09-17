@@ -1,5 +1,4 @@
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { analyzeProject } from '../analyzer/analyzeProject';
 import { buildReport } from '../report/buildReport';
@@ -39,8 +38,43 @@ function errorResult(error: unknown) {
   };
 }
 
-export function createProdkitMcpServer(): McpServer {
-  const server = new McpServer({ name: 'prodkit', version: PRODKit_VERSION });
+/**
+ * The MCP SDK, loaded when the server starts rather than when this package is imported.
+ *
+ * It was a plain dependency, and it brought 164 of this package's 183 installed
+ * packages with it — so everyone installing the analyzer as a library or a CLI paid
+ * for a server they may never run, and inherited its supply-chain surface: network,
+ * shell and eval, none of which the analyzer itself does.
+ *
+ * The same shape the AI layer uses for the Anthropic SDK: a variable specifier so the
+ * TypeScript build does not need it, a webpackIgnore hint so a bundler does not try to
+ * resolve it, and an error that says exactly what to install when it is absent.
+ */
+const SDK_MCP = '@modelcontextprotocol/sdk/server/mcp.js';
+const SDK_STDIO = '@modelcontextprotocol/sdk/server/stdio.js';
+
+async function loadMcpSdk(): Promise<{
+  McpServer: new (info: { name: string; version: string }) => McpServer;
+  StdioServerTransport: new () => object;
+}> {
+  try {
+    const [mcp, stdio] = await Promise.all([
+      import(/* webpackIgnore: true */ SDK_MCP),
+      import(/* webpackIgnore: true */ SDK_STDIO),
+    ]);
+
+    return { McpServer: mcp.McpServer, StdioServerTransport: stdio.StdioServerTransport };
+  } catch {
+    throw new Error(
+      'The MCP server needs the optional @modelcontextprotocol/sdk package. '
+        + 'Install it alongside this one: npm install @modelcontextprotocol/sdk',
+    );
+  }
+}
+
+export async function createProdkitMcpServer(): Promise<McpServer> {
+  const { McpServer: Server } = await loadMcpSdk();
+  const server = new Server({ name: 'prodkit', version: PRODKit_VERSION });
 
   server.registerTool(
     'list_profiles',
@@ -183,6 +217,8 @@ export function createProdkitMcpServer(): McpServer {
 }
 
 export async function startProdkitMcpServer(): Promise<void> {
-  const server = createProdkitMcpServer();
-  await server.connect(new StdioServerTransport());
+  const { StdioServerTransport } = await loadMcpSdk();
+  const server = await createProdkitMcpServer();
+
+  await server.connect(new StdioServerTransport() as never);
 }

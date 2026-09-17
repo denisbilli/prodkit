@@ -45,6 +45,17 @@ npm install -g @produtype/core
 prodkit analyze .
 ```
 
+The MCP server needs one extra package, and only if you use it:
+
+```bash
+npm install @modelcontextprotocol/sdk   # for prodkit-mcp
+```
+
+It is an optional peer dependency rather than a dependency because it brings 164
+packages with it — nine tenths of what this package used to install — for a server most
+people never run, along with network, shell and eval access that the analyzer itself
+does not use. Installing this package alone brings 19.
+
 The command is `prodkit`; the package is `@produtype/core`. They differ on purpose:
 `prodkit` on npm is an unrelated and actively maintained package, so this one is
 published under the `@produtype` scope. `npm i prodkit` installs somebody else's
