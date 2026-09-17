@@ -335,6 +335,62 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   }
 
   /**
+   * Gradle, read from build.gradle and build.gradle.kts.
+   *
+   * Both dialects in one reader because the line that matters is nearly the same in
+   * each: `implementation 'group:artifact:version'` in Groovy and
+   * `implementation("group:artifact:version")` in Kotlin. Only the coordinate is kept —
+   * group and artifact, without the version — because every rule downstream asks which
+   * library is used, never which release of it.
+   *
+   * Version catalogs (`libs.androidx.core.ktx`) are deliberately not resolved. They
+   * name an alias defined in a TOML file, and following it would mean a second reader
+   * for a second format to learn the same fact; a project using them reports fewer
+   * libraries rather than wrong ones.
+   */
+  const gradleDeps: string[] = [];
+
+  for (const file of allFiles.filter((f) => /(^|\/)build\.gradle(\.kts)?$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    for (const match of raw.matchAll(
+      /\b(?:implementation|api|compileOnly|runtimeOnly|kapt|ksp|annotationProcessor|testImplementation)\s*[( ]\s*["']([^"']+)["']/g,
+    )) {
+      const [group, artifact] = match[1].split(':');
+      if (group && artifact) gradleDeps.push(`${group}:${artifact}`.toLowerCase());
+    }
+  }
+
+  /**
+   * Swift packages, from Package.swift and the Podfile.
+   *
+   * Package.swift is Swift source rather than data, so what is read is the one shape
+   * that is always there: `.package(url: "https://github.com/owner/name.git", ...)`.
+   * The owner and repository name are kept, which is how a Swift dependency is
+   * identified in practice — nobody says "the Alamofire product of the Alamofire
+   * package".
+   *
+   * CocoaPods is simpler and still in wide use: `pod 'Alamofire'`.
+   */
+  const swiftDeps: string[] = [];
+
+  for (const file of allFiles.filter((f) => /(^|\/)Package\.swift$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    for (const match of raw.matchAll(/\.package\s*\(\s*url:\s*["']https?:\/\/[^"']*?\/([^/"']+?)\/([^/"']+?)(?:\.git)?["']/g)) {
+      swiftDeps.push(`${match[1]}/${match[2]}`.toLowerCase());
+    }
+  }
+
+  for (const file of allFiles.filter((f) => /(^|\/)Podfile$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    for (const match of raw.matchAll(/^\s*pod\s+["']([^"'/]+)/gm)) {
+      swiftDeps.push(match[1].toLowerCase());
+    }
+  }
+
+  /**
    * .csproj, which is XML rather than JSON or one-entry-per-line.
    *
    * Parsed with regular expressions like the others, and here that decision needs more
@@ -439,6 +495,8 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     dotnetDeps: unique(dotnetDeps),
     dotnetWebSdk,
     dartDeps: unique(dartDeps),
+    gradleDeps: unique(gradleDeps),
+    swiftDeps: unique(swiftDeps),
     npmDeps,
     workspaces,
   };

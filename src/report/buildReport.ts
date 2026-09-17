@@ -131,14 +131,22 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     ? observedScore
     : Math.max(0, Math.min(100, Math.round((observedScore * 0.6) + (expectationScore * 0.4))));
 
+  // A recognised mobile platform counts as a stack signal. Without this an Android
+  // project with an AndroidManifest.xml and a build.gradle was reported as
+  // "inconclusive — no package manifests found", which is the analyzer saying it
+  // understood nothing about a project it had in fact identified, and capping the score
+  // at 39 on that basis.
+  const mobileDetected = analysis.detectors['mobile.platform']?.present === true;
+
   const stackDetected = analysis.stack.frontend.length > 0
     || analysis.stack.backend.length > 0
-    || analysis.stack.databases.length > 0;
+    || analysis.stack.databases.length > 0
+    || mobileDetected;
   const inconclusive = !stackDetected && analysis.workspaceStacks.length === 0;
   const inconclusiveReasons: string[] = [];
   if (inconclusive) {
     inconclusiveReasons.push('No frontend, backend, or database stack signals were detected.');
-    inconclusiveReasons.push('No package manifests (package.json, requirements.txt, pyproject.toml) were found.');
+    inconclusiveReasons.push('No package manifest was found in any format this analyzer reads.');
     if (analysis.files.source.length === 0) {
       inconclusiveReasons.push('No recognizable source files were found.');
     }

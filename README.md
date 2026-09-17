@@ -155,7 +155,7 @@ _Generated from the analyzer itself — run `npm run docs:stacks` after changing
 
 - **Backend:** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS, SvelteKit, Remix, Nuxt, Nitro, Astro, Django, Flask, FastAPI, Litestar, Sanic, Tornado, aiohttp, Starlette, Gin, Echo, Fiber, chi, Gorilla, Beego, Go, Rails, Sinatra, Hanami, Roda, Grape, Ruby, Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, PHP, ASP.NET Core, .NET
 - **Frontend:** React, Vite, Vue, Nuxt, Svelte, Angular, Astro, Solid, Qwik, Preact, Remix, htmx, Tailwind CSS, Electron
-- **Mobile:** Flutter
+- **Mobile:** Flutter, React Native, iOS (native), Android (native)
 - **Databases:** Postgres, MySQL, SQLite, SQL Server, MongoDB, Redis, Firestore, DynamoDB, Convex
 - **Hosted data platforms:** Supabase, Firebase, PlanetScale, Neon, Vercel Postgres, Turso, Upstash, DynamoDB, Convex
 - **ORMs:** Prisma, Drizzle, TypeORM, Sequelize, Knex, MikroORM, Kysely, SQLAlchemy, Tortoise, Peewee
@@ -173,6 +173,9 @@ How some of these are decided:
 - **ASP.NET Core** — the Microsoft.NET.Sdk.Web SDK attribute
 - **.NET** — a .csproj with no web SDK
 - **Flutter** — pubspec.yaml — classified as a client application, not a backend
+- **React Native** — the react-native or expo dependency
+- **iOS (native)** — Info.plist, Package.swift, a Podfile or an .xcodeproj in the tree
+- **Android (native)** — AndroidManifest.xml, or build.gradle in either dialect
 - **Supabase** — recorded alongside the engine it is — Postgres
 - **Firebase** — Firestore
 - **PlanetScale** — MySQL

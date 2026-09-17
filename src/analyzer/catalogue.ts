@@ -86,6 +86,29 @@ export const FRONTEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['htmx', ['htmx.org']],
 ];
 
+/**
+ * Source languages, and the extensions that say so.
+ *
+ * `deriveLanguages` knew about TypeScript, JavaScript and Python, so a Go service or a
+ * Kotlin app reported `languages: []` while the README and the website both claimed
+ * twelve. One table, read by the detector and by the catalogue, is what stops the
+ * claim and the code disagreeing again.
+ */
+export const LANGUAGES: Array<{ id: string; label: string; extensions: RegExp }> = [
+  { id: 'typescript', label: 'TypeScript', extensions: /\.(ts|tsx)$/ },
+  { id: 'javascript', label: 'JavaScript', extensions: /\.(js|jsx|mjs|cjs)$/ },
+  { id: 'python', label: 'Python', extensions: /\.py$/ },
+  { id: 'php', label: 'PHP', extensions: /\.php$/ },
+  { id: 'go', label: 'Go', extensions: /\.go$/ },
+  { id: 'ruby', label: 'Ruby', extensions: /\.rb$/ },
+  { id: 'java', label: 'Java', extensions: /\.java$/ },
+  { id: 'csharp', label: 'C#', extensions: /\.cs$/ },
+  { id: 'rust', label: 'Rust', extensions: /\.rs$/ },
+  { id: 'kotlin', label: 'Kotlin', extensions: /\.(kt|kts)$/ },
+  { id: 'swift', label: 'Swift', extensions: /\.swift$/ },
+  { id: 'dart', label: 'Dart', extensions: /\.dart$/ },
+];
+
 export interface CatalogueEntry {
   /** The identifier the report uses. */
   id: string;
@@ -153,6 +176,9 @@ const LABELS: Record<string, string> = {
   tailwindcss: 'Tailwind CSS',
   electron: 'Electron',
   flutter: 'Flutter',
+  'react-native': 'React Native',
+  ios: 'iOS (native)',
+  android: 'Android (native)',
   express: 'Express',
   flask: 'Flask',
   fastapi: 'FastAPI',
@@ -258,6 +284,17 @@ export function supportedStacks(): StackCatalogue {
         label: 'Flutter',
         detectedFrom: 'pubspec.yaml — classified as a client application, not a backend',
       },
+      { id: 'react-native', label: 'React Native', detectedFrom: 'the react-native or expo dependency' },
+      {
+        id: 'ios',
+        label: 'iOS (native)',
+        detectedFrom: 'Info.plist, Package.swift, a Podfile or an .xcodeproj in the tree',
+      },
+      {
+        id: 'android',
+        label: 'Android (native)',
+        detectedFrom: 'AndroidManifest.xml, or build.gradle in either dialect',
+      },
     ],
     databases: entries(['postgres', 'mysql', 'sqlite', 'sqlserver', 'mongodb', 'redis', 'firestore', 'dynamodb', 'convex']),
     dataPlatforms: [
@@ -283,8 +320,6 @@ export function supportedStacks(): StackCatalogue {
       'tortoise',
       'peewee',
     ]),
-    languages: entries(['typescript', 'javascript', 'python', 'php', 'go', 'ruby', 'java', 'csharp', 'rust', 'kotlin', 'swift', 'dart']).map(
-      (entry) => ({ ...entry, label: labelFor(entry.id) === entry.id ? entry.id.replace(/^\w/, (c) => c.toUpperCase()) : labelFor(entry.id) }),
-    ),
+    languages: LANGUAGES.map(({ id, label }) => ({ id, label })),
   };
 }

@@ -34,6 +34,10 @@ export interface DetectContext {
   dotnetWebSdk: boolean;
   /** Package names from pubspec.yaml, lowercase. */
   dartDeps: string[];
+  /** Gradle coordinates as `group:artifact`, without the version, lowercase. */
+  gradleDeps: string[];
+  /** Swift packages as `owner/repo`, and CocoaPods names, lowercase. */
+  swiftDeps: string[];
   /** Lowercased combined dependency map (deps + devDeps). */
   npmDeps: Record<string, string>;
   workspaces: WorkspaceManifest[];
@@ -95,6 +99,18 @@ export function hasAnyRubyDep(ctx: DetectContext, names: string[]): string[] {
  * `Npgsql.EntityFrameworkCore.PostgreSQL`, and a rule should be able to ask for
  * `Npgsql` without listing every provider package that starts with it.
  */
+export function hasAnyGradleDep(ctx: DetectContext, names: string[]): string[] {
+  // Substring rather than equality: a coordinate is `androidx.room:room-runtime`, and
+  // a rule asks about `androidx.room` without wanting to name every artifact in it.
+  const wanted = names.map((name) => name.toLowerCase());
+  return ctx.gradleDeps.filter((dep) => wanted.some((name) => dep.includes(name)));
+}
+
+export function hasAnySwiftDep(ctx: DetectContext, names: string[]): string[] {
+  const wanted = names.map((name) => name.toLowerCase());
+  return ctx.swiftDeps.filter((dep) => wanted.some((name) => dep.includes(name)));
+}
+
 export function hasAnyDartDep(ctx: DetectContext, names: string[]): string[] {
   return hasAnyIn(ctx.dartDeps, names);
 }

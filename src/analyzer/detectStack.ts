@@ -1,3 +1,4 @@
+import { LANGUAGES } from './catalogue';
 import type { DetectorResult, StackInfo } from './types';
 
 function unique(items: string[]): string[] {
@@ -5,11 +6,10 @@ function unique(items: string[]): string[] {
 }
 
 export function deriveLanguages(files: string[]): string[] {
-  const out: string[] = [];
-  if (files.some((f) => /\.(ts|tsx)$/.test(f))) out.push('typescript');
-  if (files.some((f) => /\.(js|jsx|mjs|cjs)$/.test(f))) out.push('javascript');
-  if (files.some((f) => /\.py$/.test(f))) out.push('python');
-  return unique(out);
+  // Read from the catalogue rather than from three hand-written lines. It knew about
+  // TypeScript, JavaScript and Python only, so a Go service reported no languages at
+  // all while the README listed twelve.
+  return unique(LANGUAGES.filter(({ extensions }) => files.some((file) => extensions.test(file))).map(({ id }) => id));
 }
 
 export function buildStackInfo(input: {

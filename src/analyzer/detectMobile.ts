@@ -1,5 +1,5 @@
 import type { DetectorEvidence, DetectorResult } from './types';
-import { hasAnyDartDep, hasAnyDep, type DetectContext } from './detectContext';
+import { hasAnyDartDep, hasAnyDep, hasAnyGradleDep, hasAnySwiftDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { searchInFiles } from '../utils/textSearch';
 
@@ -38,6 +38,38 @@ import { searchInFiles } from '../utils/textSearch';
 /** Files that say which platform this is, without reading their contents. */
 const IOS_MARKERS = [/(^|\/)Info\.plist$/i, /(^|\/)Podfile$/, /\.xcodeproj\//, /(^|\/)Package\.swift$/];
 const ANDROID_MARKERS = [/(^|\/)AndroidManifest\.xml$/i, /(^|\/)build\.gradle(\.kts)?$/];
+
+/** Gradle coordinates that put a secret in the Android keystore rather than in a file. */
+const SECURE_STORAGE_GRADLE = ['androidx.security:security-crypto', 'com.scottyab:secure-preferences'];
+
+/**
+ * Swift keychain wrappers, named both ways.
+ *
+ * Swift Package Manager identifies a dependency as `owner/repo` and CocoaPods as a
+ * bare pod name, so the same library arrives under two spellings and a list holding
+ * only one of them finds it only half the time — which is how a Podfile declaring
+ * KeychainAccess came back as "no secure storage".
+ */
+const SECURE_STORAGE_SWIFT = [
+  'kishikawakatsumi/keychainaccess',
+  'keychainaccess',
+  'evgenyneu/keychain-swift',
+  'keychainswift',
+  'square/valet',
+  'valet',
+];
+
+/** Local databases, by platform, that let an app open without a network. */
+const OFFLINE_GRADLE = ['androidx.room', 'io.realm', 'io.objectbox', 'com.squareup.sqldelight', 'app.cash.sqldelight'];
+const OFFLINE_SWIFT = [
+  'groue/grdb.swift',
+  'grdb.swift',
+  'stephencelis/sqlite.swift',
+  'sqlite.swift',
+  'realm/realm-swift',
+  'realm/realm-cocoa',
+  'realmswift',
+];
 
 /** Dependencies that put a secret somewhere the operating system protects. */
 const SECURE_STORAGE_DEPS = [
@@ -180,6 +212,10 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
 
   const secureStorage = hasAnyDep(ctx, SECURE_STORAGE_DEPS);
   const secureStorageDart = hasAnyDartDep(ctx, ['flutter_secure_storage']);
+  const secureStorageNative = [
+    ...hasAnyGradleDep(ctx, SECURE_STORAGE_GRADLE),
+    ...hasAnySwiftDep(ctx, SECURE_STORAGE_SWIFT),
+  ];
   const keychainInSource = await searchInFiles(
     ctx.root,
     ctx.files.source,
@@ -188,7 +224,10 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
   );
 
   const credentialEvidence: DetectorEvidence[] = [
-    ...[...secureStorage, ...secureStorageDart].map<DetectorEvidence>((dep) => ({ type: 'dependency', value: dep })),
+    ...[...secureStorage, ...secureStorageDart, ...secureStorageNative].map<DetectorEvidence>((dep) => ({
+      type: 'dependency',
+      value: dep,
+    })),
     ...keychainInSource.map<DetectorEvidence>((match) => ({
       type: 'snippet',
       value: match.snippet,
@@ -197,7 +236,12 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     })),
   ];
 
-  const offlineDeps = [...hasAnyDep(ctx, OFFLINE_DEPS), ...hasAnyDartDep(ctx, OFFLINE_DEPS)];
+  const offlineDeps = [
+    ...hasAnyDep(ctx, OFFLINE_DEPS),
+    ...hasAnyDartDep(ctx, OFFLINE_DEPS),
+    ...hasAnyGradleDep(ctx, OFFLINE_GRADLE),
+    ...hasAnySwiftDep(ctx, OFFLINE_SWIFT),
+  ];
 
   /**
    * A local database is the strong signal; knowing the network dropped is the weak

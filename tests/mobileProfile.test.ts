@@ -87,3 +87,33 @@ describe('mobile applications', () => {
     expect(titles.some((title) => /tenant|audit/i.test(title))).toBe(false);
   });
 });
+
+describe('native manifests', () => {
+  it('reads Gradle dependencies in either dialect', async () => {
+    const analysis = await analyzeProject(fixture('android-app'));
+
+    // group:artifact, without the version: every rule downstream asks which library is
+    // used, never which release of it.
+    expect(analysis.detectors['mobile.platform']?.present).toBe(true);
+    expect(analysis.stack.languages).toContain('kotlin');
+  });
+
+  it('reads Swift sources as Swift', async () => {
+    const analysis = await analyzeProject(fixture('ios-app'));
+
+    expect(analysis.stack.languages).toContain('swift');
+  });
+
+  it('no longer calls a native project inconclusive', async () => {
+    // It used to report "no package manifests were found" for a project with an
+    // AndroidManifest.xml and a build.gradle in it — the analyzer saying it understood
+    // nothing about a project it had in fact identified, and capping the score at 39
+    // on that basis.
+    for (const name of ['android-app', 'ios-app']) {
+      const report = buildReport(await analyzeProject(fixture(name)), { profile: 'mobile-app' });
+
+      expect(report.inconclusive, `${name} is inconclusive`).toBe(false);
+      expect(report.overallScore).toBeGreaterThan(39);
+    }
+  });
+});
