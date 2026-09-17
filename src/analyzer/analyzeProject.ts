@@ -6,6 +6,7 @@ import { detectPackageManager } from './detectPackageManager';
 import { detectFrontend } from './detectFrontend';
 import { detectBackend } from './detectBackend';
 import { detectDatabase } from './detectDatabase';
+import { detectAudit } from './detectAudit';
 import { detectDocker } from './detectDocker';
 import { detectEnv } from './detectEnv';
 import { detectAuth } from './detectAuth';
@@ -267,7 +268,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     workspaces,
   };
 
-  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, engagement, deployment] =
+  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, engagement, deployment, audit] =
     await Promise.all([
       detectPackageManager(ctx),
       detectFrontend(ctx),
@@ -286,6 +287,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       detectAiSafety(ctx),
       detectEngagement(ctx),
       detectDeployment(ctx),
+      detectAudit(ctx),
     ]);
 
   const detectors = mergeDetectors([
@@ -294,6 +296,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     backend.result,
     database.result,
     ...database.extra,
+    audit,
     docker,
     ...env,
     ...auth,

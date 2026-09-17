@@ -14,6 +14,22 @@ export const DEFAULT_IGNORE = [
   '**/.turbo/**',
   '**/.cache/**',
   '**/.parcel-cache/**',
+  // Build output that is not literally called `dist`. A bundle is a copy of the
+  // source, so scanning it counts every signal twice and — worse — produces evidence
+  // pointing at a generated file. This product's promise is that a finding names a
+  // file you can open and argue with; `dist-worker/index.js:254` is not that. Found by
+  // analysing prodkit-cloud, whose worker bundle is emitted to `dist-worker/`.
+  '**/dist-*/**',
+  '**/out/**',
+  '**/.output/**',
+  '**/.svelte-kit/**',
+  '**/.astro/**',
+  '**/.nuxt/**',
+  '**/.vercel/**',
+  '**/.netlify/**',
+  '**/target/**',
+  '**/*.min.js',
+  '**/*.bundle.js',
   // Test fixtures are sample applications, often deliberately insecure, and they are
   // not the product. Scanning them makes a repository inherit the stack and the
   // defects of its own test data: prodkit analysing itself reported express, next,

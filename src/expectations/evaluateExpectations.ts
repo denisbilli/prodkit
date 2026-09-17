@@ -140,10 +140,27 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       return 'missing';
     }
     case 'audit.baseline': {
+      /**
+       * Read from the audit trail, not from the logs.
+       *
+       * This used to be decided by structured logging and a request id, which answer
+       * "can we debug this?" — a different question from "can we say, months later,
+       * who deleted that organisation?". Logs rotate; an audit trail is meant not to.
+       *
+       * It also could not return `present`. Both branches returned `partial`, so a
+       * project with a complete audit trail was marked down for it permanently, on a
+       * capability the b2b-saas profile asks for.
+       */
+      const trail = detector(analysis, 'audit.trail');
+      if (trail?.present && trail.complete) return 'present';
+      if (trail?.present) return 'partial';
+
+      // Structured logging with a request id is not an audit trail, but it is not
+      // nothing either: the events can often be reconstructed from it.
       const structured = boolDetail(obs, 'structuredLogging');
       const requestId = boolDetail(obs, 'requestId');
       if (structured && requestId) return 'partial';
-      if (structured || requestId) return 'partial';
+
       return 'missing';
     }
     case 'jobs.background': {

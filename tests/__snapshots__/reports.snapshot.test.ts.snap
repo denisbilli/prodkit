@@ -36,8 +36,8 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
     },
     {
       "id": "expectation.audit.recommended",
-      "severity": "low",
-      "status": "partial",
+      "severity": "medium",
+      "status": "missing",
     },
     {
       "id": "expectation.auth.api-keys.recommended",
@@ -192,7 +192,7 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
   ],
   "highCount": 3,
   "maturity": "partial",
-  "mediumCount": 9,
+  "mediumCount": 10,
   "score": 76,
 }
 `;
