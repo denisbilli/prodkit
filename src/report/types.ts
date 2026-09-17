@@ -35,6 +35,11 @@ export const CATEGORIES = [
   'mobile',
   'jobs',
   'deployment',
+  // What a package is judged on, as opposed to a running service: whether it can be
+  // installed, whether anything proves it works, whether anyone wrote down what it is.
+  'packaging',
+  'quality',
+  'docs',
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];

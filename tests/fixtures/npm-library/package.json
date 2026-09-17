@@ -1,0 +1,10 @@
+{
+  "name": "@example/slugify",
+  "version": "2.1.0",
+  "description": "Turn a string into a URL slug.",
+  "repository": "https://example.com/slugify",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": { "test": "vitest run" }
+}

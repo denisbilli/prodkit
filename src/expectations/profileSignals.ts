@@ -41,6 +41,12 @@ export interface ProfileFacts {
   apiSurface: boolean;
   containerised: boolean;
   gameEngine: boolean;
+  /** A manifest that names and versions this, so something else can depend on it. */
+  publishable: boolean;
+  /** Somewhere for a consumer to import: main, module, exports, bin, a console script. */
+  entrypoints: boolean;
+  packagedLicense: boolean;
+  tests: boolean;
   gameSignals: number;
   /** Ships to a phone: Flutter, React Native, or an iOS/Android project in the tree. */
   mobilePlatforms: string[];
@@ -50,6 +56,7 @@ export interface ProfileFacts {
 export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
   const sourceHints = analysis.files.source.join('\n');
   const present = (key: string): boolean => analysis.detectors[key]?.present === true;
+  const complete = (key: string): boolean => analysis.detectors[key]?.complete === true;
 
   return {
     backend: analysis.stack.backend.length > 0,
@@ -71,6 +78,10 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
     apiSurface: /\/api\//.test(sourceHints) || present('auth.apiKeys'),
     containerised: present('deployment.docker'),
     gameEngine: present('game.engine'),
+    publishable: complete('packaging.manifest'),
+    entrypoints: present('packaging.entrypoints'),
+    packagedLicense: present('packaging.license'),
+    tests: present('quality.tests'),
     gameSignals: Number(analysis.detectors['game.engine']?.details?.supportingSignals ?? 0),
     mobilePlatforms: (analysis.detectors['mobile.platform']?.details?.platforms as string[] | undefined) ?? [],
     sourceFiles: analysis.files.source.length,
@@ -221,6 +232,44 @@ const RULES: ProfileRule[] = [
     ],
   },
   {
+    /**
+     * A package other people install, and the command-line tools packaged the same way.
+     *
+     * A quarter of the verification corpus received no profile, and much of it was
+     * this. What separates a library from an application is not its size or its
+     * language: it is that a library declares where it starts. `main`, `bin`, `exports`
+     * or a console script is a statement that something else is meant to import this —
+     * and the web applications in the corpus, whose manifests are just as complete,
+     * declare none of them, because nobody imports a Next.js site.
+     *
+     * A front end or a backend framework disqualifies it outright. Those are how a
+     * project serves requests, and a package is not served.
+     */
+    profile: 'library',
+    admissible: (f) => f.publishable && f.entrypoints && !f.frontend && !f.backend && f.mobilePlatforms.length === 0,
+    signals: [
+      { identifies: true, label: 'a manifest that names and versions it', weight: 3, holds: (f) => f.publishable },
+      { identifies: true, label: 'an entry point for something else to import', weight: 2, holds: (f) => f.entrypoints },
+      { label: 'a licence that permits use', weight: 1, holds: (f) => f.packagedLicense },
+      { label: 'tests', weight: 1, holds: (f) => f.tests },
+      /**
+       * Subscriptions and tenant boundaries are not counted against a package, though
+       * every application profile counts them against the others.
+       *
+       * They mean something different here. A payments library talks about payments and
+       * is still a library; the words are its subject matter, not its business model.
+       * The gate that keeps an application out of this profile is the absence of a
+       * backend and a front end — a package is not served — and that gate does the work
+       * on its own.
+       *
+       * This analyzer is the case that made it obvious: it contains the patterns it
+       * searches for, so it found STRIPE_WEBHOOK_SECRET and `organization` in its own
+       * detector tables, was penalised six points for them, and ended up with no
+       * profile at all. Any linter, scanner or security tool would fare the same.
+       */
+    ],
+  },
+  {
     profile: 'ai-saas',
     refines: 'b2b-saas',
     admissible: (f) => f.callsAModel && f.backend,
@@ -243,7 +292,16 @@ const RULES: ProfileRule[] = [
   },
   {
     profile: 'b2b-saas',
-    admissible: (f) => f.backend || f.billing || f.tenancy,
+    /**
+     * Software as a service has to be reachable to be a service.
+     *
+     * Billing or tenant vocabulary alone used to be enough, so a repository with
+     * neither a server nor a user interface could be reported as a B2B SaaS. This
+     * analyzer did exactly that to itself: it contains the patterns it searches for, so
+     * it found `STRIPE_WEBHOOK_SECRET` and `organization` in its own detector tables
+     * and called itself a SaaS at 97/100. It is a command-line package.
+     */
+    admissible: (f) => (f.backend || f.frontend) && (f.backend || f.billing || f.tenancy),
     signals: [
       { identifies: true, label: 'tenant boundaries', weight: 4, holds: (f) => f.tenancy },
       { identifies: true, label: 'subscriptions', weight: 3, holds: (f) => f.billing },

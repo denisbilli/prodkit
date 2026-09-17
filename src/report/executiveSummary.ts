@@ -40,6 +40,9 @@ const CATEGORY_LABEL: Record<Category, string> = {
   mobile: 'running on somebody else\u2019s phone',
   jobs: 'background processing',
   deployment: 'deploying repeatably',
+  packaging: 'being installable by somebody else',
+  quality: 'evidence that it works',
+  docs: 'saying what this is',
 };
 
 const MATURITY_LABEL: Record<MaturityLevel, string> = {

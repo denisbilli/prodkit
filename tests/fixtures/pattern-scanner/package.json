@@ -1,0 +1,9 @@
+{
+  "name": "@example/secret-scanner",
+  "version": "1.0.0",
+  "description": "Finds committed secrets.",
+  "license": "Apache-2.0",
+  "bin": { "secret-scanner": "dist/cli.js" },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts"
+}

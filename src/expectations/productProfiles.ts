@@ -211,6 +211,60 @@ export const CAPABILITIES = {
     description: 'Sensitive actions are attributable for support, compliance and investigations.',
     recommendation: 'Log actor, action, target, timestamp and request id for sensitive events.',
   }),
+  'packaging.metadata': blueprint({
+    id: 'packaging.metadata',
+    title: 'The package says what it is',
+    category: 'packaging',
+    detectorKeys: ['packaging.manifest'],
+    description:
+      'A name and a version are what anything else has to write down in order to depend on this. Without them the code can be copied but not installed, and never updated.',
+    recommendation: 'Declare name, version, description and repository in the package manifest.',
+  }),
+  'packaging.entrypoints': blueprint({
+    id: 'packaging.entrypoints',
+    title: 'The package can be imported',
+    category: 'packaging',
+    detectorKeys: ['packaging.entrypoints'],
+    description:
+      'A consumer needs to be told where the package starts: main, module, exports or bin for Node, a console script or package declaration for Python. Types make the difference between a package a TypeScript consumer can use and one they have to describe by hand.',
+    recommendation: 'Declare an entry point, and ship type declarations alongside it.',
+  }),
+  'packaging.license': blueprint({
+    id: 'packaging.license',
+    title: 'The licence permits use',
+    category: 'packaging',
+    detectorKeys: ['packaging.license'],
+    description:
+      'Code published without a licence is, by default, code nobody else may legally use. For a library that is not a missing file, it is the thing that stops it being a library.',
+    recommendation: 'Add a LICENSE file and name the same licence in the manifest.',
+  }),
+  'docs.readme': blueprint({
+    id: 'docs.readme',
+    title: 'Somebody wrote down what this is',
+    category: 'docs',
+    detectorKeys: ['docs.readme'],
+    description:
+      'For a package the README is the interface: it is what a person reads before deciding to install, and usually the only documentation there will ever be.',
+    recommendation: 'Write what the package does, how to install it, and one example that runs.',
+  }),
+  'quality.tests': blueprint({
+    id: 'quality.tests',
+    title: 'Something proves it works',
+    category: 'quality',
+    detectorKeys: ['quality.tests'],
+    description:
+      'A library is depended on by code its author will never see, so the only claim it can make about a release is the one its tests make. Test files with no way to run them are half of the answer.',
+    recommendation: 'Add tests and a single command that runs them.',
+  }),
+  'quality.ci': blueprint({
+    id: 'quality.ci',
+    title: 'The tests run without being remembered',
+    category: 'quality',
+    detectorKeys: ['quality.ci'],
+    description:
+      'Tests that only run when someone thinks to run them are tests that stop running. For a package that is published from a developer machine, continuous integration is what separates a release that was checked from one that compiled.',
+    recommendation: 'Run the test suite on every push in continuous integration.',
+  }),
   'app.state-durability': blueprint({
     id: 'app.state-durability',
     // Worded for every profile that asks it, not only for the one it was written for.
@@ -463,6 +517,55 @@ export const productProfiles: Record<
    * accounts at all — and become required through the capabilities themselves once
    * auth is detected.
    */
+  /**
+   * A package other people install, and the command-line tools that are packaged the
+   * same way.
+   *
+   * It is here because a quarter of the verification corpus had no profile at all and a
+   * large share of it was this: Meta's llama3 reference implementation, a Markdown
+   * converter, a photo editor, this project's own AI package. Every other profile
+   * assumes a running service with users, so the most common kind of code on a
+   * developer's disk was judged against expectations that could not apply to it and
+   * then reported as unidentifiable.
+   *
+   * Nobody signs in to a package, so everything about accounts, tenancy and consent is
+   * not applicable rather than missing — a distinction that matters, because "missing
+   * authentication" on a library is a finding that wastes the reader's time and makes
+   * them trust the rest of the report less.
+   */
+  library: defineProfile({
+    id: 'library',
+    title: 'Library or command-line tool',
+    description: 'A package other people install, judged on whether it can be depended on.',
+    importance: {
+      'packaging.metadata': 'required',
+      'packaging.entrypoints': 'required',
+      'packaging.license': 'required',
+      'docs.readme': 'required',
+      'quality.tests': 'required',
+      'quality.ci': 'recommended',
+      // A library that reads a token from the environment is ordinary; one with a
+      // secret committed to it is not, and that is what this still checks for.
+      'security.headers': 'not_applicable',
+      'security.cors': 'not_applicable',
+      'security.rate-limit': 'not_applicable',
+      'auth.baseline': 'not_applicable',
+      'auth.password-reset': 'not_applicable',
+      'authz.ownership': 'not_applicable',
+      'tenancy.isolation': 'not_applicable',
+      'gdpr.export': 'not_applicable',
+      'gdpr.erasure': 'not_applicable',
+      'gdpr.consent': 'not_applicable',
+      'uploads.protection': 'not_applicable',
+      'observability.health': 'not_applicable',
+      // A library does not run, but it does report: a package that swallows its own
+      // errors is a package whose consumer debugs blind.
+      'observability.logging': 'recommended',
+      'deployment.readiness': 'not_applicable',
+      'deployment.docker': 'optional',
+    },
+  }),
+
   game: defineProfile({
     id: 'game',
     title: 'Game',

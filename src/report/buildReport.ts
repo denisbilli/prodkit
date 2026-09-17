@@ -172,8 +172,20 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   // An unrecognized project has almost no applicable detectors, so the absence
   // of findings must not be rewarded with a high score: cap it at prototype.
   const overallScore = inconclusive ? Math.min(combinedScore, 39) : combinedScore;
-  const passedChecksForMaturity = findings.filter((f) => f.status === 'passed').length;
-  const assessedChecks = findings.filter((f) => f.status !== 'unknown').length;
+  /**
+   * Coverage counts the expectations too, not only the observed rules.
+   *
+   * A satisfied expectation never becomes a finding — only gaps do — so a report that
+   * verified five required capabilities was counting none of them. The first repository
+   * to show it was a library: every packaging capability present, and a coverage line
+   * that said nothing had been verified.
+   */
+  const satisfiedExpectations = productProfile?.gap.satisfied ?? 0;
+  const applicableExpectations = productProfile?.gap.applicableTotal ?? 0;
+
+  const passedChecksForMaturity = findings.filter((f) => f.status === 'passed').length + satisfiedExpectations;
+  const assessedChecks = findings.filter((f) => f.status !== 'unknown').length
+    + Math.max(applicableExpectations - expectationFindings.length, 0);
   const maturityLevel = computeMaturity(overallScore, {
     passed: passedChecksForMaturity,
     assessed: assessedChecks,

@@ -9,6 +9,7 @@ export type ProductProfile =
   | 'ai-saas'
   | 'game'
   | 'client-app'
+  | 'library'
   | 'mobile-app'
   | 'marketplace'
   | 'auto'
@@ -40,7 +41,10 @@ export type CapabilityCategory =
   | 'audit'
   | 'jobs'
   | 'client'
-  | 'mobile';
+  | 'mobile'
+  | 'packaging'
+  | 'quality'
+  | 'docs';
 
 /**
  * What the owner says their product does, as distinct from what the code shows.

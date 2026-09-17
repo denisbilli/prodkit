@@ -1,0 +1,3 @@
+# secret-scanner
+
+Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. Scans a repository for committed credentials and prints what it finds. 

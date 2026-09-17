@@ -111,6 +111,7 @@ describe('profile choices', () => {
       'ai-saas',
       'game',
       'client-app',
+      'library',
       'mobile-app',
       'marketplace',
       'auto',

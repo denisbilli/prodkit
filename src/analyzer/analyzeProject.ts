@@ -1,3 +1,4 @@
+import { detectPackaging } from './detectPackaging';
 import { pythonImports, browserImports } from './importedDependencies';
 import * as path from 'path';
 import { z } from 'zod';
@@ -570,7 +571,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     workspaces,
   };
 
-  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, engagement, deployment, audit, game, clientLogic, mobile, errorReporting] =
+  const [pm, frontend, backend, database, docker, env, auth, security, uploads, gdpr, billing, observability, jobs, marketplace, aiSafety, engagement, deployment, audit, game, clientLogic, mobile, errorReporting, packaging] =
     await Promise.all([
       detectPackageManager(ctx),
       detectFrontend(ctx),
@@ -594,6 +595,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       detectClientLogic(ctx),
       detectMobile(ctx),
       detectErrorReporting(ctx),
+      detectPackaging(ctx),
     ]);
 
   const detectors = mergeDetectors([
@@ -607,6 +609,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     clientLogic,
     ...mobile,
     errorReporting,
+    ...packaging,
     docker,
     ...env,
     ...auth,
