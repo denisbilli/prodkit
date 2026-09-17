@@ -104,7 +104,10 @@ function parsePyproject(text: string | null): string[] {
 }
 
 function isTestOrExamplePath(file: string): boolean {
-  return /(^|\/)(__tests__|tests?|test-data|fixtures|frontend-example)(\/|$)/i.test(file)
+  // `__mocks__` was missing, and a mock is the most misleading file in a repository:
+  // `application_fee_percent: null` inside a Stripe fixture made an open-source CRM read
+  // as a marketplace taking a cut. A field set to null is evidence of absence.
+  return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures|frontend-example)(\/|$)/i.test(file)
     || /(^|\/)test[-_][^/]+\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file);
 }

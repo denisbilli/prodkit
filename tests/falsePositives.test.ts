@@ -94,3 +94,85 @@ describe('words that mean something else', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 });
+
+/**
+ * A second sweep, on repositories that are SaaS products rather than desktop apps.
+ * Two came out `marketplace` with high confidence: an open-source DocuSign and an
+ * open-source CRM. Neither has two sides, a payout or a cut.
+ */
+describe('marketplace words that mean something else', () => {
+  it('does not read the European Commission as a platform fee', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"express":"^4.0.0"}}',
+      'privacy.tsx': `export const text = 'European Commission, relying on an adequacy decision by the relevant authority.';\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['marketplace.commission']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not read a mock that says a fee is null as a fee', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"express":"^4.0.0","stripe":"^14.0.0"}}',
+      '__mocks__/stripe-events.ts': `export const event = { application_fee_percent: null };\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    // A field set to null is evidence of absence, and a mock is the most misleading
+    // file in a repository.
+    expect(analysis.detectors['marketplace.commission']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not read a file named seller as a seller', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"express":"^4.0.0"}}',
+      'apps/example/roles/seller.role.ts': `export const role = { name: 'Example' };\n`,
+      'apps/example/fields/seller-on-opportunity.ts': `export const field = {};\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    // Naming a file is cheaper than building a two-sided product, and this one came
+    // from a demo application bundled inside a CRM.
+    expect(analysis.detectors['marketplace.multiRole']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not read one sentence as two sides', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"express":"^4.0.0"}}',
+      'schema.ts': `// Recipient identifier from nearby labels (e.g., "Tenant", "Landlord", "Buyer", "Seller")\nexport const schema = {};\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['marketplace.multiRole']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('still recognises a product with two sides in two places', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"express":"^4.0.0","stripe":"^14.0.0"}}',
+      // Domain files, which is the only scope this detector reads: a marketplace
+      // declares its two sides in its model, not in a comment.
+      'src/models/listing.model.ts': `export const listing = { seller: 'acme', price: 10 };\n`,
+      'src/models/order.model.ts': `export const order = { buyer: 'someone', total: 10 };\n`,
+      'src/models/fee.model.ts': `export const commissionRate = 0.15;\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['marketplace.multiRole']?.present).toBe(true);
+    expect(analysis.detectors['marketplace.commission']?.present).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+});

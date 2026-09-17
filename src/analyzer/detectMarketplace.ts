@@ -43,15 +43,36 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
   }
 
-  const roleFiles = ctx.files.all
-    .filter((file) => /(seller|merchant|storefront)/i.test(file))
-    .slice(0, 20);
+  /**
+   * File names that suggest a supply side — read from the analysed sources, not from
+   * every path in the repository.
+   *
+   * `twentyhq/twenty`, an open-source CRM, ships an example real-estate app whose
+   * `roles/seller.role.ts` matched here. Scanning `files.all` meant any path anywhere
+   * counted, including bundled demos and vendored code.
+   */
+  const roleFiles = scope.filter((file) => /(seller|merchant|storefront)/i.test(file)).slice(0, 20);
   for (const file of roleFiles) evidence.push({ type: 'file', value: file });
 
   // Both sides must appear for a confident signal: a supply-side vocabulary on its own
   // also fits a plain catalogue or CMS, so it downgrades to partial rather than present.
-  const bothSides = sellerHits.length > 0 && buyerHits.length > 0;
-  const oneSide = sellerHits.length > 0 || buyerHits.length > 0 || roleFiles.length > 0;
+  /**
+   * Two sides are not one sentence.
+   *
+   * `documenso`, an open-source document-signing product, came out a marketplace with
+   * high confidence on a single line: a comment in a field-detection schema listing
+   * `"Tenant", "Landlord", "Buyer", "Seller"` as examples of labels found in the
+   * documents its users sign. One line matched both sides, and one line is one
+   * mention.
+   */
+  const vocabularyFiles = new Set([...sellerHits, ...buyerHits].map((hit) => hit.file));
+
+  const bothSides = sellerHits.length > 0 && buyerHits.length > 0 && vocabularyFiles.size >= 2;
+
+  // A file name on its own is not a role either. Twenty had four such names and no
+  // buyer or seller vocabulary anywhere in its code, and came out a marketplace:
+  // naming a file is cheaper than building a two-sided product.
+  const oneSide = vocabularyFiles.size >= 2;
 
   return {
     key: 'marketplace.multiRole',
@@ -98,7 +119,18 @@ async function detectCommission(ctx: DetectContext): Promise<DetectorResult> {
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/\bcommission/i, /application_fee/i, /\bplatform_?fee/i, /\btake_?rate/i, /\bservice_?fee/i],
+    [
+      // "Commission" is also an institution. The privacy policy of an open-source CRM
+      // said "European Commission, relying on an adequacy decision" and was read as a
+      // platform taking a cut, sixteen times over.
+      /commission[_\s]?(rate|fee|percent|amount|bps)/i,
+      /(rate|fee|percent|amount)[_\s]?commission/i,
+      /\bcommission[A-Z]/,
+      /application_fee/i,
+      /\bplatform_?fee/i,
+      /\btake_?rate/i,
+      /\bservice_?fee/i,
+    ],
     20,
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
