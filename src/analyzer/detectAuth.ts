@@ -125,32 +125,39 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /organizationId/i,
       /tenantId/i,
       /workspaceId/i,
-      /teamId/i,
     ],
     20
   );
 
-  const organizationSignals = await searchInFiles(
-    ctx.root,
-    sourceFiles,
-    [
-      /organizationId/i,
-      /tenantId/i,
-      /workspaceId/i,
-      /companyId/i,
-      /teamId/i,
-      /organization_id/i,
-      /tenant_id/i,
-      /workspace_id/i,
-    ],
-    25
-  );
-  const membershipSignals = await searchInFiles(
-    ctx.root,
-    sourceFiles,
-    [/memberId/i, /organizationId/i, /tenantId/i, /workspaceId/i, /teamId/i, /companyId/i],
-    25
-  );
+  /**
+   * Words that only mean tenancy, and words that usually mean something else.
+   *
+   * `organizationId` and `tenantId` are not written by accident. `workspaceId` and
+   * `companyId` are common in SaaS and also in code that talks *about* somebody else's
+   * product, so they are corroborated across files before they count.
+   *
+   * `teamId` was a signal and is gone. In the JavaScript ecosystem it is overwhelmingly
+   * Apple's Developer Team ID: `usebruno/bruno`, a desktop API client with no accounts
+   * of any kind, was classified as a B2B SaaS with high confidence on the strength of
+   * `const teamId = 'W7LPPWA48L'` in its notarization script.
+   */
+  const STRONG_TENANCY = [/organizationId/i, /organization_id/i, /tenantId/i, /tenant_id/i];
+  const WEAK_TENANCY = [/workspaceId/i, /workspace_id/i, /companyId/i];
+
+  const strongOrganization = await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25);
+  const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25);
+
+  // A weak word never stands on its own, however many files it appears in. Bruno says
+  // `workspaceId` in three — it has workspaces, and they are local folders, not
+  // customers. A tenant boundary is named somewhere by a word that means only that.
+  const organizationSignals = strongOrganization.length > 0
+    ? [...strongOrganization, ...weakOrganization]
+    : [];
+
+  const strongMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...STRONG_TENANCY], 25);
+  const weakMembership = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25);
+
+  const membershipSignals = strongMembership.length > 0 ? [...strongMembership, ...weakMembership] : [];
   const b2bSignals = await searchInFiles(
     ctx.root,
     sourceFiles,

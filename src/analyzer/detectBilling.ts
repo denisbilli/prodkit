@@ -16,7 +16,18 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     ctx.root,
     ctx.files.source,
     [
-      /\bstripe\b/i,
+      /**
+       * The bare word is not here, on purpose.
+       *
+       * `\bstripe\b` matched `'table-stripe': '#f3f3f3'`, a CSS colour token for
+       * zebra-striped tables, and `{['Stripe API', 'GitHub REST', …]}`, a list of API
+       * names in a design-system demo. Both are in `usebruno/bruno`, a desktop API
+       * client that takes no payments and was reported as a B2B SaaS.
+       *
+       * A project that actually charges people has the dependency, a STRIPE_ variable,
+       * a customer or subscription id, or a webhook path. One that only ever writes
+       * "Stripe" in prose is talking about Stripe, not billing through it.
+       */
       /STRIPE_[A-Z0-9_]+/,
       /stripeCustomerId/i,
       /stripeSubscriptionId/i,
