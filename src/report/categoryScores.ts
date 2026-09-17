@@ -5,6 +5,10 @@ export interface CategoryScore {
   /** 0-100. 100 means nothing actionable was found in this category. */
   score: number;
   findingCount: number;
+  /** Checks that ran and found what they were looking for. */
+  verifiedCount: number;
+  /** Checks that reached a verdict either way. */
+  assessedCount: number;
   criticalCount: number;
   highCount: number;
   /** True when nothing in the analysis touched this category, so the score is not evidence of health. */
@@ -27,6 +31,20 @@ const SEVERITY_WEIGHT: Record<Severity, number> = {
 };
 
 /** Categories that describe the analysis itself rather than a property of the product. */
+/**
+ * The most a category can score while a finding of this severity is open.
+ *
+ * Read as: an unresolved critical means the area is not in good order however much else
+ * is, and the same in smaller measure down the scale.
+ */
+const SEVERITY_CEILING: Record<Severity, number> = {
+  critical: 20,
+  high: 50,
+  medium: 75,
+  low: 90,
+  info: 100,
+};
+
 const NON_PRODUCT_CATEGORIES: ReadonlySet<Category> = new Set<Category>(['meta', 'stack']);
 
 export const SCORED_CATEGORIES: readonly Category[] = [
@@ -59,12 +77,50 @@ export function buildCategoryScores(findings: Finding[]): CategoryScore[] {
       (finding) => finding.status !== 'passed' && finding.severity !== 'info',
     );
 
-    const penalty = actionable.reduce((total, finding) => total + SEVERITY_WEIGHT[finding.severity], 0);
+    /**
+     * How much of what is at stake here is wrong.
+     *
+     * The old score started at 100 and subtracted a fixed weight per finding, which
+     * saturated almost immediately — two `high` findings reached 90 of a possible 100,
+     * so a category with two problems and a category with eight both read 0, and the
+     * table whose whole job is to say where to look could not rank anything. It also
+     * could not see a passing check: a real PHP product read 0/100 for security on
+     * three findings, none of them critical, with a verified control sitting in the
+     * same category.
+     *
+     * Both fall out of asking the question the other way round. Every assessed check
+     * puts its own weight at stake; the score is the share of that weight not currently
+     * failing. A category where the critical control holds and three lesser ones do not
+     * is no longer indistinguishable from one where nothing holds at all.
+     */
+    const assessed = categoryFindings.filter((finding) => finding.status !== 'unknown');
+    const atStake = assessed.reduce((total, finding) => total + SEVERITY_WEIGHT[finding.stakes], 0);
+    const failing = actionable.reduce((total, finding) => total + SEVERITY_WEIGHT[finding.stakes], 0);
+
+    const proportional = atStake === 0 ? 100 : Math.round(100 * (1 - failing / atStake));
+
+    /**
+     * Nothing looks healthy while something severe is open.
+     *
+     * The proportion on its own would let one unresolved critical hide behind nine
+     * passing checks, and the original design was right that "a category with one
+     * critical and nine passing checks is not 90% healthy". The cap keeps that;
+     * the proportion does the ranking underneath it.
+     */
+    const worstOpen = actionable.reduce<Severity>(
+      (worst, finding) => (SEVERITY_WEIGHT[finding.stakes] > SEVERITY_WEIGHT[worst] ? finding.stakes : worst),
+      'info',
+    );
+    const ceiling = SEVERITY_CEILING[worstOpen];
 
     return {
       category,
-      score: Math.max(0, Math.min(100, 100 - penalty)),
+      score: Math.max(0, Math.min(100, proportional, ceiling)),
       findingCount: actionable.length,
+      /** Checks in this category that ran and found what they were looking for. */
+      verifiedCount: assessed.filter((finding) => finding.status === 'passed').length,
+      /** Checks in this category that reached a verdict either way. */
+      assessedCount: assessed.length,
       criticalCount: actionable.filter((finding) => finding.severity === 'critical').length,
       highCount: actionable.filter((finding) => finding.severity === 'high').length,
       /**

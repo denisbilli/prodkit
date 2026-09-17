@@ -186,10 +186,22 @@ function buildStrengths(categoryScores: CategoryScore[], findings: Finding[]): s
         && entry.score >= 80
         && entry.findingCount === 0
         && passedCategories.has(entry.category),
-    )
-    .map((entry) => CATEGORY_LABEL[entry.category]);
+    );
 
-  const strengths = strongCategories.slice(0, 3).map((label) => `no issues found in ${label}`);
+  /**
+   * "What already works" should describe work, not an absence.
+   *
+   * It read "no issues found in configuration and secrets", which is the same sentence
+   * a report would print if it had not looked — and the reader of a paid report cannot
+   * tell those apart. The counts are known now, so the section can say what was checked
+   * and found right.
+   */
+  const strengths = strongCategories.slice(0, 3).map((entry) => {
+    const label = CATEGORY_LABEL[entry.category];
+    const checks = entry.verifiedCount === 1 ? '1 check' : `${entry.verifiedCount} checks`;
+
+    return `${label}: ${checks} verified, nothing outstanding`;
+  });
 
   if (strengths.length === 0 && passed.length > 0) {
     strengths.push(`${passed.length} individual ${passed.length === 1 ? 'check' : 'checks'} already pass`);

@@ -32,6 +32,7 @@ function sevForStatus(status: FindingStatus, missing: Severity): Severity {
   return status === 'passed' || status === 'unknown' ? 'info' : missing;
 }
 
+
 /**
  * The evidence for one claim, out of a detector that answers several.
  *
@@ -114,6 +115,8 @@ function mkFinding(args: {
   category: Finding['category'];
   status: FindingStatus;
   severity: Severity;
+  /** What the check is worth when it fails; defaults to the severity given. */
+  stakes?: Severity;
   description: string;
   recommendation: string;
   evidence: DetectorEvidence[];
@@ -134,6 +137,7 @@ function mkFinding(args: {
      * in the expectation half.
      */
     severity: severityForConfidence(args.severity, confidence),
+    stakes: args.stakes ?? args.severity,
     description: args.description,
     recommendation: args.recommendation,
     evidence: detectorEvidence(args.evidence),

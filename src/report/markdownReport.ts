@@ -135,10 +135,16 @@ function categoryScoreSection(report: ProductionReadinessReport): string[] {
   return [
     '## Readiness by Area',
     '',
-    '| Area | Score | Open findings | Critical |',
-    '| --- | --- | --- | --- |',
+    /**
+     * The counts are here because the score alone cannot carry them. "security 20/100"
+     * means something different when four of five checks were verified than when one of
+     * six was, and this table is the first thing a reader looks at to decide where to
+     * spend the week.
+     */
+    '| Area | Score | Verified | Open findings | Critical |',
+    '| --- | --- | --- | --- | --- |',
     ...assessed.map(
-      (entry) => `| ${entry.category} | ${entry.score}/100 | ${entry.findingCount} | ${entry.criticalCount} |`,
+      (entry) => `| ${entry.category} | ${entry.score}/100 | ${entry.verifiedCount} of ${entry.assessedCount} | ${entry.findingCount} | ${entry.criticalCount} |`,
     ),
     '',
   ];

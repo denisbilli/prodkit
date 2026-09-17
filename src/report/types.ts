@@ -48,6 +48,16 @@ export interface Finding {
   id: string;
   title: string;
   severity: Severity;
+  /**
+   * How much this check is worth, whichever way it came out.
+   *
+   * `severity` becomes `info` the moment a check passes, so a category that verified a
+   * critical control and failed three lesser ones had no way to say the critical one is
+   * fine: the passing check simply weighed nothing. A real PHP product read 0/100 for
+   * security on three findings, none of them critical, with a passing check right there
+   * in the same category.
+   */
+  stakes: Severity;
   category: Category;
   status: FindingStatus;
   description: string;

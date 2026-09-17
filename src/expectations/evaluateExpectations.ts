@@ -542,6 +542,10 @@ export function evaluateExpectedCapabilities(args: {
         category: cap.category,
         status: status === 'missing' ? 'missing' : 'partial',
         severity,
+        // What the capability is worth before confidence is folded in. An expectation
+        // only becomes a finding when it is unmet, so the two differ only where low
+        // confidence capped the severity.
+        stakes: claimedSeverity,
         description: `${cap.description} Current status: ${status}.`,
         recommendation: cap.recommendation,
         evidence: detectorEvidence.length > 0 ? detectorEvidence : [{ type: 'note', value: 'no direct evidence captured' }],
