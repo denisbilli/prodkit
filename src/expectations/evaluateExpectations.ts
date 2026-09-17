@@ -287,9 +287,19 @@ function evidenceFor(analysis: ProjectAnalysis, capability: ExpectedCapability):
  * on purpose. None of the three means the question does not arise.
  */
 function servesCrossOrigin(analysis: ProjectAnalysis): boolean {
-  // Somebody wrote cross-origin handling, however badly: the question plainly arises.
+  /**
+   * Somebody wrote cross-origin handling, however badly: the question plainly arises.
+   *
+   * `search` evidence is excluded, and has to be. It records a look that came back
+   * empty — "searched for cross-origin configuration: cors(, Access-Control-Allow-
+   * Origin" — and the sentence saying nothing was found contains every word this looks
+   * for. A server-rendered Django monolith was asked for a cross-origin policy on the
+   * strength of the report's own account of not finding one. An existing test caught
+   * it, which is the same trap as reading `STRIPE_LEN` out of a hash implementation:
+   * a string is not the thing it names.
+   */
   const sec = detector(analysis, 'security.core');
-  if (sec?.evidence.some((item) => /cors/i.test(String(item.value)))) return true;
+  if (sec?.evidence.some((item) => item.type !== 'search' && /cors/i.test(String(item.value)))) return true;
 
   // An API meant for other callers.
   if (detector(analysis, 'auth.apiKeys')?.present) return true;

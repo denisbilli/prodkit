@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { searchedFor } from './absenceEvidence';
 
 function depEvidence(deps: string[]): DetectorEvidence[] {
   return deps.map((d) => ({ type: 'dependency', value: d }));
@@ -251,12 +252,19 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     {
       key: 'auth.passwordReset',
       present: passwordResetSignals.length > 0,
-      evidence: snippetEvidence(passwordResetSignals),
+      // The terms, where nothing matched. "No direct evidence captured" reads like
+      // "we did not look"; this lets a reader whose flow is called `recoverAccess`
+      // see in one line why it was missed.
+      evidence: passwordResetSignals.length > 0
+        ? snippetEvidence(passwordResetSignals)
+        : searchedFor('a password reset flow', ['"forgot password"', 'password_reset', 'password-reset', '"reset token"', 'django.contrib.auth.urls', 'PasswordResetView', 'devise_for', 'Auth::routes(']),
     },
     {
       key: 'auth.emailVerification',
       present: emailVerificationSignals.length > 0,
-      evidence: snippetEvidence(emailVerificationSignals),
+      evidence: emailVerificationSignals.length > 0
+        ? snippetEvidence(emailVerificationSignals)
+        : searchedFor('email verification', ['"verify email"', 'email_verification', 'email-verification', '"confirm email"', 'isEmailVerified']),
     },
     {
       key: 'auth.sessionStrategy',

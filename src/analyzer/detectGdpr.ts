@@ -1,6 +1,7 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { searchedFor } from './absenceEvidence';
 
 function toEvidence(matches: Array<{ snippet: string; file: string; line: number }>): DetectorEvidence[] {
   return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
@@ -50,31 +51,48 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     20
   );
 
+  /**
+   * Written out once so the evidence for an absence cannot drift from the search that
+   * produced it: these are the same terms the patterns above match.
+   */
+  const TERMS: Record<string, [what: string, terms: string[]]> = {
+    consent: ['a consent record', ['cookie-consent', 'consentGiven', 'privacyConsent', 'gdprConsent']],
+    export: ['an export of personal data', ['/gdpr/export', 'exportUserData', 'personalDataExport', 'dataSubject', 'rightToAccess', '"data portability"']],
+    erasure: ['an erasure flow', ['erasure', '"delete account"', '"right to be forgotten"', '"delete user data"', '"delete personal data"']],
+    retention: ['a retention or purge policy', ['gdpr/privacy near retention/purge/delete', 'retention/purge/delete near personal data', '"delete personal data older than"']],
+    adminQueue: ['a data-subject request queue', ['privacy queue', 'gdpr queue', '"data subject request"', 'dsar', 'admin privacy']],
+  };
+
+  const evidenceOr = (
+    matches: Array<{ snippet: string; file: string; line: number }>,
+    key: keyof typeof TERMS,
+  ): DetectorEvidence[] => (matches.length > 0 ? toEvidence(matches) : searchedFor(...TERMS[key]));
+
   return [
     {
       key: 'gdpr.consent.route',
       present: consent.length > 0,
-      evidence: toEvidence(consent),
+      evidence: evidenceOr(consent, 'consent'),
     },
     {
       key: 'gdpr.export.route',
       present: exportRoute.length > 0,
-      evidence: toEvidence(exportRoute),
+      evidence: evidenceOr(exportRoute, 'export'),
     },
     {
       key: 'gdpr.erasure.route',
       present: erasure.length > 0,
-      evidence: toEvidence(erasure),
+      evidence: evidenceOr(erasure, 'erasure'),
     },
     {
       key: 'gdpr.retention.job',
       present: retention.length > 0,
-      evidence: toEvidence(retention),
+      evidence: evidenceOr(retention, 'retention'),
     },
     {
       key: 'gdpr.adminQueue',
       present: adminQueue.length > 0,
-      evidence: toEvidence(adminQueue),
+      evidence: evidenceOr(adminQueue, 'adminQueue'),
     },
   ];
 }

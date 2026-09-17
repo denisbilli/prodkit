@@ -38,7 +38,19 @@ export interface StackInfo {
 }
 
 export interface DetectorEvidence {
-  type: 'file' | 'dependency' | 'snippet' | 'note';
+  /**
+   * `search` records a look that came back empty.
+   *
+   * A report about a missing capability has nothing to point at, so eleven findings of
+   * thirty-two in a real report carried the line "no direct evidence captured" — which
+   * reads like "we did not look" rather than "we looked and it is not there". The
+   * reader cannot tell the difference, and an independent review said so.
+   *
+   * The evidence for an absence is the search that found nothing, and the detectors
+   * already know what they searched for. Saying it turns an assertion into something
+   * the reader can check and disagree with.
+   */
+  type: 'file' | 'dependency' | 'snippet' | 'note' | 'search';
   value: string;
   file?: string;
   line?: number;

@@ -3,6 +3,7 @@ import type { DetectContext } from './detectContext';
 import { hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { searchInFiles } from '../utils/textSearch';
+import { searchedFor } from './absenceEvidence';
 
 interface CorsHit {
   file: string;
@@ -116,6 +117,23 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   }
   for (const m of corsLoose) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'cors' });
   for (const m of corsStrict) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'cors' });
+
+  /**
+   * What was looked for, where nothing was found.
+   *
+   * "No direct evidence captured" reads like "we did not look". These are the same
+   * terms the searches above use, so a reader whose rate limiter is a decorator called
+   * `@throttle` can see in one line why it was missed, and say so.
+   */
+  if (!helmet) {
+    evidence.push(...searchedFor('security headers', ['helmet', 'django-csp', 'Content-Security-Policy', 'Strict-Transport-Security', 'X-Content-Type-Options', 'X-Frame-Options', 'SECURE_HSTS_SECONDS', 'securityHeaders'], 'headers'));
+  }
+  if (!rateLimit) {
+    evidence.push(...searchedFor('rate limiting', ['express-rate-limit', '@upstash/ratelimit', 'rate-limiter-flexible', 'django-ratelimit', 'slowapi', 'rateLimit(', 'rate_limit', 'Retry-After', '429', 'TooManyRequests'], 'rate-limit'));
+  }
+  if (corsLoose.length === 0 && corsStrict.length === 0) {
+    evidence.push(...searchedFor('cross-origin configuration', ['cors(', 'Access-Control-Allow-Origin', 'ALLOWED_ORIGINS', 'allowedOrigins'], 'cors'));
+  }
 
   const webhookSig = await searchInFiles(ctx.root, source, [/constructEvent\(/, /webhook.*signature/i], 10);
   const bodyLimit = await searchInFiles(ctx.root, source, [/express\.json\(\s*\{[^}]*limit\s*:/i], 10);

@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { searchedFor } from './absenceEvidence';
 
 export async function detectObservability(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
@@ -54,6 +55,13 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   );
   for (const m of structuredHits) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'logging' });
   const hasStructuredLogging = logDeps.length > 0 || structuredHits.length > 0;
+
+  if (!hasHealth) {
+    evidence.push(...searchedFor('a health endpoint', ['/health', '/healthz', '/readyz', 'a health, healthz, readyz, liveness or readiness route file'], 'health'));
+  }
+  if (!hasStructuredLogging) {
+    evidence.push(...searchedFor('structured logging', ['winston', 'pino', 'morgan', 'bunyan', 'logger.info/warn/error/debug', 'JSON.stringify with a level field', 'structuredLog'], 'logging'));
+  }
 
   return {
     key: 'observability.core',
