@@ -21,6 +21,29 @@ describe('game detection and profile', () => {
     expect(analysis.detectors['game.engine']?.present).toBe(false);
   });
 
+  it('suggests a game from signals that do not prove one', async () => {
+    // A renderer, a frame loop, realtime multiplayer and an asset pipeline. None of
+    // them is a game on its own; together they are worth saying out loud. The
+    // suggestion changes no number — it names the profile and how to apply it.
+    const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
+    const analysis = await analyzeProject(fixture('three-multiplayer-game'));
+    const inference = inferProductProfile(analysis);
+
+    expect(inference.inferredProfile).toBeNull();
+    expect(inference.suggestion?.profile).toBe('game');
+    expect(inference.suggestion?.reason).toMatch(/--profile game/);
+  });
+
+  it('does not suggest a game for a renderer and a frame loop alone', async () => {
+    // A product configurator is built from exactly those two, which is why two is not
+    // enough. Measured across eleven real repositories: the only one reaching three is
+    // a multiplayer board game, and a CAD application sits at two.
+    const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
+    const analysis = await analyzeProject(fixture('three-viewer'));
+
+    expect(inferProductProfile(analysis).suggestion).toBeUndefined();
+  });
+
   it('holds a game to progress and assets, not to tenancy and audit', async () => {
     const report = buildReport(await analyzeProject(fixture('phaser-game')), { profile: 'game' });
     const ids = (report.productProfile?.capabilities ?? []).map((c) => c.capabilityId);

@@ -19,6 +19,7 @@ function profileSummary(report: ProductionReadinessReport): string[] {
       `- Mode: ${profile.selectedProfile}`,
       `- Inferred profile: ${profile.inferredProfile ?? 'not determined'}`,
       `- Inference confidence: ${profile.inferenceConfidence ?? 'n/a'}`,
+      ...(profile.profileSuggestion ? [`- Looks like: ${profile.profileSuggestion.reason}`] : []),
       '- Expected capabilities: not evaluated',
       profile.note ? `- Note: ${profile.note}` : '- Note: profile inference was inconclusive',
       '',

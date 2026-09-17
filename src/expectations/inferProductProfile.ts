@@ -76,6 +76,41 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
    * distinction without evidence is what produced a wrong profile on five of ten real
    * repositories. Until there is evidence, the answer is nothing.
    */
+  /**
+   * Nothing conclusive. Before giving up, say what it looks like.
+   *
+   * No single game signal is a game: a renderer is a product configurator, a frame loop
+   * is any animated interface, a realtime transport is a chat. Three of them together
+   * are a reasonable suspicion. The threshold is measured rather than chosen — across
+   * eleven real repositories the only one reaching three is a multiplayer board game,
+   * and a CAD application, which is precisely the false positive to fear, sits at two
+   * with a renderer and a frame loop.
+   *
+   * Commerce disqualifies: something selling subscriptions or separating tenants is
+   * being judged on those, whatever else it draws on a canvas.
+   */
+  const game = analysis.detectors['game.engine'];
+  const signals = Number(game?.details?.supportingSignals ?? 0);
+
+  if (signals >= 3 && !billing && !tenancy) {
+    const named = [
+      game?.details?.supporting ? `renderer (${(game.details.supporting as string[]).join(', ')})` : null,
+      game?.details?.frameLoop ? 'a frame loop' : null,
+      (game?.details?.realtime as string[] | undefined)?.length ? 'realtime multiplayer' : null,
+      (game?.details?.assetScripts as string[] | undefined)?.length ? 'an asset pipeline' : null,
+    ].filter(Boolean);
+
+    return {
+      inferredProfile: null,
+      confidence: 'low',
+      reason: 'No profile-specific evidence: the repository does not identify what kind of product it is.',
+      suggestion: {
+        profile: 'game',
+        reason: `This looks like a game — ${named.join(', ')} — but nothing here proves it. Re-run with --profile game to judge it as one.`,
+      },
+    };
+  }
+
   return {
     inferredProfile: null,
     confidence: 'low',

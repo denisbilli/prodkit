@@ -1,0 +1,9 @@
+{
+  "name": "three-multiplayer-game",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js",
+    "assets:pack-9slice": "node scripts/pack-9slice.js"
+  },
+  "dependencies": { "express": "^4.21.2", "socket.io": "^4.8.1", "three": "^0.164.1" }
+}

@@ -97,7 +97,42 @@ async function detectEngine(ctx: DetectContext): Promise<DetectorResult> {
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
   }
 
+  // Realtime transport. On its own it is a chat application; alongside a renderer and
+  // a frame loop it is a multiplayer game.
+  const realtime = hasAnyDep(ctx, ['socket.io', 'socket.io-client', 'ws', 'colyseus', 'colyseus.js', 'peerjs', 'geckos.io']);
+  for (const dep of realtime) evidence.push({ type: 'dependency', value: dep });
+
+  /**
+   * An asset pipeline. The most telling of the supporting signals, because the
+   * vocabulary belongs to nothing else: a nine-slice is how a game draws a resizable
+   * panel, an atlas is how it packs sprites. A configurator loads models; it does not
+   * pack sprite sheets.
+   */
+  const assetScripts = Object.keys(ctx.packageJson?.scripts ?? {}).filter((name) =>
+    /(sprite|atlas|tileset|9[-_]?slice|nine[-_]?slice|spritesheet)/i.test(name)
+    || /^assets?[:_-]/i.test(name)
+  );
+  for (const name of assetScripts) {
+    evidence.push({ type: 'note', value: `asset pipeline script "${name}"` });
+  }
+
   const conclusive = engineDeps.length > 0 || engineFiles.length > 0;
+
+  /**
+   * How much a project looks like a game without proving it.
+   *
+   * Counted rather than decided. No single one of these is a game — a renderer is a
+   * configurator, a frame loop is any animated interface, a realtime transport is a
+   * chat — and that is exactly why one of them must never be enough. Together they are
+   * a reasonable suspicion, and a suspicion is worth saying out loud as long as it is
+   * not acted on silently.
+   */
+  const supportingSignals = [
+    supporting.length > 0,
+    loops.length > 0,
+    realtime.length > 0,
+    assetScripts.length > 0,
+  ].filter(Boolean).length;
 
   return {
     key: 'game.engine',
@@ -108,6 +143,9 @@ async function detectEngine(ctx: DetectContext): Promise<DetectorResult> {
       engineFiles,
       supporting,
       frameLoop: loops.length > 0,
+      realtime,
+      assetScripts,
+      supportingSignals,
     },
   };
 }

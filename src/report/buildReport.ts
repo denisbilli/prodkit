@@ -82,6 +82,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
         productProfile = {
           selectedProfile: 'auto',
           inferredProfile: inferred.inferredProfile ?? undefined,
+          profileSuggestion: inferred.suggestion,
           inferenceConfidence: inferred.confidence,
           profileTitle: 'Auto (inconclusive)',
           profileDescription: 'Profile inference was inconclusive; expected capabilities were not applied.',

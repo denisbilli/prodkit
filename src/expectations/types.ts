@@ -85,6 +85,8 @@ export interface CapabilityGap {
 export interface ProductExpectationResult {
   selectedProfile: ProductProfile;
   inferredProfile?: ProductProfile;
+  /** What the repository looks like, when the evidence was not enough to judge it as. */
+  profileSuggestion?: { profile: ProductProfile; reason: string };
   inferenceConfidence?: 'low' | 'medium' | 'high';
   profileTitle: string;
   profileDescription: string;
@@ -115,6 +117,19 @@ export interface ProductProfileInference {
   inferredProfile: ProductProfile | null;
   confidence: 'low' | 'medium' | 'high';
   reason: string;
+  /**
+   * What the repository looks like, when that is not enough to judge it as.
+   *
+   * Suggesting is not applying, and the difference is the whole point. The failure
+   * worth avoiding is a wrong profile applied silently: the score changes and the
+   * reader cannot see why. A suspicion printed with the signals it rests on changes no
+   * number and can be checked in a glance — so the bar for saying it out loud is far
+   * lower than the bar for acting on it.
+   */
+  suggestion?: {
+    profile: ProductProfile;
+    reason: string;
+  };
 }
 
 export interface ExpectationEvaluationOutput {

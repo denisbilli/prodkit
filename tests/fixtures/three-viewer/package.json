@@ -1,0 +1,5 @@
+{
+  "name": "three-viewer",
+  "version": "1.0.0",
+  "dependencies": { "three": "^0.164.1" }
+}

@@ -107,6 +107,11 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     `Workspaces: ${workspaceSummary}`,
     `Score: ${report.overallScore}/100`,
     `Maturity: ${report.maturityLevel}${report.inconclusive ? ' (INCONCLUSIVE: project not recognized, score capped)' : ''}`,
+    // Printed next to the score it is not allowed to change, so a reader who knows what
+    // their project is can act on it in one step.
+    ...(report.productProfile?.profileSuggestion
+      ? [`Looks like: ${report.productProfile.profileSuggestion.reason}`]
+      : []),
     `Critical/High/Medium: ${counts.critical}/${counts.high}/${counts.medium}`,
     '',
     'Top findings:',
