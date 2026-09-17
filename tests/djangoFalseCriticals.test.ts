@@ -95,4 +95,63 @@ describe('a Django monolith is not an Express app with things missing', () => {
 
     await fs.rm(root, { recursive: true, force: true });
   });
+
+  it('sees password reset that a framework supplies rather than spells out', async () => {
+    const root = await project(DJANGO);
+
+    const analysis = await analyzeProject(root);
+
+    // `path("accounts/", include("django.contrib.auth.urls"))` is the whole flow —
+    // token, expiry, single use. The words "password" and "reset" appear nowhere,
+    // because the framework supplies them, and the report called it missing.
+    expect(analysis.detectors['auth.passwordReset']?.present).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('sees authorization checked inside a view', async () => {
+    const root = await project({
+      ...DJANGO,
+      'app/reports.py': `from django.core.exceptions import PermissionDenied
+
+def report(request, user):
+    if not request.user.is_staff and request.user.pk != user.pk:
+        raise PermissionDenied
+    return None
+`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    // Django checks ownership in the view, not in middleware before it, so a codebase
+    // doing exactly this read as having no resource-level authorization at all.
+    expect(analysis.detectors['authz.resourceLevel']?.present).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not announce B2B signals in a report that calls the product consumer', async () => {
+    const root = await project(DJANGO);
+
+    const report = buildReport(await analyzeProject(root), { profile: 'auto' });
+    const tenancy = report.findings.find((finding) => finding.id === 'tenancy.b2b');
+
+    // The document said "consumer application" in one place and "B2B/SaaS signals
+    // detected" in another. A reader cannot act on a report that contradicts itself.
+    expect(tenancy?.status).toBe('unknown');
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not say Helmet was detected in a project that is not Express', async () => {
+    const root = await project(DJANGO);
+
+    const report = buildReport(await analyzeProject(root), { profile: 'auto' });
+    const helmet = report.findings.find((finding) => finding.id === 'security.helmet');
+
+    expect(helmet?.description).not.toMatch(/Helmet detected/);
+    expect(helmet?.description).toMatch(/django/i);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
 });

@@ -73,7 +73,24 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   const passwordResetSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/forgot\s*password/i, /password[_-]?reset/i, /reset\s*token/i],
+    [
+      /forgot\s*password/i,
+      /password[_-]?reset/i,
+      /reset\s*token/i,
+      /**
+       * Django ships the whole flow — token, expiry, single use — behind one include.
+       * A report on a real school platform called password reset missing while
+       * `path("accounts/", include("django.contrib.auth.urls"))` sat in its urls.py:
+       * the words "password" and "reset" appear nowhere, because the framework
+       * supplies them.
+       */
+      /django\.contrib\.auth\.urls/,
+      /PasswordReset(View|ConfirmView|DoneView|CompleteView)/,
+      /auth_views\.PasswordReset/,
+      // The same shape in other frameworks that hand you the flow rather than the words.
+      /Devise|devise_for/,
+      /Auth::routes\(/,
+    ],
     20
   );
   const emailVerificationSignals = await searchInFiles(
@@ -125,6 +142,23 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /organizationId/i,
       /tenantId/i,
       /workspaceId/i,
+      /**
+       * Django checks ownership inside the view, not in middleware before it.
+       *
+       * A report said "no resource-level authorization signals detected" of a codebase
+       * whose view reads
+       * `if not request.user.is_staff and request.user.pk != user.pk: raise
+       * PermissionDenied`, with visibility helpers called in every other view. The
+       * patterns above are all Express and DRF shaped, so none of that was visible.
+       */
+      /raise\s+PermissionDenied/,
+      /request\.user\.pk\s*!?==/,
+      /request\.user\.is_staff/,
+      /UserPassesTestMixin/,
+      /PermissionRequiredMixin/,
+      /@user_passes_test/,
+      /get_queryset\([^)]*\)[\s\S]{0,120}filter\([^)]*user/,
+      /\bis_visible_to\b/,
     ],
     20
   );

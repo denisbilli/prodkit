@@ -1,3 +1,4 @@
+import { inferProductProfile } from '../expectations/inferProductProfile';
 import type { DetectorEvidence } from '../analyzer/types';
 import type { EvidenceQuality, Finding, FindingConfidence, FindingStatus, Severity } from '../report/types';
 import type { Rule } from './types';
@@ -226,7 +227,17 @@ export const rules: Rule[] = [
         category: 'security',
         status,
         severity: sevForStatus(status, 'medium'),
-        description: hasHelmet ? 'Helmet detected.' : 'Helmet/security headers not detected for Express app.',
+        /**
+         * The description used to branch on `hasHelmet` alone, so a project that is not
+         * an Express application at all — status `unknown` — still read "Helmet
+         * detected." A Django repository was told that, which is a contradiction inside
+         * one finding and exactly the kind of thing that costs a report its credibility.
+         */
+        description: !isExpress
+          ? `This check is about Express middleware; the backend here is ${analysis.stack.backend.join(', ') || 'not an Express application'}.`
+          : hasHelmet
+            ? 'Helmet detected.'
+            : 'Helmet/security headers not detected for Express app.',
         recommendation: 'Enable helmet() and review CSP/HSTS settings for your deployment model.',
         evidence: det?.evidence ?? [],
       });
@@ -434,7 +445,27 @@ export const rules: Rule[] = [
       // Tenant boundaries are a backend data-access concern: without a detected
       // backend the B2B keyword hint alone (e.g. in a frontend client) is noise.
       const backendDetected = analysis.stack.backend.length > 0;
-      const status: FindingStatus = !b2bHint || !backendDetected ? 'unknown' : missingTenantRisk ? 'missing' : hasMembership ? 'passed' : 'partial';
+
+      /**
+       * And not when the product is not a business one.
+       *
+       * This fired on a school platform that the same report classified as a B2C app,
+       * so the document said "consumer application" in one place and "B2B/SaaS signals
+       * detected" in another. A reader cannot act on a report that contradicts itself,
+       * and of the two statements the profile is the one built from weighted evidence.
+       */
+      const consumerProduct = ['b2c-app', 'client-app', 'game', 'mobile-app', 'static-site'].includes(
+        String(inferProductProfile(analysis).inferredProfile),
+      );
+
+      const status: FindingStatus =
+        !b2bHint || !backendDetected || consumerProduct
+          ? 'unknown'
+          : missingTenantRisk
+            ? 'missing'
+            : hasMembership
+              ? 'passed'
+              : 'partial';
       return mkFinding({
         id: 'tenancy.b2b',
         title: 'Tenant and organization boundaries',
