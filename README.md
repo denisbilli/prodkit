@@ -196,6 +196,20 @@ its own.
 - Plan output is deterministic and read-only only
 - No cloud dashboard or UI: this package is the CLI and the library
 
+## Verifying what you installed
+
+Every release from 0.3.3 onwards is published with npm provenance: an attestation,
+signed during the release workflow, that ties the tarball to the commit and the build
+that produced it.
+
+```bash
+npm view @produtype/core --json | grep -A5 provenance
+```
+
+Releases 0.3.0 to 0.3.2 have no attestation. They were published while this repository
+was private, and provenance is only meaningful when anyone can read the commit it
+points at.
+
 ## Roadmap
 
 Shipped: the deterministic analyzer, deterministic remediation planning, and the
