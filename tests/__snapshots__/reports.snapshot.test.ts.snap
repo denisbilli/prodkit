@@ -80,8 +80,8 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
       "status": "missing",
     },
     {
-      "id": "expectation.gdpr.consent.required",
-      "severity": "high",
+      "id": "expectation.gdpr.consent.recommended",
+      "severity": "medium",
       "status": "missing",
     },
     {
@@ -190,10 +190,10 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
       "status": "passed",
     },
   ],
-  "highCount": 3,
+  "highCount": 2,
   "maturity": "partial",
-  "mediumCount": 10,
-  "score": 76,
+  "mediumCount": 11,
+  "score": 77,
 }
 `;
 
@@ -287,8 +287,8 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
       "status": "missing",
     },
     {
-      "id": "expectation.gdpr.consent.required",
-      "severity": "high",
+      "id": "expectation.gdpr.consent.recommended",
+      "severity": "medium",
       "status": "missing",
     },
     {
@@ -437,9 +437,9 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
       "status": "missing",
     },
   ],
-  "highCount": 9,
+  "highCount": 8,
   "maturity": "prototype",
-  "mediumCount": 15,
-  "score": 30,
+  "mediumCount": 16,
+  "score": 31,
 }
 `;

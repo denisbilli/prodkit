@@ -26,7 +26,12 @@ describe('product profile expectations', () => {
     expect(report.findings.some((f) => f.id === 'expectation.auth.required')).toBe(true);
     expect(report.findings.some((f) => f.id === 'expectation.tenancy.organization.required')).toBe(true);
     expect(report.findings.some((f) => f.id === 'expectation.tenancy.isolation.required')).toBe(true);
-    expect(report.findings.some((f) => f.id === 'expectation.gdpr.consent.required')).toBe(true);
+    // Recommended, not required. Consent is one of the six lawful bases in Article 6,
+    // and a B2B SaaS processing its customer's data to deliver a contract relies on
+    // that contract rather than on consent. This test encoded the older, stricter
+    // reading, which asked every B2B product for a mechanism the law does not require
+    // and most deliberately do not build.
+    expect(report.findings.some((f) => f.id === 'expectation.gdpr.consent.recommended')).toBe(true);
     expect(report.findings.some((f) => f.id === 'expectation.gdpr.erasure.required')).toBe(true);
     expect(plan.tasks.some((t) => t.id === 'remediate.auth.core')).toBe(true);
     expect(plan.tasks.some((t) => t.id === 'remediate.tenancy.organization')).toBe(true);

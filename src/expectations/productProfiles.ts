@@ -105,8 +105,10 @@ const CAPABILITIES = {
     title: 'Consent capture',
     category: 'gdpr',
     detectorKeys: ['gdpr.consent.route'],
-    description: 'A recorded lawful basis for processing personal data.',
-    recommendation: 'Capture and store consent with timestamp and version of the terms.',
+    description:
+      'A recorded lawful basis for processing personal data. Consent is one of the six in Article 6, and often not the relevant one: a product processing its customer\'s data to deliver a contract relies on that contract, not on consent. What nearly every web product does need consent for is tracking and analytics, which is a separate duty under ePrivacy.',
+    recommendation:
+      'Record the lawful basis you rely on. Where that basis is consent — tracking, analytics, marketing — capture and store it with a timestamp and the version of the terms.',
   }),
   'gdpr.export': blueprint({
     id: 'gdpr.export',
@@ -517,7 +519,12 @@ export const productProfiles: Record<
       'authz.ownership': 'required',
       'tenancy.organization': 'required',
       'tenancy.isolation': 'required',
-      'gdpr.consent': 'required',
+      // Recommended, not required. A B2B SaaS processing its customer's data to
+      // deliver a contract relies on that contract as its lawful basis, not on
+      // consent — so demanding a consent mechanism asks for something the law does
+      // not, and that most such products deliberately do not build. What usually does
+      // apply is tracking consent, which is why this stays on the list at all.
+      'gdpr.consent': 'recommended',
       'gdpr.export': 'required',
       'gdpr.erasure': 'required',
       'gdpr.retention': 'recommended',
@@ -562,7 +569,10 @@ export const productProfiles: Record<
       'observability.health': 'required',
       'observability.logging': 'required',
       'audit.baseline': 'required',
-      'jobs.background': 'required',
+      // Recommended. Inference that takes minutes needs a queue; inference that
+      // answers in the request does not, and a great many AI products are the second
+      // kind. Requiring it marked down every synchronous one.
+      'jobs.background': 'recommended',
       'ai.cost-control': 'required',
       'ai.prompt-safety': 'required',
       'deployment.readiness': 'required',
@@ -586,7 +596,9 @@ export const productProfiles: Record<
       'marketplace.payout': 'required',
       'marketplace.commission': 'required',
       'marketplace.dispute': 'required',
-      'tenancy.organization': 'recommended',
+      // Required, to match tenancy.isolation. Isolation of parties you have not
+      // modelled is not a weaker version of the control; it is not the control.
+      'tenancy.organization': 'required',
       'tenancy.isolation': 'required',
       'gdpr.consent': 'required',
       'gdpr.export': 'required',
