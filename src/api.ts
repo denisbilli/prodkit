@@ -25,6 +25,16 @@ export type { BuildReportOptions } from './report/buildReport';
 export { PRODKit_VERSION } from './version';
 
 /**
+ * What the analyzer recognises, built from the same tables the detectors iterate.
+ *
+ * Exported because the answer to "does it work on my stack?" was being maintained by
+ * hand in a README and on a website, and had drifted from the code in both places. A
+ * consumer that wants to publish the list should read it from here.
+ */
+export { supportedStacks, labelFor } from './analyzer/catalogue';
+export type { StackCatalogue, CatalogueEntry } from './analyzer/catalogue';
+
+/**
  * Safe file reading, exported because consumers that sample a repository need the
  * same guarantees the analyzer relies on: binaries and oversized files are skipped,
  * and a read never throws.

@@ -149,38 +149,44 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 ## Supported stacks
 
-- **Backend (Node):** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS,
-  SvelteKit, Remix, Nuxt, Nitro
-- **Mobile:** Flutter read from `pubspec.yaml`, classified as a client application
-  rather than as a backend or a static site
-- **Backend (.NET):** ASP.NET Core read from `.csproj`, distinguished from a class
-  library by the SDK attribute rather than by its packages
-- **Backend (Go):** Gin, Echo, Fiber, chi, Gorilla, Beego, and plain `net/http` read
-  from `go.mod`
-- **Backend (Ruby):** Rails, Sinatra, Hanami, Roda, Grape read from the `Gemfile`
-- **Backend (PHP):** Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, and plain PHP
-  read from `composer.json`
-- **Backend (Python):** Django, FastAPI, Flask, Litestar, Starlette, Sanic, Tornado,
-  aiohttp
-- **Frontend:** React, Vue, Svelte, Angular, Solid, Qwik, Preact, Astro, Nuxt, Remix,
-  Vite, Tailwind, htmx
-- **Databases:** Postgres, MySQL, SQLite, SQL Server, MongoDB, Redis
-- **Hosted data platforms:** Supabase, Firebase, Neon, PlanetScale, Vercel Postgres,
-  Turso, Upstash, DynamoDB, Convex
-- **ORMs:** Prisma, Drizzle, TypeORM, Sequelize, Knex, MikroORM, Kysely, SQLAlchemy,
-  Tortoise, Peewee
-- Generic unknown app fallback
+<!-- stacks:start -->
 
-Two of these distinctions are deliberate rather than incidental.
+_Generated from the analyzer itself — run `npm run docs:stacks` after changing a detector._
 
-A hosted platform is recorded separately from the engine underneath it. Supabase is
-Postgres and Turso is SQLite, so rules written about an engine keep working without
-knowing about the host, while "this data lives on infrastructure someone else
-operates" stays a question the report can ask on its own.
+- **Backend:** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS, SvelteKit, Remix, Nuxt, Nitro, Astro, Django, Flask, FastAPI, Litestar, Sanic, Tornado, aiohttp, Starlette, Gin, Echo, Fiber, chi, Gorilla, Beego, Go, Rails, Sinatra, Hanami, Roda, Grape, Ruby, Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, PHP, ASP.NET Core, .NET
+- **Frontend:** React, Vite, Vue, Nuxt, Svelte, Angular, Astro, Solid, Qwik, Preact, Remix, htmx, Tailwind CSS, Electron
+- **Mobile:** Flutter
+- **Databases:** Postgres, MySQL, SQLite, SQL Server, MongoDB, Redis, Firestore, DynamoDB, Convex
+- **Hosted data platforms:** Supabase, Firebase, PlanetScale, Neon, Vercel Postgres, Turso, Upstash, DynamoDB, Convex
+- **ORMs:** Prisma, Drizzle, TypeORM, Sequelize, Knex, MikroORM, Kysely, SQLAlchemy, Tortoise, Peewee
 
-Astro counts as a backend only when it is configured to serve requests — `output` set
-to `server` or `hybrid`, or an adapter installed. A static Astro site is a static
-site, and is not marked down for missing the things an application needs.
+How some of these are decided:
+
+- **Express** — the dependency, or an import in the source
+- **Astro** — counted as a backend only when configured to serve requests
+- **Django** — manage.py, settings.py and urls.py together
+- **Flask** — the dependency, or an import in the source
+- **FastAPI** — the dependency, or an import in the source
+- **Go** — a go.mod with no framework in it — net/http is a real answer
+- **Ruby** — a Gemfile with no web framework in it
+- **PHP** — PHP sources with no framework in composer.json
+- **ASP.NET Core** — the Microsoft.NET.Sdk.Web SDK attribute
+- **.NET** — a .csproj with no web SDK
+- **Flutter** — pubspec.yaml — classified as a client application, not a backend
+- **Supabase** — recorded alongside the engine it is — Postgres
+- **Firebase** — Firestore
+- **PlanetScale** — MySQL
+- **Neon** — Postgres
+- **Vercel Postgres** — Postgres
+- **Turso** — SQLite
+- **Upstash** — Redis
+
+<!-- stacks:end -->
+
+A hosted platform is recorded separately from the engine underneath it, so rules
+written about an engine keep working without knowing about the host, while "this data
+lives on infrastructure someone else operates" stays a question the report can ask on
+its own.
 
 ## Current limitations
 

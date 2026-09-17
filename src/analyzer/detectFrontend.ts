@@ -1,5 +1,6 @@
 import type { DetectorResult, DetectorEvidence } from './types';
 import { hasAnyDep, hasAnyDartDep, type DetectContext } from './detectContext';
+import { FRONTEND_FRAMEWORKS } from './catalogue';
 
 export async function detectFrontend(ctx: DetectContext): Promise<{
   result: DetectorResult;
@@ -20,19 +21,7 @@ export async function detectFrontend(ctx: DetectContext): Promise<{
   }
 
   // Other frontend frameworks detected from their signature dependency.
-  const frameworkDeps: Array<[string, string[]]> = [
-    ['vue', ['vue']],
-    ['nuxt', ['nuxt']],
-    ['svelte', ['svelte', '@sveltejs/kit']],
-    ['angular', ['@angular/core']],
-    ['astro', ['astro']],
-    ['solid', ['solid-js']],
-    ['qwik', ['@builder.io/qwik']],
-    ['preact', ['preact']],
-    ['remix', ['@remix-run/react']],
-    ['htmx', ['htmx.org']],
-  ];
-  for (const [framework, names] of frameworkDeps) {
+  for (const [framework, names] of FRONTEND_FRAMEWORKS) {
     const hits = hasAnyDep(ctx, names);
     if (hits.length) {
       frameworks.push(framework);

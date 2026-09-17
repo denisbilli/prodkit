@@ -2,6 +2,13 @@ import type { DetectorResult, DetectorEvidence } from './types';
 import { hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
+import {
+  GO_BACKEND_FRAMEWORKS,
+  NODE_BACKEND_FRAMEWORKS,
+  PHP_BACKEND_FRAMEWORKS,
+  PYTHON_BACKEND_FRAMEWORKS,
+  RUBY_BACKEND_FRAMEWORKS,
+} from './catalogue';
 
 export async function detectBackend(ctx: DetectContext): Promise<{
   result: DetectorResult;
@@ -36,21 +43,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   // has a backend to be judged even though it also has a UI. Treating them as
   // frontend-only meant an application with server routes, sessions and database
   // access was scored as though it had none of them.
-  const nodeFrameworkDeps: Array<[string, string]> = [
-    ['next', 'next'],
-    ['nestjs', '@nestjs/core'],
-    ['fastify', 'fastify'],
-    ['hono', 'hono'],
-    ['elysia', 'elysia'],
-    ['koa', 'koa'],
-    ['adonis', '@adonisjs/core'],
-    ['sveltekit', '@sveltejs/kit'],
-    ['remix', '@remix-run/node'],
-    ['remix', '@remix-run/server-runtime'],
-    ['nuxt', 'nuxt'],
-    ['nitro', 'nitropack'],
-  ];
-  for (const [framework, dep] of nodeFrameworkDeps) {
+  for (const [framework, dep] of NODE_BACKEND_FRAMEWORKS) {
     if (hasDep(ctx, dep)) {
       frameworks.push(framework);
       evidence.push({ type: 'dependency', value: dep });
@@ -63,18 +56,9 @@ export async function detectBackend(ctx: DetectContext): Promise<{
    * so a module with Go sources and no framework is reported as `go` rather than as
    * nothing.
    */
-  const goFrameworks: Array<[string, string[]]> = [
-    ['gin', ['gin-gonic/gin']],
-    ['echo', ['labstack/echo', 'labstack/echo/v4']],
-    ['fiber', ['gofiber/fiber', 'gofiber/fiber/v2']],
-    ['chi', ['go-chi/chi', 'go-chi/chi/v5']],
-    ['gorilla', ['gorilla/mux']],
-    ['beego', ['beego/beego']],
-  ];
-
   let namedGoFramework = false;
 
-  for (const [framework, deps] of goFrameworks) {
+  for (const [framework, deps] of GO_BACKEND_FRAMEWORKS) {
     const hits = hasAnyGoDep(ctx, deps);
     if (!hits.length) continue;
 
@@ -89,17 +73,9 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   }
 
   /** Ruby, read from the Gemfile. */
-  const rubyFrameworks: Array<[string, string[]]> = [
-    ['rails', ['rails']],
-    ['sinatra', ['sinatra']],
-    ['hanami', ['hanami']],
-    ['roda', ['roda']],
-    ['grape', ['grape']],
-  ];
-
   let namedRubyFramework = false;
 
-  for (const [framework, deps] of rubyFrameworks) {
+  for (const [framework, deps] of RUBY_BACKEND_FRAMEWORKS) {
     const hits = hasAnyRubyDep(ctx, deps);
     if (!hits.length) continue;
 
@@ -122,18 +98,9 @@ export async function detectBackend(ctx: DetectContext): Promise<{
    * one of these — which is better than the "unknown" this used to report for a
    * published application with 57 PHP files in it.
    */
-  const phpFrameworks: Array<[string, string[]]> = [
-    ['laravel', ['laravel/framework', 'laravel/laravel']],
-    ['symfony', ['symfony/framework-bundle', 'symfony/symfony']],
-    ['slim', ['slim/slim']],
-    ['codeigniter', ['codeigniter4/framework']],
-    ['cakephp', ['cakephp/cakephp']],
-    ['yii', ['yiisoft/yii2']],
-  ];
-
   let namedPhpFramework = false;
 
-  for (const [framework, deps] of phpFrameworks) {
+  for (const [framework, deps] of PHP_BACKEND_FRAMEWORKS) {
     const hits = hasAnyPhpDep(ctx, deps);
     if (!hits.length) continue;
 
@@ -195,14 +162,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
 
   // Python backend frameworks detected purely from dependencies. Django, Flask and
   // FastAPI have their own blocks below because each also has a source-level fallback.
-  const pyFrameworkDeps: Array<[string, string]> = [
-    ['litestar', 'litestar'],
-    ['sanic', 'sanic'],
-    ['tornado', 'tornado'],
-    ['aiohttp', 'aiohttp'],
-    ['starlette', 'starlette'],
-  ];
-  for (const [framework, dep] of pyFrameworkDeps) {
+  for (const [framework, dep] of PYTHON_BACKEND_FRAMEWORKS) {
     if (hasPyDep(ctx, dep)) {
       frameworks.push(framework);
       evidence.push({ type: 'dependency', value: dep });
