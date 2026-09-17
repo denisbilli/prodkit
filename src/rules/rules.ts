@@ -51,6 +51,24 @@ function evidenceQualityFor(evidence: DetectorEvidence[]): EvidenceQuality {
   return 'weak';
 }
 
+/** Severity is capped by how sure the analyzer is. See the note where it is used. */
+function severityForConfidence(severity: Finding['severity'], confidence: FindingConfidence): Finding['severity'] {
+  if (confidence !== 'low') return severity;
+
+  /**
+   * `critical` only. Not a ceiling at `medium`, which was the first attempt and was
+   * wrong for a reason worth writing down: a missing capability cannot carry direct
+   * evidence — there is no line to point at for something that is not there — so every
+   * absence reads as low confidence, and capping them all at `medium` would leave the
+   * report unable to say anything is serious.
+   *
+   * What it can stop doing is shouting. `critical` is read as "stop and fix this
+   * before anything else", and the analyzer should not spend that word on a claim it
+   * could not evidence.
+   */
+  return severity === 'critical' ? 'high' : severity;
+}
+
 function confidenceFor(status: FindingStatus, evidenceQuality: EvidenceQuality): FindingConfidence {
   if (status === 'passed' && evidenceQuality === 'strong') {
     return 'high';
@@ -78,16 +96,25 @@ function mkFinding(args: {
   evidence: DetectorEvidence[];
 }): Finding {
   const evidenceQuality = evidenceQualityFor(args.evidence);
+  const confidence = confidenceFor(args.status, evidenceQuality);
+
   return {
     id: args.id,
     title: args.title,
     category: args.category,
     status: args.status,
-    severity: args.severity,
+    /**
+     * The same rule the expectations follow: severity says how bad it would be if true,
+     * confidence says whether it is, and a reader treats `critical` as "stop and fix
+     * this". Spending that word on something the analyzer is unsure of is how a report
+     * stops being believed — and it was doing it on both sides of the report, not only
+     * in the expectation half.
+     */
+    severity: severityForConfidence(args.severity, confidence),
     description: args.description,
     recommendation: args.recommendation,
     evidence: detectorEvidence(args.evidence),
-    confidence: confidenceFor(args.status, evidenceQuality),
+    confidence,
     evidenceQuality,
   };
 }

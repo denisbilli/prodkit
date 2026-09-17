@@ -2,7 +2,7 @@
 
 exports[`report snapshots > matches structured snapshot for a hardened express fixture 1`] = `
 {
-  "criticalCount": 3,
+  "criticalCount": 0,
   "findings": [
     {
       "id": "auth.core",
@@ -56,12 +56,7 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
     },
     {
       "id": "expectation.auth.password-reset.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.auth.password-reset.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
@@ -106,22 +101,12 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
     },
     {
       "id": "expectation.tenancy.isolation.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.tenancy.isolation.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
       "id": "expectation.tenancy.organization.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.tenancy.organization.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
@@ -190,7 +175,7 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
       "status": "passed",
     },
   ],
-  "highCount": 2,
+  "highCount": 5,
   "maturity": "partial",
   "mediumCount": 11,
   "score": 77,
@@ -199,7 +184,7 @@ exports[`report snapshots > matches structured snapshot for a hardened express f
 
 exports[`report snapshots > matches structured snapshot for an unhardened express fixture 1`] = `
 {
-  "criticalCount": 7,
+  "criticalCount": 4,
   "findings": [
     {
       "id": "auth.core",
@@ -253,12 +238,7 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
     },
     {
       "id": "expectation.auth.password-reset.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.auth.password-reset.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
@@ -343,22 +323,12 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
     },
     {
       "id": "expectation.tenancy.isolation.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.tenancy.isolation.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
       "id": "expectation.tenancy.organization.required",
-      "severity": "critical",
-      "status": "missing",
-    },
-    {
-      "id": "expectation.tenancy.organization.required",
-      "severity": "critical",
+      "severity": "high",
       "status": "missing",
     },
     {
@@ -437,7 +407,7 @@ exports[`report snapshots > matches structured snapshot for an unhardened expres
       "status": "missing",
     },
   ],
-  "highCount": 8,
+  "highCount": 11,
   "maturity": "prototype",
   "mediumCount": 16,
   "score": 31,

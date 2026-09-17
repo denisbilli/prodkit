@@ -114,8 +114,23 @@ function buildVerdict(args: {
 function buildStrengths(categoryScores: CategoryScore[], findings: Finding[]): string[] {
   const passed = findings.filter((finding) => finding.status === 'passed');
 
+  /**
+   * A strength is something verified, not something absent.
+   *
+   * Filtering on "assessed, scoring well, nothing open" let a category qualify on the
+   * strength of having nothing to say about it. Requiring a passed check means the
+   * report only calls something a strength when it watched it work.
+   */
+  const passedCategories = new Set(passed.map((finding) => finding.category));
+
   const strongCategories = categoryScores
-    .filter((entry) => !entry.notAssessed && entry.score >= 80 && entry.findingCount === 0)
+    .filter(
+      (entry) =>
+        !entry.notAssessed
+        && entry.score >= 80
+        && entry.findingCount === 0
+        && passedCategories.has(entry.category),
+    )
     .map((entry) => CATEGORY_LABEL[entry.category]);
 
   const strengths = strongCategories.slice(0, 3).map((label) => `no issues found in ${label}`);

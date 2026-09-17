@@ -282,18 +282,49 @@ function evidenceQualityFor(detectors: DetectorResult[]): EvidenceQuality {
   return 'weak';
 }
 
-function confidenceFor(status: CapabilityStatus, profileMode: ProductProfile, evidenceQuality: EvidenceQuality): FindingConfidence {
-  if (profileMode !== 'observed-only' && profileMode !== 'auto' && status !== 'unknown') {
-    return 'high';
-  }
-
-  if (profileMode === 'auto') {
-    return evidenceQuality === 'strong' ? 'medium' : 'low';
-  }
+/**
+ * How sure the analyzer is about *this* finding.
+ *
+ * It used to fold in how the profile was chosen: on `auto` — which is what the hosted
+ * product uses by default — every finding came out low or medium however strong its
+ * evidence. Two different uncertainties were being multiplied into one number, and the
+ * profile's own uncertainty is already reported separately as `inferenceConfidence`.
+ *
+ * An independent review of a real report put it plainly: eleven findings of
+ * thirty-two carried "no direct evidence captured" at low confidence and weak
+ * evidence, and still arrived as critical or high.
+ */
+function confidenceFor(status: CapabilityStatus, evidenceQuality: EvidenceQuality): FindingConfidence {
+  // Nothing was determined, so there is nothing to be confident about.
+  if (status === 'unknown') return 'low';
 
   if (evidenceQuality === 'strong') return 'high';
   if (evidenceQuality === 'medium') return 'medium';
   return 'low';
+}
+
+/**
+ * Severity says how bad it would be if true. Confidence says whether it is.
+ *
+ * A reader treats `critical` as "stop and fix this", and spending that word on a claim
+ * the analyzer itself is unsure of is how a tool becomes a checklist nobody trusts.
+ * The claim stays, at the weight the evidence supports.
+ */
+function severityForConfidence(severity: Finding['severity'], confidence: FindingConfidence): Finding['severity'] {
+  if (confidence !== 'low') return severity;
+
+  /**
+   * `critical` only. Not a ceiling at `medium`, which was the first attempt and was
+   * wrong for a reason worth writing down: a missing capability cannot carry direct
+   * evidence — there is no line to point at for something that is not there — so every
+   * absence reads as low confidence, and capping them all at `medium` would leave the
+   * report unable to say anything is serious.
+   *
+   * What it can stop doing is shouting. `critical` is read as "stop and fix this
+   * before anything else", and the analyzer should not spend that word on a claim it
+   * could not evidence.
+   */
+  return severity === 'critical' ? 'high' : severity;
 }
 
 /**
@@ -408,10 +439,11 @@ export function evaluateExpectedCapabilities(args: {
     }
 
     const findingId = toFindingId(cap, effectiveImportance);
-    const severity = severityFor(cap, status, effectiveImportance);
+    const claimedSeverity = severityFor(cap, status, effectiveImportance);
     const detectorEvidence = evidenceFor(args.analysis, cap).flatMap((d) => d.evidence);
     const quality = evidenceQualityFor(evidenceFor(args.analysis, cap));
-    const confidence = confidenceFor(status, args.requestedProfile, quality);
+    const confidence = confidenceFor(status, quality);
+    const severity = severityForConfidence(claimedSeverity, confidence);
 
     const evaluation: CapabilityEvaluation = {
       capabilityId: cap.id,

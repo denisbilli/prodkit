@@ -67,7 +67,16 @@ export function buildCategoryScores(findings: Finding[]): CategoryScore[] {
       findingCount: actionable.length,
       criticalCount: actionable.filter((finding) => finding.severity === 'critical').length,
       highCount: actionable.filter((finding) => finding.severity === 'high').length,
-      notAssessed: categoryFindings.length === 0,
+      /**
+       * "I don't know" is not an assessment.
+       *
+       * This was `categoryFindings.length === 0`, so a single `info` finding with
+       * status `unknown` — the analyzer recording that it could not tell — made the
+       * category count as assessed, with zero actionable findings and a score of 100.
+       * A Django school platform with no payments anywhere was reported as having
+       * "no issues found in taking payments", as a strength.
+       */
+      notAssessed: categoryFindings.every((finding) => finding.status === 'unknown'),
     };
   });
 }
