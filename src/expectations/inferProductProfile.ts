@@ -12,10 +12,15 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
   const jobs = analysis.detectors['jobs.background']?.present === true;
   const uploads = analysis.detectors['uploads.exposure']?.present === true;
 
-  const aiEvidence = (analysis.detectors['billing.stripe']?.evidence ?? [])
-    .concat(analysis.detectors['auth.apiKeys']?.evidence ?? [])
-    .concat(analysis.detectors['jobs.background']?.evidence ?? [])
-    .some((e) => /openai|anthropic|claude|gemini|llm|transcrib|generation|prompt|model/i.test(e.value));
+  /**
+   * A dependency on a model SDK, not a word that suggests one.
+   *
+   * This used to match /openai|anthropic|claude|gemini|llm|transcrib|generation|prompt|model/
+   * against the evidence strings of the billing, API-key and background-job detectors.
+   * "model" is in every ORM, "generation" and "prompt" are ordinary English, and the
+   * strings being searched were written to describe something else entirely.
+   */
+  const callsAModel = analysis.detectors['ai.modelProvider']?.present === true;
 
   const sourceHints = analysis.files.source.join('\n');
   const marketplaceHints = /seller|buyer|vendor|listing|order/i.test(sourceHints);
@@ -25,8 +30,23 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
     return { inferredProfile: 'static-site', confidence: 'high', reason: 'Frontend-only structure with no backend/db/auth signals.' };
   }
 
-  if ((aiEvidence || jobs) && (uploads || backendPresent)) {
-    return { inferredProfile: 'ai-saas', confidence: 'medium', reason: 'AI/job/upload signals suggest AI SaaS workflow.' };
+  /**
+   * Background jobs used to be sufficient here, in `(aiEvidence || jobs)`. They are
+   * orthogonal: every serious application has a queue, and this branch sits second,
+   * ahead of b2b-saas, marketplace and b2c — so an ordinary application with a worker
+   * was judged against the most demanding profile in the catalogue, which accumulates
+   * roughly 185 points of expectation. The score came out wrong for a reason the
+   * reader had no way to see.
+   *
+   * Measured: of ten unrelated local repositories, five were called ai-saas. One was a
+   * pirate game, promoted on a local variable named `queue` in a flood fill.
+   */
+  if (callsAModel && (uploads || jobs || backendPresent)) {
+    return {
+      inferredProfile: 'ai-saas',
+      confidence: 'medium',
+      reason: 'A model SDK dependency with a backend or a processing pipeline.',
+    };
   }
 
   if (marketplaceHints && billing) {

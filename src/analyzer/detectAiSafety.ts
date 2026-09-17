@@ -87,6 +87,29 @@ async function detectPromptSafety(ctx: DetectContext): Promise<DetectorResult> {
   };
 }
 
+/**
+ * Whether this product calls a model at all.
+ *
+ * Kept separate from the two safety checks because it answers a different question.
+ * Those ask whether an AI product is built safely; this one asks whether it is an AI
+ * product, which is what decides the profile it gets judged against — and profile
+ * inference was working it out by matching words like "model" and "prompt" against
+ * the evidence strings of the billing, API-key and background-job detectors. A
+ * dependency on a model SDK is the thing itself rather than a trace of it.
+ */
+function detectModelProvider(ctx: DetectContext): DetectorResult {
+  const deps = modelDependencies(ctx);
+
+  return {
+    key: 'ai.modelProvider',
+    present: deps.length > 0,
+    evidence: deps.map((dep) => ({ type: 'dependency' as const, value: dep })),
+    details: { providers: deps },
+  };
+}
+
 export async function detectAiSafety(ctx: DetectContext): Promise<DetectorResult[]> {
-  return Promise.all([detectCostControl(ctx), detectPromptSafety(ctx)]);
+  const [costControl, promptSafety] = await Promise.all([detectCostControl(ctx), detectPromptSafety(ctx)]);
+
+  return [costControl, promptSafety, detectModelProvider(ctx)];
 }
