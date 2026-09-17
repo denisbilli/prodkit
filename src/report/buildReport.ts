@@ -9,6 +9,7 @@ import type { DeclaredIntent, ProductExpectationResult, ProductProfile } from '.
 import { PRODKit_VERSION } from '../version';
 import { buildCategoryScores } from './categoryScores';
 import { withBusinessImpact } from './businessImpact';
+import { withEvidenceDigest } from './evidenceDigest';
 import { buildComplianceMapping } from './complianceMapping';
 import { buildExecutiveSummary } from './executiveSummary';
 import { remediationCatalog } from '../planner/remediationCatalog';
@@ -136,9 +137,9 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     }
   }
 
-  const findings = withBusinessImpact(
+  const findings = withEvidenceDigest(withBusinessImpact(
     [...observedFindings, ...expectationFindings].sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b)),
-  );
+  ));
   const combinedScore = expectationScore === undefined
     ? observedScore
     : Math.max(0, Math.min(100, Math.round((observedScore * 0.6) + (expectationScore * 0.4))));
