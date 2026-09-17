@@ -2,7 +2,6 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
-import { readTextFileSafe } from '../utils/readTextFileSafe';
 
 /**
  * A durable record of who did what.

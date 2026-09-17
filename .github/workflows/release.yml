@@ -66,8 +66,19 @@ jobs:
       # workflow, in this exact repository, mint a short-lived credential over OIDC.
       # A token in the environment would be used in preference to that exchange, so
       # its absence is what makes the publish go through the trusted path.
+      #
+      # --provenance is absent, and its absence is temporary. Provenance attests that a
+      # tarball was built from a specific public commit, and the attestation is only
+      # meaningful — and only accepted — when anyone can go and read that commit. This
+      # repository is private while GitHub Support runs a garbage collection on objects
+      # that were purged from history but stayed reachable, so there is nothing public
+      # to attest to. Trusted publishing itself is unaffected: the OIDC exchange does
+      # not care whether the repository is readable, only which workflow is asking.
+      #
+      # Restore the flag when the repository is public again. Until then the package is
+      # trusted rather than verifiable, which is a real loss and worth undoing.
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: npm publish --access public
 
       - name: Create the GitHub release
         run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag
