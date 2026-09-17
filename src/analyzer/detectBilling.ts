@@ -28,7 +28,15 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
        * a customer or subscription id, or a webhook path. One that only ever writes
        * "Stripe" in prose is talking about Stripe, not billing through it.
        */
-      /STRIPE_[A-Z0-9_]+/,
+      /**
+       * A Stripe credential, not any constant whose name begins with those six letters.
+       *
+       * `/STRIPE_[A-Z0-9_]+/` matched `STRIPE_LEN` in Unity's bundled xxHash3, where a
+       * stripe is a block of bytes being hashed, and reported a game as taking
+       * subscriptions. The word is only evidence of billing when it names a key, a
+       * secret, a token or an id.
+       */
+      /STRIPE_(?:[A-Z0-9_]*_)?(?:KEY|SECRET|TOKEN|ID|WEBHOOK|PRICE|ACCOUNT|API)[A-Z0-9_]*/,
       /stripeCustomerId/i,
       /stripeSubscriptionId/i,
       /\/webhooks?\/stripe/i,

@@ -37,6 +37,25 @@ export async function detectFrontend(ctx: DetectContext): Promise<{
     evidence.push({ type: 'dependency', value: 'flutter' });
   }
 
+  /**
+   * A page is a front end, whether or not a framework built it.
+   *
+   * This list only ever held frameworks, so a repository whose product is `index.html`
+   * plus a script had no front end, no stack, and a report that called it unreadable
+   * and capped its score at 39. Six of them sit in the verification corpus — browser
+   * games and small static sites, each one perfectly legible.
+   *
+   * Recorded only when no framework claimed the project, because saying "react, html"
+   * about a React application is noise: every one of them ships an `index.html`.
+   */
+  if (frameworks.length === 0) {
+    const pages = ctx.files.source.filter((file) => /\.html?$/i.test(file));
+    if (pages.length > 0) {
+      frameworks.push('html');
+      for (const page of pages.slice(0, 3)) evidence.push({ type: 'file', value: page, file: page });
+    }
+  }
+
   const extras = hasAnyDep(ctx, ['react-router-dom', 'axios', 'tailwindcss', 'electron']);
   for (const d of extras) {
     frameworks.push(d);

@@ -70,6 +70,14 @@ export const PYTHON_BACKEND_FRAMEWORKS: Array<[string, string]> = [
   ['tornado', 'tornado'],
   ['aiohttp', 'aiohttp'],
   ['starlette', 'starlette'],
+  /**
+   * These serve an application over HTTP without calling themselves web frameworks,
+   * and a repository built on one was reported as having no backend at all.
+   */
+  ['streamlit', 'streamlit'],
+  ['gradio', 'gradio'],
+  ['dash', 'dash'],
+  ['chainlit', 'chainlit'],
 ];
 
 /** Frontend frameworks settled by their signature dependency. */
@@ -130,6 +138,11 @@ export interface StackCatalogue {
 
 /** Display names for ids the tables above produce. */
 const LABELS: Record<string, string> = {
+  streamlit: 'Streamlit',
+  gradio: 'Gradio',
+  dash: 'Dash',
+  chainlit: 'Chainlit',
+  html: 'HTML (no framework)',
   next: 'Next.js',
   nestjs: 'NestJS',
   fastify: 'Fastify',

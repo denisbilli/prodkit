@@ -1,3 +1,4 @@
+import { pythonImports, browserImports } from './importedDependencies';
 import * as path from 'path';
 import { z } from 'zod';
 import { scanFiles } from '../utils/fileScanner';
@@ -121,7 +122,20 @@ function isTestOrExamplePath(file: string): boolean {
  * application is not fully understood by being readable — but being readable is the
  * difference between a partial reading and none.
  */
-const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift|dart)$/;
+/**
+ * `.html` is here, and it is not decoration.
+ *
+ * Without it a repository whose entire product is one `index.html` with an inline
+ * `<script>` — a browser game, a static site, a prototype — was reported as having zero
+ * source files, no stack, and a score capped at 39 for being unreadable. `PhaserJS-
+ * Spacegame` is exactly that: a complete game, Phaser loaded from a CDN, and nothing
+ * for the analyzer to look at. A hardcoded key in an inline script is also a real
+ * finding, and every text search here was skipping the file it would be in.
+ *
+ * `.vue`, `.svelte` and `.astro` were missing for the same reason: a single-file
+ * component holds the logic, not just the markup.
+ */
+const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift|dart|html?|vue|svelte|astro)$/;
 
 function pickSource(files: string[]): string[] {
   return files.filter((f) => SOURCE_EXTENSIONS.test(f) && !isTestOrExamplePath(f));
@@ -491,6 +505,31 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     mergeDeps(npmDeps, workspace.packageJson?.devDependencies);
   }
 
+  /**
+   * What the code imports, when nothing declared it.
+   *
+   * Only reached when the manifests for that language produced nothing at all, so a
+   * declared dependency is never overridden by a guess at an import. Seventeen
+   * repositories in the verification corpus were called unreadable on the strength of a
+   * missing manifest while stating their dependencies in the first three lines of their
+   * only source file.
+   */
+  const inferredDependencySources: string[] = [];
+
+  if (pythonDeps.length === 0) {
+    const imported = await pythonImports(root, sourceFiles);
+    if (imported.length > 0) {
+      pythonDeps.push(...imported);
+      inferredDependencySources.push('Python imports');
+    }
+  }
+
+  if (Object.keys(npmDeps).length === 0) {
+    const imported = await browserImports(root, sourceFiles);
+    for (const name of imported) npmDeps[name] = 'imported';
+    if (imported.length > 0) inferredDependencySources.push('script tags and module imports');
+  }
+
   const workspaceStacks: WorkspaceStack[] = workspaces.map((workspace) => {
     const wsNpmDeps: Record<string, string> = {};
     mergeDeps(wsNpmDeps, workspace.packageJson?.dependencies);
@@ -606,6 +645,12 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
         ...unreadableLanguages(allFiles).map(
           (entry) => `${entry.files} ${entry.language} files were not analysed: this reading covers only part of the repository`
         ),
+        // Said out loud, because a dependency nobody declared is a weaker fact than one
+        // that is pinned in a lockfile, and the reader is entitled to know which of the
+        // two this reading rests on.
+        ...(inferredDependencySources.length > 0
+          ? [`No dependency manifest was found: dependencies were read from ${inferredDependencySources.join(' and ')}, so versions are unknown.`]
+          : []),
       ],
       workspaces: workspaceStacks,
       files: allFiles,

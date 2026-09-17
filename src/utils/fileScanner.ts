@@ -39,6 +39,37 @@ export const DEFAULT_IGNORE = [
   '**/__fixtures__/**',
   '**/testdata/**',
   '**/__snapshots__/**',
+  /**
+   * Somebody else's code, copied into this repository by a package manager.
+   *
+   * These are not `node_modules` by name, so they were scanned as if the project had
+   * written them. A Unity game turned into a "b2b-saas with subscriptions, an
+   * administrative surface and accounts", 6054 source files strong, because
+   * `Library/PackageCache/` holds the 65 engine packages Unity downloads — and the
+   * evidence for those subscriptions was `STRIPE_LEN` in Unity's own xxHash
+   * implementation, where a stripe is a block of bytes.
+   *
+   * The engine paths are anchored at the root rather than `**`-prefixed: Unity's
+   * generated `Library/` sits beside `Assets/`, and a `src/Library/` a developer wrote
+   * is theirs to be judged on.
+   */
+  'Library/**',
+  'Temp/**',
+  'Logs/**',
+  'Builds/**',
+  '.godot/**',
+  'Binaries/**',
+  'Intermediate/**',
+  'DerivedData/**',
+  '**/Pods/**',
+  '**/Carthage/Build/**',
+  // Composer, Go modules and Bundler all install into `vendor/`. The name means the
+  // same thing in each: not ours.
+  '**/vendor/**',
+  // .NET build output, the `dist/` of a C# project.
+  '**/obj/**',
+  '**/bin/Debug/**',
+  '**/bin/Release/**',
 ];
 
 export interface ScanOptions {

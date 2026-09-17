@@ -98,8 +98,24 @@ const OFFLINE_DEPS = [
   'powersync',
 ];
 
+/**
+ * Paths that contain a platform marker without being a project.
+ *
+ * Every macOS `.bundle`, `.framework`, `.app` and `.dSYM` carries an `Info.plist` by
+ * definition, and build caches are full of them. A Unity game was classified as an iOS
+ * application on the strength of
+ * `Library/BurstCache/JIT/…bundle.dSYM/Contents/Info.plist` — a debug-symbols bundle
+ * inside generated output, in a repository whose own engine had already been detected.
+ *
+ * `Pods`, `DerivedData` and `node_modules` are here for the same reason: they hold
+ * other people's projects, and finding one there says nothing about this one.
+ */
+const GENERATED_OR_VENDORED = /(^|\/)(Library|Pods|DerivedData|build|node_modules|dist|out|\.gradle)(\/|$)|\.(bundle|framework|app|dSYM|xcframework)\//i;
+
 function matchesAny(files: string[], patterns: RegExp[]): string[] {
-  return files.filter((file) => patterns.some((pattern) => pattern.test(file)));
+  return files
+    .filter((file) => !GENERATED_OR_VENDORED.test(file))
+    .filter((file) => patterns.some((pattern) => pattern.test(file)));
 }
 
 export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]> {

@@ -149,10 +149,16 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   // at 39 on that basis.
   const mobileDetected = analysis.detectors['mobile.platform']?.present === true;
 
+  // A game engine says what the project is built on exactly as a mobile platform does,
+  // and for the same reason must count. A Unity game and a Phaser game were each
+  // identified as games by name and then called unreadable in the same report.
+  const gameEngineDetected = analysis.detectors['game.engine']?.present === true;
+
   const stackDetected = analysis.stack.frontend.length > 0
     || analysis.stack.backend.length > 0
     || analysis.stack.databases.length > 0
-    || mobileDetected;
+    || mobileDetected
+    || gameEngineDetected;
   const inconclusive = !stackDetected && analysis.workspaceStacks.length === 0;
   const inconclusiveReasons: string[] = [];
   if (inconclusive) {
