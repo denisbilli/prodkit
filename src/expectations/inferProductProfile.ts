@@ -14,12 +14,19 @@ import { readFacts, scoreProfiles } from './profileSignals';
  */
 const FLOOR = 3;
 const CLEAR_MARGIN = 2;
-const COMFORTABLE = 5;
+/**
+ * A share of the profile's own evidence, not a number of points.
+ *
+ * This was 5 absolute points, chosen without checking what each profile could reach.
+ * Two profiles topped out at 4, so a repository matching one of them perfectly was
+ * reported at medium confidence — the ceiling sat below the bar.
+ */
+const COMFORTABLE = 0.7;
 
 export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileInference {
   const facts = readFacts(analysis);
   const ranked = scoreProfiles(facts);
-  const [winner, runnerUp] = ranked;
+  const [winner] = ranked;
 
   if (!winner || winner.score < FLOOR) {
     /**
@@ -44,10 +51,15 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
     };
   }
 
-  const margin = winner.score - (runnerUp?.score ?? 0);
-  const confidence = winner.score >= COMFORTABLE && margin >= CLEAR_MARGIN
+  // Measured against the best reading that is not simply a more general version of the
+  // winner: b2b-saas scoring higher than the ai-saas that refines it is agreement, not
+  // competition, and treating it as a rival made every AI product look uncertain.
+  const rival = ranked.slice(1).find((entry) => entry.profile !== winner.refines);
+  const margin = winner.score - (rival?.score ?? 0);
+
+  const confidence = winner.saturation >= COMFORTABLE && margin >= CLEAR_MARGIN
     ? 'high'
-    : margin >= CLEAR_MARGIN || winner.score >= COMFORTABLE
+    : winner.saturation >= COMFORTABLE || margin >= CLEAR_MARGIN
       ? 'medium'
       : 'low';
 
@@ -58,11 +70,11 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
     // The second-best reading, when it is close enough to be worth a second look. This
     // used to be hand-written for one profile at a time; it is now every profile's, for
     // free, and it is what a reader needs to disagree with the first.
-    ...(runnerUp && margin < CLEAR_MARGIN
+    ...(rival && margin < CLEAR_MARGIN
       ? {
         suggestion: {
-          profile: runnerUp.profile,
-          reason: `It could also be ${runnerUp.profile} — ${runnerUp.reasons.join(', ')}. Re-run with --profile ${runnerUp.profile} to judge it as one.`,
+          profile: rival.profile,
+          reason: `It could also be ${rival.profile} — ${rival.reasons.join(', ')}. Re-run with --profile ${rival.profile} to judge it as one.`,
         },
       }
       : {}),

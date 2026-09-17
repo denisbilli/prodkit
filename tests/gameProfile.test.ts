@@ -93,10 +93,11 @@ describe('a browser application is not a static site', () => {
     const inference = inferProductProfile(await analyzeProject(fixture('brochure-site')));
 
     expect(inference.inferredProfile).toBe('static-site');
-    // Medium, not high. One signal — a front end with no backend, database or sign-in —
-    // is enough to name a brochure site and not enough to be sure of it. The old `high`
-    // was a literal written into the branch; this is derived from the evidence.
-    expect(inference.confidence).toBe('medium');
+    // High: the one signal that identifies a brochure site is the only one there is to
+    // have, so having it is a complete case. It briefly read `medium`, while confidence
+    // was computed over every signal rather than only the identifying ones — which let
+    // a missing capability argue about identity.
+    expect(inference.confidence).toBe('high');
   });
 });
 
@@ -106,7 +107,9 @@ describe('client-app', () => {
     const inference = inferProductProfile(await analyzeProject(fixture('browser-app')));
 
     expect(inference.inferredProfile).toBe('client-app');
-    expect(inference.confidence).toBe('medium');
+    // High, once confidence stopped being dragged down by capabilities this profile
+    // does not need in order to be what it is.
+    expect(inference.confidence).toBe('high');
   });
 
   it('asks a client application about crashes, and not about tenants', async () => {

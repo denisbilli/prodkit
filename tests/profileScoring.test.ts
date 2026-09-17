@@ -65,3 +65,35 @@ describe('profile scoring', () => {
     expect(ranked).toEqual([...ranked].sort((a, b) => b.score - a.score || 0));
   });
 });
+
+describe('confidence rests on identity, not completeness', () => {
+  it('is sure about a consumer product that is missing consumer machinery', () => {
+    // A product with accounts on a backend and no tenants is certainly a consumer
+    // product. That it has no self-service password recovery is a capability it is
+    // missing — the report has a section for saying so — and not an argument about what
+    // it is. Counting the absence against the classification made the tool sound unsure
+    // about something it had identified correctly.
+    const complete = scoreProfiles(facts({ backend: true, frontend: true, auth: true, passwordReset: true, emailVerification: true, socialLogin: true, uploads: true }));
+    const bare = scoreProfiles(facts({ backend: true, frontend: true, auth: true }));
+
+    const saturationOf = (ranked: ReturnType<typeof scoreProfiles>) =>
+      ranked.find((entry) => entry.profile === 'b2c-app')?.saturation ?? 0;
+
+    expect(saturationOf(bare)).toBe(saturationOf(complete));
+    // The extra capabilities still make the case stronger overall.
+    expect(bare.find((e) => e.profile === 'b2c-app')!.score)
+      .toBeLessThan(complete.find((e) => e.profile === 'b2c-app')!.score);
+  });
+
+  it('promotes a specialisation without asking sort to describe a partial order', () => {
+    // The first version put "a refines b" inside a comparator. A comparator has to
+    // describe a total order and that relation is not one, so the result was whatever
+    // the sort implementation happened to do: a transcription SaaS came out with
+    // ai-saas at 6 in front and b2b-saas at 9 in third place.
+    const ranked = scoreProfiles(facts({ backend: true, auth: true, billing: true, tenancy: true, callsAModel: true, jobs: true }));
+
+    expect(ranked[0]?.profile).toBe('ai-saas');
+    expect(ranked[1]?.profile).toBe('b2b-saas');
+    expect(ranked[1]!.score).toBeGreaterThan(ranked[0]!.score);
+  });
+});
