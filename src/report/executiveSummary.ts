@@ -2,6 +2,8 @@ import type { CategoryScore } from './categoryScores';
 import { weakestCategories } from './categoryScores';
 import type { Category, Finding, MaturityLevel } from './types';
 import type { ProductExpectationResult } from '../expectations/types';
+import { remediationCatalog } from '../planner/remediationCatalog';
+import type { RemediationCatalogEntry } from '../planner/types';
 
 export interface ExecutiveSummary {
   /** One sentence a non-technical reader can act on. */
@@ -53,29 +55,80 @@ const MATURITY_LABEL: Record<MaturityLevel, string> = {
 };
 
 /**
- * Weeks of work per missing capability, by importance.
+ * Days of work per task, from how the remediation catalogue itself classifies it.
  *
- * Deliberately coarse. The estimate exists to turn "13 things are missing" into a
- * decision about calendar time, and a range communicates the uncertainty better than
- * a precise number that would be wrong anyway.
+ * The estimate used to multiply a flat 0.8 weeks by the number of missing required
+ * capabilities and widen the result by 1.6, which said "roughly 8 to 14 weeks" about a
+ * real project where one to two was honest — and an independent review said so. Four
+ * days is not what a rate limit costs, nor a CSP header, and it is nowhere near what
+ * GDPR erasure costs; averaging them made every number wrong in a different direction.
+ *
+ * The catalogue already carries a per-task judgement that somebody made deliberately.
+ * Using it is both more honest and cheaper than inventing a second opinion here.
  */
-const WEEKS_PER_REQUIRED = 0.8;
-const WEEKS_PER_RECOMMENDED = 0.3;
+const DAYS_PER_EFFORT: Record<RemediationCatalogEntry['effort'], number> = {
+  small: 0.5,
+  medium: 2,
+  large: 5,
+};
 
-function estimateEffort(profile: ProductExpectationResult | undefined): string {
+/**
+ * For a finding the catalogue has no task for.
+ *
+ * Silence is not zero work, and dropping these would understate the total in exactly
+ * the direction that makes a report comfortable to read.
+ */
+const DAYS_BY_SEVERITY: Record<Finding['severity'], number> = {
+  critical: 2,
+  high: 2,
+  medium: 1,
+  low: 0.5,
+  info: 0,
+};
+
+function estimateEffort(findings: Finding[], profile: ProductExpectationResult | undefined): string {
   if (!profile) return 'Not estimated without a product profile.';
 
-  const { gap } = profile;
-  const weeks =
-    (gap.requiredMissing + gap.requiredPartial * 0.5) * WEEKS_PER_REQUIRED +
-    (gap.recommendedMissing + gap.recommendedPartial * 0.5) * WEEKS_PER_RECOMMENDED;
+  const open = findings.filter((f) => f.status !== 'passed' && f.status !== 'unknown');
+  if (open.length === 0) return 'Nothing outstanding to estimate.';
 
-  if (weeks < 0.5) return 'Under a week of focused work.';
+  /**
+   * One cost per job, not per finding.
+   *
+   * An observed rule and the expectation for the same subject are two views of one
+   * claim, and the remediation catalogue says so by giving them the same task id — it
+   * is how the plan produces one task rather than two. The estimate was billing both:
+   * on a real project `observability.health` and
+   * `expectation.observability.health.required` were charged separately, and so were
+   * the two halves of deployment readiness. The estimate is of the work, and the work
+   * is the plan.
+   */
+  const byTask = new Map<string, number>();
+  for (const finding of open) {
+    const entry = remediationCatalog[finding.id];
+    const key = entry?.taskId ?? finding.id;
+    const cost = entry ? DAYS_PER_EFFORT[entry.effort] : DAYS_BY_SEVERITY[finding.severity];
+    // A partial implementation is work already begun, not work not begun. Where two
+    // findings share a task, the more complete reading of it is the one that stands.
+    const forThis = finding.status === 'partial' ? cost * 0.5 : cost;
+
+    byTask.set(key, Math.max(byTask.get(key) ?? 0, forThis));
+  }
+
+  const days = [...byTask.values()].reduce((total, cost) => total + cost, 0);
+
+  if (days < 1) return 'Under a day of focused work.';
+  if (days <= 4) return `Roughly ${Math.round(days)} ${Math.round(days) === 1 ? 'day' : 'days'} of focused work.`;
+
+  const weeks = days / 5;
   if (weeks < 2) return 'Roughly one to two weeks of focused work.';
 
-  const low = Math.floor(weeks);
-  const high = Math.ceil(weeks * 1.6);
-  return `Roughly ${low} to ${high} weeks of focused work for one developer.`;
+  /**
+   * A range, because summing per-task estimates is still an estimate. The upper bound
+   * is half again rather than the 1.6 it was: a wider band on an invented number only
+   * made the invention harder to argue with.
+   */
+  return `Roughly ${Math.floor(weeks)} to ${Math.ceil(weeks * 1.5)} weeks of focused work for one developer.`;
 }
 
 function buildVerdict(args: {
@@ -177,7 +230,7 @@ export function buildExecutiveSummary(args: {
     launchReady,
     topRisks,
     strengths: buildStrengths(args.categoryScores, args.findings),
-    estimatedEffort: estimateEffort(args.profile),
+    estimatedEffort: estimateEffort(args.findings, args.profile),
     scoreExplanation,
   };
 }
