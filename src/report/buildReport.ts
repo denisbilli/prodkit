@@ -5,7 +5,7 @@ import { CATEGORIES } from './types';
 import type { Category, ExpectationMode, Finding, ProductionReadinessReport } from './types';
 import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectations';
 import { inferProductProfile } from '../expectations/inferProductProfile';
-import type { ProductExpectationResult, ProductProfile } from '../expectations/types';
+import type { DeclaredIntent, ProductExpectationResult, ProductProfile } from '../expectations/types';
 import { PRODKit_VERSION } from '../version';
 import { buildCategoryScores } from './categoryScores';
 import { withBusinessImpact } from './businessImpact';
@@ -14,6 +14,15 @@ import { buildExecutiveSummary } from './executiveSummary';
 
 export interface BuildReportOptions {
   profile?: ProductProfile;
+  /**
+   * What the owner says the product does.
+   *
+   * Only ever raises an expectation. The cloud application collects these four answers
+   * when a project is created, displayed them as "Product intent", and never passed
+   * them here — so the same report could say "file uploads: No" and raise a critical
+   * about file uploads.
+   */
+  declared?: DeclaredIntent;
 }
 
 // Derived from the union in report/types.ts, so a new category cannot be missed here.
@@ -107,6 +116,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
           requestedProfile,
           inferredProfile: inferred.inferredProfile ?? undefined,
           inferenceConfidence: inferred.confidence,
+          declared: options?.declared,
         });
         productProfile = evaluated.result;
         expectationFindings = evaluated.findings;
@@ -117,6 +127,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
         analysis,
         selectedProfile: requestedProfile as Exclude<ProductProfile, 'auto' | 'observed-only'>,
         requestedProfile,
+        declared: options?.declared,
       });
       productProfile = evaluated.result;
       expectationFindings = evaluated.findings;

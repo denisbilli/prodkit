@@ -27,7 +27,7 @@ function blueprint(args: CapabilityBlueprint): CapabilityBlueprint {
  * Every id here must have a case in `deriveStatus` in evaluateExpectations.ts,
  * otherwise it falls back to generic detectorKeys matching.
  */
-const CAPABILITIES = {
+export const CAPABILITIES = {
   'auth.baseline': blueprint({
     id: 'auth.baseline',
     title: 'Authentication baseline',

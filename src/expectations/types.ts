@@ -42,6 +42,25 @@ export type CapabilityCategory =
   | 'client'
   | 'mobile';
 
+/**
+ * What the owner says their product does, as distinct from what the code shows.
+ *
+ * A declaration can *add* a duty and can never remove one. Saying "we take payments"
+ * makes the billing capabilities required even where the profile treats them as
+ * optional and even where no Stripe call was found — the statement is evidence about
+ * intent, and a product that intends to charge people has to charge them safely.
+ *
+ * Saying "we have no file uploads" does nothing at all. If an upload route is in the
+ * code, the finding stands: otherwise this is a switch for turning problems off, and a
+ * score with an off switch measures the owner's optimism rather than the product.
+ */
+export interface DeclaredIntent {
+  handlesPersonalData?: boolean;
+  hasFileUploads?: boolean;
+  requiresTenantIsolation?: boolean;
+  hasBilling?: boolean;
+}
+
 export interface ExpectedCapability {
   id: string;
   title: string;

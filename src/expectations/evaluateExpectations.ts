@@ -5,12 +5,13 @@ import type {
   CapabilityGap,
   CapabilityImportance,
   CapabilityStatus,
+  DeclaredIntent,
   ExpectationEvaluationOutput,
   ExpectedCapability,
   ProductExpectationResult,
   ProductProfile,
 } from './types';
-import { getProductProfile } from './productProfiles';
+import { CAPABILITIES, type CapabilityId, getProductProfile } from './productProfiles';
 import type { EvidenceQuality, FindingConfidence } from '../report/types';
 
 function detector(analysis: ProjectAnalysis, key: string): DetectorResult | undefined {
@@ -295,12 +296,72 @@ function confidenceFor(status: CapabilityStatus, profileMode: ProductProfile, ev
   return 'low';
 }
 
+/**
+ * Which capabilities each declaration makes required.
+ *
+ * One declaration usually implies several: saying you handle personal data is saying
+ * you owe consent, export, erasure and a retention position, not one of the four.
+ */
+const DECLARED_CAPABILITIES: Record<keyof DeclaredIntent, CapabilityId[]> = {
+  handlesPersonalData: ['gdpr.consent', 'gdpr.export', 'gdpr.erasure', 'gdpr.retention'],
+  hasFileUploads: ['uploads.protection'],
+  requiresTenantIsolation: ['tenancy.organization', 'tenancy.isolation'],
+  hasBilling: ['billing.model', 'billing.webhook-integrity'],
+};
+
+const IMPORTANCE_RANK: Record<CapabilityImportance, number> = {
+  not_applicable: 0,
+  optional: 1,
+  recommended: 2,
+  required: 3,
+};
+
+/**
+ * The profile's capabilities, with what the owner declared folded in.
+ *
+ * Raising only, never lowering, and adding a capability the profile does not carry
+ * when the declaration calls for it — a static site that says it takes payments is
+ * asking to be judged on payments, and the static-site profile has nothing to say
+ * about them.
+ */
+function applyDeclarations(
+  capabilities: ExpectedCapability[],
+  declared: DeclaredIntent | undefined,
+): ExpectedCapability[] {
+  if (!declared) return capabilities;
+
+  const required = new Set<string>();
+
+  for (const [key, ids] of Object.entries(DECLARED_CAPABILITIES) as Array<[keyof DeclaredIntent, CapabilityId[]]>) {
+    // Only a `true` does anything. `false` is not evidence of absence, and treating it
+    // as such would let anyone switch a finding off by answering a form.
+    if (declared[key] === true) for (const id of ids) required.add(id);
+  }
+
+  if (required.size === 0) return capabilities;
+
+  const out = capabilities.map((cap) =>
+    required.has(cap.id) && IMPORTANCE_RANK[cap.importance] < IMPORTANCE_RANK.required
+      ? { ...cap, importance: 'required' as CapabilityImportance }
+      : cap,
+  );
+
+  const present = new Set(out.map((cap) => cap.id));
+
+  for (const id of required) {
+    if (!present.has(id)) out.push({ ...CAPABILITIES[id as CapabilityId], importance: 'required' });
+  }
+
+  return out;
+}
+
 export function evaluateExpectedCapabilities(args: {
   analysis: ProjectAnalysis;
   selectedProfile: Exclude<ProductProfile, 'auto' | 'observed-only'>;
   requestedProfile: ProductProfile;
   inferredProfile?: ProductProfile;
   inferenceConfidence?: 'low' | 'medium' | 'high';
+  declared?: DeclaredIntent;
 }): ExpectationEvaluationOutput {
   const profile = getProductProfile(args.selectedProfile);
   const evaluations: CapabilityEvaluation[] = [];
@@ -332,7 +393,7 @@ export function evaluateExpectedCapabilities(args: {
   };
   const authDetected = detector(args.analysis, 'auth.core')?.present === true;
 
-  for (const cap of profile.capabilities) {
+  for (const cap of applyDeclarations(profile.capabilities, args.declared)) {
     let effectiveImportance = cap.importance;
     if (cap.id === 'gdpr.baseline' && profile.id === 'internal-tool' && !authDetected) {
       effectiveImportance = 'not_applicable';
