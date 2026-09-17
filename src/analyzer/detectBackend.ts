@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasDep, hasPyDep, hasAnyPhpDep, type DetectContext } from './detectContext';
+import { hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 
@@ -55,6 +55,62 @@ export async function detectBackend(ctx: DetectContext): Promise<{
       frameworks.push(framework);
       evidence.push({ type: 'dependency', value: dep });
     }
+  }
+
+  /**
+   * Go, read from go.mod. The standard library is a legitimate answer here in a way it
+   * is not elsewhere: plenty of production Go services use net/http and nothing else,
+   * so a module with Go sources and no framework is reported as `go` rather than as
+   * nothing.
+   */
+  const goFrameworks: Array<[string, string[]]> = [
+    ['gin', ['gin-gonic/gin']],
+    ['echo', ['labstack/echo', 'labstack/echo/v4']],
+    ['fiber', ['gofiber/fiber', 'gofiber/fiber/v2']],
+    ['chi', ['go-chi/chi', 'go-chi/chi/v5']],
+    ['gorilla', ['gorilla/mux']],
+    ['beego', ['beego/beego']],
+  ];
+
+  let namedGoFramework = false;
+
+  for (const [framework, deps] of goFrameworks) {
+    const hits = hasAnyGoDep(ctx, deps);
+    if (!hits.length) continue;
+
+    namedGoFramework = true;
+    frameworks.push(framework);
+    for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
+  }
+
+  if (!namedGoFramework && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
+    frameworks.push('go');
+    evidence.push({ type: 'note', value: 'a Go module with no web framework named in go.mod' });
+  }
+
+  /** Ruby, read from the Gemfile. */
+  const rubyFrameworks: Array<[string, string[]]> = [
+    ['rails', ['rails']],
+    ['sinatra', ['sinatra']],
+    ['hanami', ['hanami']],
+    ['roda', ['roda']],
+    ['grape', ['grape']],
+  ];
+
+  let namedRubyFramework = false;
+
+  for (const [framework, deps] of rubyFrameworks) {
+    const hits = hasAnyRubyDep(ctx, deps);
+    if (!hits.length) continue;
+
+    namedRubyFramework = true;
+    frameworks.push(framework);
+    for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
+  }
+
+  if (!namedRubyFramework && ctx.files.all.some((f) => /(^|\/)Gemfile$/.test(f))) {
+    frameworks.push('ruby');
+    evidence.push({ type: 'note', value: 'a Gemfile with no web framework in it' });
   }
 
   /**

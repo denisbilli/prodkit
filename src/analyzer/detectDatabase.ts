@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasAnyDep, hasAnyPyDep, type DetectContext } from './detectContext';
+import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyRubyDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 
 /**
@@ -104,6 +104,36 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
       databases.add(db);
       for (const h of hits) evidence.push({ type: 'dependency', value: h });
     }
+  }
+
+  const goHits: Array<[string, string[]]> = [
+    ['postgres', ['jackc/pgx', 'jackc/pgx/v5', 'lib/pq']],
+    ['mysql', ['go-sql-driver/mysql']],
+    ['sqlite', ['mattn/go-sqlite3', 'modernc.org/sqlite']],
+    ['mongodb', ['mongo-driver']],
+    ['redis', ['go-redis', 'redis/go-redis/v9']],
+  ];
+  for (const [db, names] of goHits) {
+    const hits = hasAnyGoDep(ctx, names);
+    if (!hits.length) continue;
+
+    databases.add(db);
+    for (const hit of hits) evidence.push({ type: 'dependency', value: hit });
+  }
+
+  const rubyHits: Array<[string, string[]]> = [
+    ['postgres', ['pg']],
+    ['mysql', ['mysql2']],
+    ['sqlite', ['sqlite3']],
+    ['mongodb', ['mongoid']],
+    ['redis', ['redis']],
+  ];
+  for (const [db, names] of rubyHits) {
+    const hits = hasAnyRubyDep(ctx, names);
+    if (!hits.length) continue;
+
+    databases.add(db);
+    for (const hit of hits) evidence.push({ type: 'dependency', value: hit });
   }
 
   // SQLite file

@@ -278,6 +278,41 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    * backend of "unknown" because nothing read this file, while 57 source files sat
    * beside it saying plainly what the project was.
    */
+  /**
+   * go.mod and the Gemfile, read the same way and for the same reason as composer.json:
+   * a repository whose manifest nothing here parses is reported with a backend of
+   * "unknown" while its source sits in plain sight.
+   *
+   * Both are parsed with regular expressions rather than properly. A go.mod require
+   * block and a `gem 'name'` line are simple enough that a parser would be more code
+   * than it is worth, and a manifest this cannot read yields no dependencies rather
+   * than a wrong answer.
+   */
+  const goDeps: string[] = [];
+
+  for (const file of allFiles.filter((f) => /(^|\/)go\.mod$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    for (const line of raw.split('\n')) {
+      const match = /^\s*(?:require\s+)?([a-z0-9][\w.-]*(?:\.[a-z]{2,})?\/[\w./-]+)\s+v/i.exec(line);
+      if (match) goDeps.push(match[1].toLowerCase());
+    }
+  }
+
+  const rubyDeps: string[] = [];
+
+  for (const file of allFiles.filter((f) => /(^|\/)Gemfile$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    for (const line of raw.split('\n')) {
+      // Skip commented-out gems, which are otherwise indistinguishable from real ones.
+      if (/^\s*#/.test(line)) continue;
+
+      const match = /^\s*gem\s+['"]([^'"]+)['"]/.exec(line);
+      if (match) rubyDeps.push(match[1].toLowerCase());
+    }
+  }
+
   const composerFiles = allFiles.filter((file) => /(^|\/)composer\.json$/.test(file));
   const phpDeps: string[] = [];
 
@@ -334,6 +369,8 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     packageJson,
     pythonDeps,
     phpDeps: unique(phpDeps),
+    goDeps: unique(goDeps),
+    rubyDeps: unique(rubyDeps),
     npmDeps,
     workspaces,
   };

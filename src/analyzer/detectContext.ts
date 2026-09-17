@@ -24,6 +24,10 @@ export interface DetectContext {
    * built on was invisible while 57 source files sat next to it.
    */
   phpDeps: string[];
+  /** Module paths from go.mod, lowercase. */
+  goDeps: string[];
+  /** Gem names from the Gemfile, lowercase. */
+  rubyDeps: string[];
   /** Lowercased combined dependency map (deps + devDeps). */
   npmDeps: Record<string, string>;
   workspaces: WorkspaceManifest[];
@@ -45,10 +49,37 @@ export function hasAnyPyDep(ctx: DetectContext, names: string[]): string[] {
   return names.filter((n) => hasPyDep(ctx, n));
 }
 
+/**
+ * One implementation for every manifest.
+ *
+ * Python and PHP each had their own identical pair of helpers. Go and Ruby would have
+ * made four, which is where copying stops being cheaper than sharing — and the next
+ * language after that would have copied whichever of the four it happened to land next
+ * to, including any drift.
+ */
+function hasAnyIn(list: string[], names: string[]): string[] {
+  return names.filter((name) => list.includes(name.toLowerCase()));
+}
+
 export function hasPhpDep(ctx: DetectContext, name: string): boolean {
-  return ctx.phpDeps.includes(name.toLowerCase());
+  return hasAnyIn(ctx.phpDeps, [name]).length > 0;
 }
 
 export function hasAnyPhpDep(ctx: DetectContext, names: string[]): string[] {
-  return names.filter((name) => hasPhpDep(ctx, name));
+  return hasAnyIn(ctx.phpDeps, names);
+}
+
+/**
+ * Go module paths are matched on a suffix: a manifest says
+ * `github.com/gin-gonic/gin`, and a rule should be able to ask for `gin-gonic/gin`
+ * without repeating the host, which can differ for forks and mirrors.
+ */
+export function hasAnyGoDep(ctx: DetectContext, names: string[]): string[] {
+  return names.filter((name) =>
+    ctx.goDeps.some((dep) => dep === name.toLowerCase() || dep.endsWith(`/${name.toLowerCase()}`))
+  );
+}
+
+export function hasAnyRubyDep(ctx: DetectContext, names: string[]): string[] {
+  return hasAnyIn(ctx.rubyDeps, names);
 }

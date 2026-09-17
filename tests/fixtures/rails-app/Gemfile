@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+gem "rails", "~> 7.2"
+gem "pg", "~> 1.5"
+# A commented-out gem is not a dependency, and reads exactly like one.
+# gem "sinatra"

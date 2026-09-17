@@ -151,6 +151,9 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 - **Backend (Node):** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS,
   SvelteKit, Remix, Nuxt, Nitro
+- **Backend (Go):** Gin, Echo, Fiber, chi, Gorilla, Beego, and plain `net/http` read
+  from `go.mod`
+- **Backend (Ruby):** Rails, Sinatra, Hanami, Roda, Grape read from the `Gemfile`
 - **Backend (PHP):** Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, and plain PHP
   read from `composer.json`
 - **Backend (Python):** Django, FastAPI, Flask, Litestar, Starlette, Sanic, Tornado,
