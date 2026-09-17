@@ -65,3 +65,26 @@ describe('game detection and profile', () => {
     expect(saves?.complete).toBe(false);
   });
 });
+
+describe('a browser application is not a static site', () => {
+  it('refuses to judge an application that runs in the browser as a page', async () => {
+    // The branch read "no backend" as "no application" and applied the profile that
+    // expects almost nothing — so a factory simulator and a CAD application were both
+    // told they were fine. This failure runs the other way from the rest: it demands
+    // nothing, which is harder to notice and worse to act on.
+    const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
+    const inference = inferProductProfile(await analyzeProject(fixture('browser-app')));
+
+    expect(inference.inferredProfile).not.toBe('static-site');
+    expect(inference.suggestion?.reason).toMatch(/not a static site/i);
+  });
+
+  it('still calls an actual brochure site a static site', async () => {
+    // The other half: this must not become "no project is ever a static site".
+    const { inferProductProfile } = await import('../src/expectations/inferProductProfile');
+    const inference = inferProductProfile(await analyzeProject(fixture('brochure-site')));
+
+    expect(inference.inferredProfile).toBe('static-site');
+    expect(inference.confidence).toBe('high');
+  });
+});

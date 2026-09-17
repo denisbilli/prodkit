@@ -26,8 +26,37 @@ export function inferProductProfile(analysis: ProjectAnalysis): ProductProfileIn
   const marketplaceHints = /seller|buyer|vendor|listing|order/i.test(sourceHints);
   const adminHints = /admin|\/users|subscription|billing/i.test(sourceHints);
 
+  /**
+   * A static site is content. An application that happens to run entirely in the
+   * browser is not one, and this branch used to call it one with high confidence — then
+   * apply the profile that expects almost nothing, and report that it was fine.
+   *
+   * "No backend" was being read as "no application", but a client-side application has
+   * no backend by design: a calculator, an editor, a simulator, a visualisation tool.
+   * Measured across eleven repositories, two were caught this way — a factory simulator
+   * with a domain model, and a CAD application with a 3D renderer and a state store.
+   *
+   * This failure runs the other way from the ones it sits beside. It does not demand
+   * too much of a project; it demands nothing, which is harder to notice and worse to
+   * act on.
+   */
+  const clientLogic = analysis.detectors['stack.clientLogic']?.present === true;
+
   if (frontendPresent && !backendPresent && !dbPresent && !auth) {
-    return { inferredProfile: 'static-site', confidence: 'high', reason: 'Frontend-only structure with no backend/db/auth signals.' };
+    if (!clientLogic) {
+      return { inferredProfile: 'static-site', confidence: 'high', reason: 'Frontend-only structure with no backend/db/auth signals.' };
+    }
+
+    return {
+      inferredProfile: null,
+      confidence: 'low',
+      reason: 'A front end with state and logic but no backend: an application that runs in the browser, which no profile currently describes.',
+      suggestion: {
+        profile: 'static-site',
+        reason:
+          'This runs entirely in the browser but holds real state and logic, so it is not a static site — and judging it as one would hold it to almost nothing. There is no profile for a client-side application yet; --profile static-site is the closest, and it will understate what this needs.',
+      },
+    };
   }
 
   /**
