@@ -68,7 +68,32 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   const apiKeySignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/x-api-key/i, /apiKey/i, /API_KEY/, /token\s*scope/i],
+    [
+      /**
+       * A key this project checks, not a key it holds.
+       *
+       * `apiKey` and `API_KEY` matched both, and almost every project that calls a
+       * model or a maps service has one of its own. `--api-key YOUR_API_KEY_HERE`, in
+       * the usage text of a script that downloads from YouTube, was enough to decide a
+       * one-page Streamlit application offers an API to other callers — and it was then
+       * asked at medium severity to restrict cross-origin access to it.
+       *
+       * What distinguishes a provider is reading a key out of an incoming request, or
+       * looking one up to see whether it is valid. Holding a secret is what a client
+       * does.
+       */
+      /x-api-key/i,
+      /headers?\s*[[.(]\s*['"]?(authorization|x-api-key)/i,
+      /**
+       * A verb on its own does not say which side you are on. `check_api_key(api_key)`
+       * in a script that downloads from YouTube is a client making sure its own key
+       * looks right before spending a request on it. What it cannot be is a store of
+       * keys you issued.
+       */
+      /api[_-]?keys?\s*\.\s*(find|where|get|create)/i,
+      /hashed?[_-]?(api[_-]?)?key/i,
+      /token\s*scope/i,
+    ],
     20
   );
   const passwordResetSignals = await searchInFiles(

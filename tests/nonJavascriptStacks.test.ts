@@ -169,3 +169,68 @@ describe('a check that passed', () => {
     }
   });
 });
+
+/**
+ * Verified what the unreleased batch newly reports, not only what it stops reporting.
+ * Three repositories gained a cross-origin finding they should not have.
+ */
+describe('a page framework is not an API server', () => {
+  it('does not ask a Streamlit application to restrict cross-origin access', async () => {
+    // Streamlit, Gradio, Dash and Chainlit exist to render a page. They were added to
+    // the backend catalogue and not to the list of frameworks that serve pages, so a
+    // one-file Streamlit application was treated as an API server.
+    const root = await project({
+      'main.py': 'import streamlit as st\nimport openai\n\nst.title("Ask")\n',
+    });
+
+    const report = buildReport(await analyzeProject(root), { profile: 'ai-saas' });
+    expect(report.findings.filter((f) => /CORS/i.test(f.title) && f.status === 'missing')).toEqual([]);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+});
+
+/**
+ * `apiKey` and `API_KEY` matched a key a project holds as readily as one it checks, and
+ * almost every project that calls a model has one of its own.
+ */
+describe('a key you hold is not a key you check', () => {
+  it('does not read an outbound credential as an API of your own', async () => {
+    // `--api-key YOUR_API_KEY_HERE`, in the usage text of a script that downloads from
+    // YouTube, was enough to decide a one-page application offers an API to other
+    // callers — and to ask it to restrict cross-origin access to it.
+    const root = await project({
+      'requirements.txt': 'requests\n',
+      'download.py': 'import argparse\n\nparser = argparse.ArgumentParser()\nparser.add_argument("--api-key", help="--api-key YOUR_API_KEY_HERE")\nAPI_KEY = "set me"\n',
+    });
+
+    const analysis = await analyzeProject(root);
+    expect(analysis.detectors['auth.apiKeys']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('reads a key taken out of an incoming request', async () => {
+    const root = await project({
+      'package.json': '{"name":"api","dependencies":{"express":"^4.18.0"}}',
+      'src/auth.js': "function guard(req, res, next) {\n  const key = req.headers['x-api-key'];\n  if (!key) return res.status(401).end();\n  next();\n}\nmodule.exports = { guard };\n",
+    });
+
+    const analysis = await analyzeProject(root);
+    expect(analysis.detectors['auth.apiKeys']?.present).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('reads a store of keys you issued', async () => {
+    const root = await project({
+      'package.json': '{"name":"api","dependencies":{"express":"^4.18.0"}}',
+      'src/keys.js': "async function find(raw) {\n  return apiKeys.find({ hashedKey: hash(raw) });\n}\nmodule.exports = { find };\n",
+    });
+
+    const analysis = await analyzeProject(root);
+    expect(analysis.detectors['auth.apiKeys']?.present).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+});

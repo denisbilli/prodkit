@@ -347,7 +347,17 @@ function servesCrossOrigin(analysis: ProjectAnalysis): boolean {
    * bare PHP application's default output is HTML. Where one of them also exposes an
    * API, the `api/` check above has already said so.
    */
-  const PAGE_RENDERING = ['django', 'rails', 'laravel', 'symfony', 'php', 'next', 'nuxt', 'astro', 'sveltekit', 'remix'];
+  /**
+   * Streamlit, Gradio, Dash and Chainlit are here for the same reason Django is: their
+   * whole purpose is to render a page. They were added to the backend catalogue in
+   * 0.9.0 and not to this list, so a one-file Streamlit application was treated as an
+   * API server and asked at high severity to restrict cross-origin access it does not
+   * offer.
+   */
+  const PAGE_RENDERING = [
+    'django', 'rails', 'laravel', 'symfony', 'php', 'next', 'nuxt', 'astro', 'sveltekit', 'remix',
+    'streamlit', 'gradio', 'dash', 'chainlit',
+  ];
   const rendersPages = analysis.stack.backend.some((framework) => PAGE_RENDERING.includes(framework))
     || analysis.files.all.some((file) =>
       /(^|\/)(templates?|views)\//i.test(file)
