@@ -135,10 +135,23 @@ function buildVerdict(args: {
   profile: ProductExpectationResult | undefined;
   maturity: MaturityLevel;
   inconclusive: boolean;
+  inconclusiveReasons: string[];
 }): { verdict: string; launchReady: boolean } {
   if (args.inconclusive) {
+    /**
+     * The reason, where there is one worth giving.
+     *
+     * "Check that the path points at application source" is right for a directory with
+     * nothing in it and wrong for a Phoenix application: the path was fine, the language
+     * is one this analyzer does not read, and telling its author to check their path
+     * sends them looking for a mistake they did not make.
+     */
+    const [reason] = args.inconclusiveReasons;
+
     return {
-      verdict: 'ProdKit could not recognise this project well enough to judge it. Check that the path points at application source.',
+      verdict: reason
+        ? `ProdKit could not judge this project. ${reason}`
+        : 'ProdKit could not recognise this project well enough to judge it. Check that the path points at application source.',
       launchReady: false,
     };
   }
@@ -218,11 +231,14 @@ export function buildExecutiveSummary(args: {
   observedScore: number;
   overallScore: number;
   inconclusive: boolean;
+  /** Why, when the report could not form a reading. Named in the verdict. */
+  inconclusiveReasons?: string[];
 }): ExecutiveSummary {
   const { verdict, launchReady } = buildVerdict({
     profile: args.profile,
     maturity: args.maturity,
     inconclusive: args.inconclusive,
+    inconclusiveReasons: args.inconclusiveReasons ?? [],
   });
 
   const topRisks = weakestCategories(args.categoryScores).map((entry) => {

@@ -154,3 +154,43 @@ describe('an absence is evidenced by what was looked for', () => {
     expect(uploads?.evidence.some((item) => item.type === 'snippet')).toBe(true);
   });
 });
+
+/**
+ * A warning printed beside a verdict that ignores it is not a warning.
+ *
+ * Plausible is a Phoenix application: 1257 Elixir files with 215 of JavaScript around
+ * them. The analyzer said exactly that — "1257 Elixir files were not analysed: this
+ * reading covers only part of the repository" — and in the same report called it a
+ * client application, with high confidence, scored 85 and not inconclusive. Found by
+ * cloning public repositories; not one of the seventy-eight on the machine this was
+ * written on crosses the line.
+ */
+describe('a reading that covers a minority of the repository', () => {
+  it('does not characterise a project whose language it cannot read', async () => {
+    const report = buildReport(await analyzeProject(fixture('phoenix-app')), { profile: 'auto' });
+
+    expect(report.inconclusive).toBe(true);
+    expect(report.overallScore).toBeLessThanOrEqual(39);
+  });
+
+  it('says which language, rather than telling the author to check their path', async () => {
+    // "Check that the path points at application source" is right for an empty directory
+    // and wrong here: the path was fine, and it sends somebody looking for a mistake they
+    // did not make.
+    const report = buildReport(await analyzeProject(fixture('phoenix-app')), { profile: 'auto' });
+
+    expect(report.inconclusiveReasons.join(' ')).toMatch(/written in Elixir/);
+    expect(report.executiveSummary.verdict).toMatch(/Elixir/);
+  });
+
+  it('leaves a project with a few files in another language alone', async () => {
+    /**
+     * The shape this must not break. A game with some C++ beside its TypeScript, a
+     * Flutter application with a Lua script: the unread part is a minority and the
+     * reading stands.
+     */
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'auto' });
+
+    expect(report.inconclusiveReasons.join(' ')).not.toMatch(/does not read/);
+  });
+});

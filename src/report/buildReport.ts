@@ -212,7 +212,27 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
    */
   const tooLittleAssessed = requestedProfile !== 'observed-only'
     && assessedChecks < MIN_ASSESSED_FOR_A_READING;
-  const inconclusive = nothingIdentified || tooLittleAssessed;
+
+  /**
+   * The report reads its own warning.
+   *
+   * Plausible is a Phoenix application: 1257 Elixir files and 215 of JavaScript around
+   * them. The analyzer said so — "1257 Elixir files were not analysed: this reading
+   * covers only part of the repository" — and in the same report called it a client
+   * application, with high confidence, scored 85 and not inconclusive. A warning printed
+   * beside a verdict that ignores it is not a warning.
+   *
+   * The test is which part is bigger. Where the languages nothing here can read
+   * outnumber the files it did read, the reading rests on a minority of the repository
+   * and cannot characterise it — whatever those remaining files happen to look like. A
+   * game with a handful of C++ files beside its TypeScript is unaffected, which is the
+   * shape this must not break: not one of the seventy-eight repositories on the machine
+   * this was written on crosses the line, and the first public repository that did was
+   * the sixth one tried.
+   */
+  const unreadableFiles = analysis.files.unreadable.reduce((total, entry) => total + entry.files, 0);
+  const mostlyUnreadable = unreadableFiles > analysis.files.source.length;
+  const inconclusive = nothingIdentified || tooLittleAssessed || mostlyUnreadable;
 
   // Each reason says which of the two it was, because they call for different things:
   // one is a repository this analyzer cannot read, the other is one there is barely
@@ -224,6 +244,12 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     if (analysis.files.source.length === 0) {
       inconclusiveReasons.push('No recognizable source files were found.');
     }
+  }
+  if (mostlyUnreadable) {
+    const [largest] = [...analysis.files.unreadable].sort((left, right) => right.files - left.files);
+    inconclusiveReasons.push(
+      `Most of this repository is written in ${largest.language}, which this analyzer does not read: ${unreadableFiles} of its files were skipped and ${analysis.files.source.length} were read.`,
+    );
   }
   if (tooLittleAssessed) {
     inconclusiveReasons.push(
@@ -319,6 +345,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     observedScore,
     overallScore,
     inconclusive,
+    inconclusiveReasons,
   });
   const expectationMode = determineExpectationMode(requestedProfile, productProfile, expectationScore);
   const diagnostics = {

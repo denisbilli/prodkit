@@ -38,7 +38,7 @@ describe('executive summary', () => {
     const report = buildReport(analysis, { profile: 'b2b-saas' });
 
     if (report.inconclusive) {
-      expect(report.executiveSummary.verdict).toMatch(/could not recognise/i);
+      expect(report.executiveSummary.verdict).toMatch(/could not judge this project/i);
       expect(report.executiveSummary.launchReady).toBe(false);
     }
   });

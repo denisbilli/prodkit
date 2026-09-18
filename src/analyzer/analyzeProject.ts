@@ -590,7 +590,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
 
   const ctx: DetectContext = {
     root,
-    files: { all: allFiles, source: sourceFiles, config: configFiles },
+    files: { all: allFiles, source: sourceFiles, config: configFiles, unreadable: unreadableLanguages(allFiles) },
     packageJson,
     pythonDeps,
     phpDeps: unique(phpDeps),
@@ -704,6 +704,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     pythonDeps,
     workspaceStacks,
     files: {
+      unreadable: unreadableLanguages(allFiles),
       all: allFiles,
       source: sourceFiles,
       config: configFiles,

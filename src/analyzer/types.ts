@@ -106,6 +106,16 @@ export interface ProjectFiles {
   source: string[];
   /** Config files. */
   config: string[];
+  /**
+   * Files in languages nothing here can read, counted by language.
+   *
+   * The warning built from this has existed for a while and said the right thing —
+   * "1257 Elixir files were not analysed: this reading covers only part of the
+   * repository" — while the same report named a profile with high confidence and scored
+   * it 85. Exposing the count rather than only the sentence lets the reading take its
+   * own warning into account instead of printing it beside a verdict that ignores it.
+   */
+  unreadable: Array<{ language: string; files: number }>;
 }
 
 export interface PackageJson {
