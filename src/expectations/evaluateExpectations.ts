@@ -236,7 +236,7 @@ const FINDING_ID_BASE: Record<string, string> = {
  * `getRemediationEntry` already matches across the two suffixes — it was written for
  * exactly this — so the plan still finds its task.
  */
-function toFindingId(capability: ExpectedCapability, importance: CapabilityImportance): string {
+export function toFindingId(capability: ExpectedCapability, importance: CapabilityImportance): string {
   const base = FINDING_ID_BASE[capability.id] ?? `expectation.${capability.id}`;
   return `${base}.${importance}`;
 }
