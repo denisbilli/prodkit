@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { analyzeProject } from '../src/analyzer/analyzeProject';
 import { buildReport } from '../src/report/buildReport';
 
@@ -223,5 +223,82 @@ describe('a keyword that happens to sit inside another word', () => {
     const analysis = await analyzeProject(fixture('express-two-factor'));
 
     expect(analysis.detectors['auth.2fa']?.present).toBe(true);
+  });
+});
+
+/**
+ * Reading structure instead of prose.
+ *
+ * Three patches were written in one day for the same question — a chat transcript, a
+ * game's `part.role`, JSX picking an icon — each against a shape the last one missed.
+ * The question none of them could ask is whether a comparison guards an action or
+ * chooses a label, and a syntax tree answers it for shapes nobody has thought of yet.
+ */
+describe('a comparison that guards, and one that labels', () => {
+  it('tells a predicate from a rendered label', async () => {
+    const { readRoleChecks } = await import('../src/analyzer/structural/roleChecks');
+    const root = fixture('roles-and-chat');
+    const analysis = await analyzeProject(root);
+
+    const checks = await readRoleChecks(root, analysis.files.source);
+    expect(checks, 'the optional TypeScript dependency is installed in this repository').not.toBeNull();
+
+    const guards = checks!.filter((check) => check.kind === 'guard');
+    const labels = checks!.filter((check) => check.kind === 'label');
+
+    // `const canPublish = (member) => member.role === ROLE_EDITOR` is asked; every
+    // comparison in the transcript picks a word or an icon.
+    expect(guards.map((check) => check.snippet)).toEqual(['member.role === ROLE_EDITOR']);
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.every((check) => check.file.endsWith('.jsx'))).toBe(true);
+  });
+
+  it('does not read a return of a label as a refusal', async () => {
+    // `if (role === 'assistant') { return 'Assistant'; }` returns a word. A refusal
+    // returns nothing, or answers a request.
+    const { readRoleChecks } = await import('../src/analyzer/structural/roleChecks');
+    const root = fixture('chat-roles-only');
+    const analysis = await analyzeProject(root);
+
+    const checks = await readRoleChecks(root, analysis.files.source);
+
+    expect(checks!.every((check) => check.kind === 'label')).toBe(true);
+  });
+
+  it('does not parse generated output', async () => {
+    // The same line the text layer refuses to quote: a bundle on one line is not
+    // something anybody wrote.
+    const { readRoleChecks } = await import('../src/analyzer/structural/roleChecks');
+    const root = fixture('bundled-asset');
+    const analysis = await analyzeProject(root);
+
+    const checks = await readRoleChecks(root, analysis.files.source);
+
+    expect(checks!.some((check) => check.file.includes('index-BVY8w6Ig'))).toBe(false);
+  });
+
+  it('says it could not ask, rather than answering no', async () => {
+    /**
+     * `null` is not "no roles found". When the optional dependency is absent the
+     * question was not asked at all, and the detector falls back to searching text —
+     * confusing the two is the mistake this product exists to avoid.
+     */
+    const { readRoleChecks } = await import('../src/analyzer/structural/roleChecks');
+    const { resetTypeScriptCache } = await import('../src/analyzer/structural/loadTypeScript');
+
+    vi.resetModules();
+    vi.doMock('typescript', () => {
+      throw new Error('not installed');
+    });
+    resetTypeScriptCache();
+
+    const fresh = await import('../src/analyzer/structural/roleChecks');
+    const result = await fresh.readRoleChecks(fixture('roles-and-chat'), ['src/guard.js']);
+
+    expect(result).toBeNull();
+
+    vi.doUnmock('typescript');
+    resetTypeScriptCache();
+    void readRoleChecks;
   });
 });

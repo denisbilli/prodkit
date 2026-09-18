@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles, type TextMatch } from '../utils/textSearch';
+import { readRoleChecks } from './structural/roleChecks';
 import { searchedFor } from './absenceEvidence';
 
 /**
@@ -191,20 +192,44 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     25
   );
 
-  const roleSignals = excludeChatTurnRoles(await searchInFiles(
+  /**
+   * Structure first, text underneath.
+   *
+   * `excludeChatTurnRoles` below is three patches written in one day, each against a
+   * shape the last one missed: a chat transcript, a game's `part.role`, JSX picking an
+   * icon. A syntax tree asks the question all three were really about — does this
+   * comparison guard something, or label something — and answers it for shapes nobody
+   * has thought of yet.
+   *
+   * `null` means the question could not be asked, because the optional TypeScript
+   * dependency is not installed. It is not "no roles found": the two are different
+   * answers and confusing them is the mistake this product exists to avoid. When it is
+   * null, the text search below runs exactly as before.
+   */
+  const structuralRoles = await readRoleChecks(ctx.root, sourceFiles);
+  const guardedRoles = structuralRoles?.filter((check) => check.kind === 'guard') ?? null;
+
+  /**
+   * Two kinds of signal, and only one of them was ever ambiguous.
+   *
+   * `requireRole(...)`, `isAdmin`, `roles.includes(...)` say what they are in the text:
+   * nobody writes `requireRole` to render a label. The comparison — `x.role === 'y'` —
+   * is the one that meant three different things in three repositories, and it is the
+   * one the tree answers.
+   */
+  const unambiguousRoles = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [
-      /requireRole/i,
-      /isAdmin/i,
-      /SUPER_ADMIN/i,
-      /req\.user\.role/i,
-      /user\.role/i,
-      /role\s*===/i,
-      /roles\.includes\(/i,
-    ],
+    [/requireRole/i, /isAdmin/i, /SUPER_ADMIN/i, /roles\.includes\(/i],
     20
-  ));
+  );
+
+  const comparedRoles = guardedRoles
+    ?? excludeChatTurnRoles(
+      await searchInFiles(ctx.root, sourceFiles, [/req\.user\.role/i, /user\.role/i, /role\s*===/i], 20),
+    );
+
+  const roleSignals = [...unambiguousRoles, ...comparedRoles].slice(0, 20);
   const permissionSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
