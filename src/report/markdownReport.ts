@@ -91,7 +91,9 @@ function formatFinding(f: Finding): string {
     `- Category: ${f.category}`,
     `- Description: ${f.description}`,
     ...(f.businessImpact ? [`- What this means: ${f.businessImpact}`] : []),
-    `- Recommendation: ${f.recommendation}`,
+    // Empty for a check that passed: there is nothing to recommend to somebody who
+    // already did it.
+    ...(f.recommendation ? [`- Recommendation: ${f.recommendation}`] : []),
     `- Confidence: ${f.confidence}`,
     `- Evidence quality: ${f.evidenceQuality}`,
     '- Evidence:',

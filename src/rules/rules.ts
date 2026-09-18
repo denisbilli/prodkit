@@ -708,7 +708,15 @@ export const rules: Rule[] = [
         description: status === 'missing'
           ? 'No meaningful deployment artifacts or prod/runtime signals detected.'
           : 'Deployment artifacts or runtime production signals detected.',
-        recommendation: 'Add production-aware config, CI workflow, and graceful shutdown handling.',
+        /**
+         * Graceful shutdown is left out where there is no signal to catch: PHP-FPM and
+         * CGI hand each request to a worker that exits when it is done, and telling a
+         * PHP project to handle SIGTERM is a Node idiom pointed at a process model that
+         * does not have one.
+         */
+        recommendation: analysis.detectors['deployment.readiness']?.details?.gracefulShutdownApplies === false
+          ? 'Add production-aware config and a CI workflow.'
+          : 'Add production-aware config, CI workflow, and graceful shutdown handling.',
         evidence: dep?.evidence ?? [],
       });
     },

@@ -98,7 +98,19 @@ function describesADefect(finding: Finding): boolean {
 
 export function withBusinessImpact(findings: Finding[]): Finding[] {
   return findings.map((finding) => {
-    if (!describesADefect(finding)) return finding;
+    if (!describesADefect(finding)) {
+      /**
+       * A check that passed has nothing to recommend.
+       *
+       * Every one of the thirty passed checks across four real reports carried an
+       * instruction to add what the project already has — "add production-aware config,
+       * CI workflow, and graceful shutdown handling" printed under a finding that says
+       * deployment readiness was detected. 0.11.0 stopped these findings asserting a
+       * consequence and left the instruction in place, which is the same half-fix in a
+       * different column.
+       */
+      return finding.recommendation ? { ...finding, recommendation: '' } : finding;
+    }
 
     const businessImpact = businessImpactFor(finding);
     return businessImpact ? { ...finding, businessImpact } : finding;

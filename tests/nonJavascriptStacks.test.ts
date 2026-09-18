@@ -98,3 +98,74 @@ describe('who is expected to call this', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 });
+
+/**
+ * A project with a Dockerfile, a compose file and a documented production override was
+ * reported as having an incomplete deployment story. The check looked for `NODE_ENV`
+ * and `DEBUG = False`.
+ */
+describe('how a project says it is going to production', () => {
+  it('counts a production compose override', async () => {
+    const root = await project({
+      'composer.json': '{"name":"x/y","require":{"php":">=8.2"}}',
+      'src/Controllers/HomeController.php': '<?php\nclass HomeController { public function index() { echo "hi"; } }\n',
+      'Dockerfile': 'FROM php:8.2-fpm\nEXPOSE 9000\n',
+      'docker-compose.yml': 'services:\n  web:\n    build: .\n',
+      'docker-compose.prod.yml': '# Production override\nservices:\n  web:\n    restart: always\n',
+    });
+
+    const analysis = await analyzeProject(root);
+    expect(analysis.detectors['deployment.readiness']?.details?.productionAware).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not count boilerplate every project of that framework ships', async () => {
+    // `os.environ.setdefault("DJANGO_SETTINGS_MODULE", …)` sits in every manage.py and
+    // wsgi.py Django has ever generated. Counting it made a project with no Docker, no
+    // CI and DEBUG = True report a complete deployment story on its own boilerplate.
+    const root = await project({
+      'requirements.txt': 'django==5.0\n',
+      'manage.py': 'import os\nos.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")\n',
+      'app/wsgi.py': 'import os\nos.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.settings")\n',
+    });
+
+    const analysis = await analyzeProject(root);
+    expect(analysis.detectors['deployment.readiness']?.details?.productionAware).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not ask a per-request runtime to handle a shutdown signal', async () => {
+    // PHP-FPM hands each request to a worker that exits when it is done; there is no
+    // signal for the application to catch.
+    const report = buildReport(await analyzeProject(fixture('php-monolith')), { profile: 'b2c-app' });
+    const deployment = report.findings.find((f) => f.id === 'deployment.readiness');
+
+    expect(deployment?.recommendation ?? '').not.toMatch(/graceful shutdown/i);
+  });
+});
+
+describe('a check that passed', () => {
+  it('does not tell the reader to do what they already did', async () => {
+    // Every one of the thirty passed checks across four real reports carried an
+    // instruction to add what the project already has.
+    const report = buildReport(await analyzeProject(fixture('express-secure')), { profile: 'b2b-saas' });
+    const passed = report.findings.filter((f) => f.status === 'passed');
+
+    expect(passed.length).toBeGreaterThan(0);
+    for (const finding of passed) {
+      expect(finding.recommendation, `${finding.id}`).toBe('');
+    }
+  });
+
+  it('leaves the instruction on a check that did not', async () => {
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'b2b-saas' });
+    const open = report.findings.filter((f) => f.status === 'missing');
+
+    expect(open.length).toBeGreaterThan(0);
+    for (const finding of open) {
+      expect(finding.recommendation.length, `${finding.id}`).toBeGreaterThan(0);
+    }
+  });
+});
