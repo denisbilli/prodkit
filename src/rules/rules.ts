@@ -784,14 +784,33 @@ export const rules: Rule[] = [
     severity: 'low',
     evaluate: ({ analysis }) => {
       const dep = analysis.detectors['deployment.readiness'];
-      const status = statusFromFlags(Boolean(dep?.present), dep?.complete);
+
+      /**
+       * Deploying is something you do to a service.
+       *
+       * A package is published to a registry, a phone application is released to a
+       * store, and a page is hosted by whatever serves it — none of which this
+       * repository has to contain, and none of which this analyzer reads. Thirty-nine of
+       * the seventy-eight repositories in the verification corpus were being told they
+       * had "no meaningful deployment artifacts": libraries, browser games, a Flutter
+       * app. The same sentence this product already refuses to say about a Dockerfile.
+       *
+       * Where the repository does carry deployment artifacts the question is live again
+       * whatever it is — somebody wrote a compose file for a reason — so this only
+       * applies when there are none at all.
+       */
+      const deployedFromHere = isAServer(analysis) || Boolean(dep?.present);
+      const status = deployedFromHere ? statusFromFlags(Boolean(dep?.present), dep?.complete) : 'unknown';
+
       return mkFinding({
         id: 'deployment.readiness',
         title: 'Deployment readiness baseline',
         category: 'deployment',
         status,
         severity: sevForStatus(status, 'low'),
-        description: status === 'missing'
+        description: !deployedFromHere
+          ? 'Nothing in this repository is deployed as a running service, so how it reaches people — a registry, a store, a host — is decided outside it.'
+          : status === 'missing'
           ? 'No meaningful deployment artifacts or prod/runtime signals detected.'
           : 'Deployment artifacts or runtime production signals detected.',
         /**

@@ -1,6 +1,7 @@
 import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import { analyzeProject } from '../src/analyzer/analyzeProject';
+import { buildReport } from '../src/report/buildReport';
 
 const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
 
@@ -63,5 +64,47 @@ describe('a chat transcript is not an authorization model', () => {
     expect(cited.some((line) => line.includes('requireRole'))).toBe(true);
     expect(cited.some((line) => line.includes("m.role === 'user'"))).toBe(false);
     expect(cited.some((line) => line.includes("role === 'assistant'"))).toBe(false);
+  });
+});
+
+/**
+ * Deploying is something you do to a service.
+ *
+ * This product's own description promises that a game is not asked for a Dockerfile.
+ * Thirty-nine of the seventy-eight repositories in the verification corpus were being
+ * told they had "no meaningful deployment artifacts": libraries, browser games, a
+ * Flutter app whose deployment story is a store release.
+ */
+describe('what deployment means depends on what is being deployed', () => {
+  it('does not ask a package how it is deployed', async () => {
+    const report = buildReport(await analyzeProject(fixture('dotnet-library')), { profile: 'auto' });
+    const finding = report.findings.find((f) => f.id === 'deployment.readiness');
+
+    expect(finding?.status).toBe('unknown');
+    expect(finding?.description).toMatch(/decided outside it/);
+  });
+
+  it('does not ask a phone application either', async () => {
+    const report = buildReport(await analyzeProject(fixture('android-app')), { profile: 'auto' });
+
+    expect(report.findings.find((f) => f.id === 'deployment.readiness')?.status).toBe('unknown');
+  });
+
+  it('still asks a server that ships nothing to say how it runs', async () => {
+    // The question is live wherever something is actually deployed from here.
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'auto' });
+
+    expect(report.findings.find((f) => f.id === 'deployment.readiness')?.status).toBe('missing');
+  });
+
+  it('assesses anything carrying deployment artifacts, whatever it is', async () => {
+    /**
+     * A static page with a Dockerfile and a compose file beside it. Nothing here serves
+     * requests, so the rule above would let it off — but somebody wrote those files for
+     * a reason, and the question is live wherever they exist.
+     */
+    const report = buildReport(await analyzeProject(fixture('hosted-static')), { profile: 'auto' });
+
+    expect(report.findings.find((f) => f.id === 'deployment.readiness')?.status).not.toBe('unknown');
   });
 });
