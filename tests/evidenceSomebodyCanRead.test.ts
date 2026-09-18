@@ -302,3 +302,40 @@ describe('a comparison that guards, and one that labels', () => {
     void readRoleChecks;
   });
 });
+
+/**
+ * A critical is the severity that bars a report from the top band. Two of the five in
+ * the corpus were raised against code the project did not write.
+ */
+describe('what counts as this project\'s own code', () => {
+  it('does not read an installed virtualenv as the project', async () => {
+    /**
+     * `venv/` and `.venv/` were ignored by name, and a repository whose virtualenv was
+     * called `venv52/` had 7331 of its 8438 source files read as its own. It produced a
+     * critical from botocore naming an environment variable — `SECRET_KEY =
+     * 'AWS_SECRET_ACCESS_KEY'` — against a project that had not written it.
+     *
+     * The name of a virtualenv is a guess. `pyvenv.cfg` at its root is a fact.
+     */
+    const analysis = await analyzeProject(fixture('django-with-venv'));
+
+    expect(analysis.files.source.some((file) => file.startsWith('venv52/'))).toBe(false);
+    expect(analysis.files.all.some((file) => file.includes('site-packages'))).toBe(false);
+  });
+
+  it('does not read a test settings module as production', async () => {
+    // `test_settings.py` was recognised and `settings_tests.py` was not, so
+    // `STRIPE_SECRET_KEY = "sk_test_fake"` raised a critical against a line written to
+    // be fake.
+    const analysis = await analyzeProject(fixture('django-with-venv'));
+
+    expect(analysis.files.source).not.toContain('myapp/settings_tests.py');
+  });
+
+  it('still reads the application beside them', async () => {
+    const report = buildReport(await analyzeProject(fixture('django-with-venv')), { profile: 'auto' });
+
+    expect(report.criticalIssues).toEqual([]);
+    expect(report.detectedStack.backend).toContain('django');
+  });
+});

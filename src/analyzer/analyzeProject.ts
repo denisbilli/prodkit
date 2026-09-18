@@ -112,6 +112,15 @@ function isTestOrExamplePath(file: string): boolean {
   // as a marketplace taking a cut. A field set to null is evidence of absence.
   return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures|frontend-example)(\/|$)/i.test(file)
     || /(^|\/)test[-_][^/]+\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
+    /**
+     * The other half of the convention.
+     *
+     * `test_settings.py` was recognised and `settings_tests.py` was not, so a Django
+     * project's test configuration was read as production and its `STRIPE_SECRET_KEY =
+     * "sk_test_fake"` raised a critical — the severity that bars a report from the top
+     * band — against a line written to be fake.
+     */
+    || /[-_]tests?\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file);
 }
 

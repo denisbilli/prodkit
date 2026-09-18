@@ -9,6 +9,20 @@ export const DEFAULT_IGNORE = [
   '**/coverage/**',
   '**/venv/**',
   '**/.venv/**',
+  /**
+   * Where Python puts what you installed, whatever the surrounding directory is called.
+   *
+   * `venv/` and `.venv/` were ignored by name, and a repository whose virtualenv was
+   * called `venv52/` had 7331 of its 8438 source files read as its own: botocore, boto3,
+   * the whole of pip's output. It produced a critical — `SECRET_KEY =
+   * 'AWS_SECRET_ACCESS_KEY'`, which is botocore naming an environment variable — against
+   * a project that had not written it.
+   *
+   * This is `node_modules` for Python, and like `node_modules` it cannot be anything
+   * else. The name of the virtualenv is a guess; `site-packages` is a fact.
+   */
+  '**/site-packages/**',
+  '**/dist-packages/**',
   '**/__pycache__/**',
   '**/.next/**',
   '**/.turbo/**',
@@ -91,6 +105,27 @@ export interface ScanOptions {
 /**
  * Scan files relative to a root project path. Returns paths relative to cwd.
  */
+/**
+ * The file Python writes at the root of a virtualenv, and the only reliable way to
+ * recognise one.
+ *
+ * A virtualenv can be called anything: `venv52`, `env-3.11`, `.direnv`. Its scripts live
+ * in `bin/` and its packages in `lib/pythonX/site-packages/`, but the marker at the root
+ * is always this. Finding it means everything beside it was installed rather than
+ * written.
+ */
+const VIRTUALENV_MARKER = 'pyvenv.cfg';
+
+function withoutVirtualenvs(files: string[]): string[] {
+  const roots = files
+    .filter((file) => file === VIRTUALENV_MARKER || file.endsWith(`/${VIRTUALENV_MARKER}`))
+    .map((file) => file.slice(0, file.length - VIRTUALENV_MARKER.length));
+
+  if (roots.length === 0) return files;
+
+  return files.filter((file) => !roots.some((root) => root !== '' && file.startsWith(root)));
+}
+
 export async function scanFiles(opts: ScanOptions): Promise<string[]> {
   const patterns = opts.patterns ?? ['**/*'];
   const ignore = [...DEFAULT_IGNORE, ...(opts.ignore ?? [])];
@@ -102,7 +137,8 @@ export async function scanFiles(opts: ScanOptions): Promise<string[]> {
     ignore,
     suppressErrors: true,
   });
-  return entries.map((e) => e.split(path.sep).join('/'));
+
+  return withoutVirtualenvs(entries.map((e) => e.split(path.sep).join('/')));
 }
 
 /**
