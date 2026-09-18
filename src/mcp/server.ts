@@ -122,13 +122,41 @@ export async function createProdkitMcpServer(): Promise<McpServer> {
           categoryScores: report.categoryScores,
           compliance: report.compliance,
           detectedStack: report.detectedStack,
-          criticalIssues: report.criticalIssues.map((finding) => ({
-            id: finding.id,
-            title: finding.title,
-            severity: finding.severity,
-            businessImpact: finding.businessImpact,
-            recommendation: finding.recommendation,
-          })),
+          /**
+           * Every finding, not only the critical ones.
+           *
+           * This returned `criticalIssues` alone, and most repositories have none — so an
+           * assistant asking for a report was handed a score, a summary and an empty
+           * list, while the category table beside it showed six areas with work
+           * outstanding. The findings are what the report is; the rest describes them.
+           */
+          findings: report.findings
+            .filter((finding) => finding.status !== 'passed' && finding.status !== 'unknown')
+            .map((finding) => ({
+              id: finding.id,
+              title: finding.title,
+              category: finding.category,
+              severity: finding.severity,
+              status: finding.status,
+              confidence: finding.confidence,
+              description: finding.description,
+              businessImpact: finding.businessImpact,
+              recommendation: finding.recommendation,
+              /**
+               * The lines behind the claim, which is the thing this product is for.
+               *
+               * Nothing on this surface could show one: an assistant could say "your
+               * secrets have a fallback" and not where. Trimmed to three, because a
+               * model reading twenty-five copies of the same import learns nothing the
+               * first one did not tell it.
+               */
+              evidence: finding.evidence.slice(0, 3).map((item) => ({
+                type: item.type,
+                value: item.value,
+                ...(item.file ? { file: item.file } : {}),
+                ...(item.line ? { line: item.line } : {}),
+              })),
+            })),
           gap: report.productProfile?.gap,
         });
       } catch (error) {

@@ -29,6 +29,7 @@ import { detectDeployment } from './detectDeployment';
 import { buildStackInfo, mergeDetectors } from './detectStack';
 import type { DetectContext, WorkspaceManifest } from './detectContext';
 import type { PackageJson, ProjectAnalysis, WorkspaceStack } from './types';
+import { stat } from 'node:fs/promises';
 
 const packageJsonSchema = z
   .object({
@@ -239,8 +240,41 @@ function resolveWorkspacePackageManager(workspace: WorkspaceManifest): {
   return { manager: 'unknown', confidence: 'unknown', warnings: [] };
 }
 
+/**
+ * A path that is not there is not an empty repository.
+ *
+ * This check lived in the command-line tool alone, so every other caller — the MCP
+ * server an assistant drives, the hosted application, anyone using this as a library —
+ * got a report for a directory that does not exist: score 39, "no frontend, backend or
+ * database stack signals were detected", which reads as a verdict on a repository rather
+ * than a typo in a path. The command-line tool refused the same input outright.
+ *
+ * The guard belongs where the work starts, so every surface refuses it the same way.
+ */
+export class ProjectPathError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ProjectPathError';
+  }
+}
+
+async function assertReadableDirectory(root: string): Promise<void> {
+  let stats;
+  try {
+    stats = await stat(root);
+  } catch {
+    throw new ProjectPathError(`Project path does not exist: ${root}`);
+  }
+
+  if (!stats.isDirectory()) {
+    throw new ProjectPathError(`Project path is not a directory: ${root}`);
+  }
+}
+
 export async function analyzeProject(projectPath: string): Promise<ProjectAnalysis> {
   const root = path.resolve(projectPath);
+  await assertReadableDirectory(root);
+
   const allFiles = await scanFiles({ cwd: root });
   const sourceFiles = pickSource(allFiles);
   const configFiles = pickConfig(allFiles);
