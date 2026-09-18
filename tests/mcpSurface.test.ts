@@ -95,3 +95,33 @@ describe('a path that is not there', () => {
     await expect(analyzeProject(fixture('express-basic') + '/package.json')).rejects.toThrow(/not a directory/);
   });
 });
+
+/**
+ * A row and the sentence in it counted different things.
+ */
+describe('comparing a repository against every profile', () => {
+  it('counts what the verdict counts', async () => {
+    // A fixture with a half-built required capability in it, or the two counts agree by
+    // accident and the test proves nothing.
+    const comparison = await callTool('compare_profiles', { path: fixture('express-secure') });
+    const profiles = comparison.profiles as Array<{ requiredBlocking: number; requiredPartial: number; verdict: string }>;
+
+    expect(profiles.some((entry) => entry.requiredPartial > 0)).toBe(true);
+
+    for (const entry of profiles) {
+      const said = /: (\d+) essential/.exec(entry.verdict);
+      if (!said) continue;
+
+      // The verdict says "missing or incomplete". The row used to report only the
+      // missing ones, so "1 of 3" sat beside a sentence saying three.
+      expect(entry.requiredBlocking).toBe(Number(said[1]));
+    }
+  });
+
+  it('still reports the two halves separately', async () => {
+    const comparison = await callTool('compare_profiles', { path: fixture('express-secure') });
+    const profiles = comparison.profiles as Array<{ requiredBlocking: number; requiredMissing: number; requiredPartial: number }>;
+
+    expect(profiles.every((e) => e.requiredBlocking === e.requiredMissing + e.requiredPartial)).toBe(true);
+  });
+});

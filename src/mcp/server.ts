@@ -224,7 +224,19 @@ export async function createProdkitMcpServer(): Promise<McpServer> {
             overallScore: report.overallScore,
             expectedCapabilityScore: report.expectedCapabilityScore,
             launchReady: report.executiveSummary.launchReady,
+            /**
+             * What the verdict beside it counts.
+             *
+             * This reported `requiredMissing` alone, so a row read "1 of 3 required
+             * missing" next to a sentence saying three essential capabilities are
+             * missing or incomplete. A capability half-built is not a capability that is
+             * there, which is why the verdict adds the two — and why a caller shown only
+             * one of them cannot reconcile the row with the sentence in it.
+             */
+            requiredBlocking:
+              (report.productProfile?.gap.requiredMissing ?? 0) + (report.productProfile?.gap.requiredPartial ?? 0),
             requiredMissing: report.productProfile?.gap.requiredMissing ?? 0,
+            requiredPartial: report.productProfile?.gap.requiredPartial ?? 0,
             requiredTotal: report.productProfile?.gap.requiredTotal ?? 0,
             verdict: report.executiveSummary.verdict,
           };
