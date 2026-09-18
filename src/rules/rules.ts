@@ -670,14 +670,22 @@ export const rules: Rule[] = [
     evaluate: ({ analysis }) => {
       const obs = analysis.detectors['observability.core'];
       const logs = Boolean(obs?.details?.structuredLogging);
-      const status: FindingStatus = logs ? 'passed' : 'missing';
+      // Unstructured logging is not nothing and is not the answer either: a project
+      // that writes every exception to error_log will know something happened, and will
+      // not be able to correlate it with a request.
+      const anyLogs = Boolean(analysis.detectors['observability.core']?.details?.anyLogging);
+      const status: FindingStatus = logs ? 'passed' : anyLogs ? 'partial' : 'missing';
       return mkFinding({
         id: 'observability.logging',
         title: 'Structured logging readiness',
         category: 'observability',
         status,
         severity: sevForStatus(status, 'low'),
-        description: logs ? 'Structured logger dependency detected.' : 'No structured logging dependency detected.',
+        description: logs
+          ? 'Structured logger dependency detected.'
+          : anyLogs
+            ? 'Logging is in place, but unstructured: entries cannot be correlated or queried.'
+            : 'No logging detected.',
         recommendation: 'Adopt structured logs with request correlation ids.',
         evidence: evidenceForClaim(obs?.evidence, 'logging'),
       });

@@ -50,26 +50,63 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const structuredHits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/JSON\.stringify\(\s*\{[^}]*level/i, /logger\.(info|warn|error|debug)\s*\(/, /structuredLog/i],
+    [
+      /JSON\.stringify\(\s*\{[^}]*level/i,
+      /logger\.(info|warn|error|debug)\s*\(/,
+      /structuredLog/i,
+      /**
+       * The same idea in the languages this was blind to.
+       *
+       * It looked for `logger.info(` and a JSON.stringify with a level field, which are
+       * JavaScript and Python idioms, and reported "no structured logging dependency
+       * detected" about a PHP application whose global exception handler logs every
+       * exception. Go, Java, Ruby and Rust were invisible for the same reason.
+       */
+      /Monolog\\Logger|LoggerInterface|->(info|warning|error|debug)\(/,
+      /\bslog\.(Info|Warn|Error|Debug)\(|\bzap\.|\blogrus\.|\blog\.Printf\(/,
+      /LoggerFactory\.getLogger|org\.slf4j/,
+      /Rails\.logger/,
+      /\btracing::(info|warn|error|debug)!|\blog::(info|warn|error)!/,
+    ],
     15,
   );
   for (const m of structuredHits) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'logging' });
+
+  /**
+   * Logging at all, as distinct from logging something a machine can read.
+   *
+   * `error_log($e)` is a real answer to "will we know this happened", and a different
+   * answer from Monolog with a request id. Reporting the first as nothing to show made
+   * the finding wrong; reporting it as structured would make the recommendation wrong.
+   * It is `partial`, and now it can be said.
+   */
+  const plainLogging = await searchInFiles(
+    ctx.root,
+    ctx.files.source,
+    [/\berror_log\s*\(/, /\bsyslog\s*\(/, /console\.(error|warn)\s*\(/, /\bprintStackTrace\s*\(/],
+    10,
+  );
+  for (const m of plainLogging) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'logging' });
+
   const hasStructuredLogging = logDeps.length > 0 || structuredHits.length > 0;
+  const hasAnyLogging = hasStructuredLogging || plainLogging.length > 0;
 
   if (!hasHealth) {
     evidence.push(...searchedFor('a health endpoint', ['/health', '/healthz', '/readyz', 'a health, healthz, readyz, liveness or readiness route file'], 'health'));
   }
-  if (!hasStructuredLogging) {
-    evidence.push(...searchedFor('structured logging', ['winston', 'pino', 'morgan', 'bunyan', 'logger.info/warn/error/debug', 'JSON.stringify with a level field', 'structuredLog'], 'logging'));
+  if (!hasAnyLogging) {
+    evidence.push(...searchedFor('logging', ['winston', 'pino', 'morgan', 'bunyan', 'Monolog', 'slog', 'zap', 'logrus', 'slf4j', 'Rails.logger', 'tracing::', 'logger.info/warn/error/debug', 'error_log(', 'JSON.stringify with a level field'], 'logging'));
   }
 
   return {
     key: 'observability.core',
-    present: hasStructuredLogging || hits.length > 0 || healthFiles.length > 0,
+    present: hasAnyLogging || hits.length > 0 || healthFiles.length > 0,
     complete: hasHealth && hasStructuredLogging,
     evidence,
     details: {
       structuredLogging: hasStructuredLogging,
+      /** Any logging at all, structured or not. */
+      anyLogging: hasAnyLogging,
       healthEndpoint: hasHealth,
       requestId: hasReqId,
       sentry: sentryDeps.length > 0,

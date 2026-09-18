@@ -140,6 +140,15 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       const requestId = boolDetail(obs, 'requestId');
       if (structured && requestId) return 'present';
       if (structured || requestId) return 'partial';
+
+      /**
+       * `error_log($e)` in a global exception handler is a real answer to "will we know
+       * this happened", and a different one from Monolog with a request id. Calling it
+       * missing was wrong about a PHP application that logs every exception; calling it
+       * present would make the recommendation wrong. It is halfway.
+       */
+      if (boolDetail(obs, 'anyLogging')) return 'partial';
+
       return 'missing';
     }
     case 'deployment.readiness': {
@@ -304,7 +313,48 @@ function servesCrossOrigin(analysis: ProjectAnalysis): boolean {
   // An API meant for other callers.
   if (detector(analysis, 'auth.apiKeys')?.present) return true;
 
-  return analysis.files.source.some((file) => /(^|\/)(api|routes?|controllers?|serializers?|graphql)(\/|\.)/i.test(file));
+  /**
+   * A surface named for other callers.
+   *
+   * `controllers` and `routes` used to be in this list, which meant every application
+   * organised the way almost every application is organised was asked for a
+   * cross-origin policy. A server-rendered PHP product with `src/Controllers/` — pages
+   * rendered from templates, no API — was told at high severity that cross-origin
+   * access was unrestricted. The Django monolith escaped it only because Django spells
+   * the same directory `views`.
+   */
+  if (analysis.files.source.some((file) => /(^|\/)(api|graphql|serializers?)(\/|\.)/i.test(file))) return true;
+
+  /**
+   * A backend that renders nothing is answering somebody else.
+   *
+   * Dropping `routes` on its own went too far: an Express server whose `routes/`
+   * handlers return `res.json()` and which renders no page at all is an API, whatever
+   * its directories are called. What separates it from the PHP monolith is not the
+   * folder name but whether anything here produces HTML — the monolith has
+   * `templates/`, and its JSON helper serves its own pages.
+   *
+   * So the question is asked of a backend with no views: everything it answers goes to
+   * an origin that is not its own.
+   */
+  /**
+   * Some frameworks answer this by existing.
+   *
+   * Reading it from the file listing alone was too fragile: a Django project whose
+   * templates are not in the repository, and every minimal Django fixture, looked like
+   * an API server and got asked for a cross-origin policy again. Django, Rails, Laravel
+   * and the page-rendering JavaScript frameworks serve pages by construction, and a
+   * bare PHP application's default output is HTML. Where one of them also exposes an
+   * API, the `api/` check above has already said so.
+   */
+  const PAGE_RENDERING = ['django', 'rails', 'laravel', 'symfony', 'php', 'next', 'nuxt', 'astro', 'sveltekit', 'remix'];
+  const rendersPages = analysis.stack.backend.some((framework) => PAGE_RENDERING.includes(framework))
+    || analysis.files.all.some((file) =>
+      /(^|\/)(templates?|views)\//i.test(file)
+      || /\.(twig|blade\.php|ejs|hbs|handlebars|erb|pug|jinja2?|liquid|mustache)$/i.test(file),
+    );
+
+  return analysis.stack.backend.length > 0 && !rendersPages;
 }
 
 /**

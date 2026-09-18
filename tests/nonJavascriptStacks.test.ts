@@ -1,0 +1,100 @@
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import { describe, expect, it } from 'vitest';
+import { analyzeProject } from '../src/analyzer/analyzeProject';
+import { buildReport } from '../src/report/buildReport';
+
+const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
+
+async function project(files: Record<string, string>): Promise<string> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'prodkit-stacks-'));
+  for (const [file, content] of Object.entries(files)) {
+    await fs.mkdir(path.dirname(path.join(root, file)), { recursive: true });
+    await fs.writeFile(path.join(root, file), content);
+  }
+  return root;
+}
+
+/**
+ * Read a PHP product I had not looked at before. Two of its findings were wrong in the
+ * same way: a check written for one language's idiom, applied to every language.
+ */
+describe('a check written for JavaScript is not a check', () => {
+  it('sees logging that is not called logger.info', async () => {
+    // "No structured logging dependency detected", about an application whose global
+    // exception handler writes every exception to error_log. Go, Java, Ruby and Rust
+    // were invisible for the same reason.
+    const report = buildReport(await analyzeProject(fixture('php-monolith')), { profile: 'b2c-app' });
+    const logging = report.findings.find((f) => f.id === 'observability.logging');
+
+    expect(logging?.status).toBe('partial');
+    expect(logging?.description).toMatch(/unstructured/i);
+  });
+
+  it('still separates logging from logging a machine can read', async () => {
+    // `error_log($e)` answers "will we know this happened" and not "can we correlate
+    // it with a request". Reporting it as present would make the recommendation wrong.
+    const report = buildReport(await analyzeProject(fixture('express-secure')), { profile: 'b2b-saas' });
+    const logging = report.findings.find((f) => f.id === 'observability.logging');
+
+    expect(logging?.status).toBe('passed');
+  });
+
+  it('reports nothing at all as nothing at all', async () => {
+    const root = await project({
+      'composer.json': '{"name":"x/y","require":{"php":">=8.2"}}',
+      'src/Controllers/HomeController.php': '<?php\nclass HomeController { public function index() { echo "hi"; } }\n',
+    });
+
+    const report = buildReport(await analyzeProject(root), { profile: 'b2c-app' });
+    expect(report.findings.find((f) => f.id === 'observability.logging')?.status).toBe('missing');
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+});
+
+/**
+ * `controllers` and `routes` used to count as an API surface, which meant every
+ * application organised the way almost every application is organised was asked for a
+ * cross-origin policy.
+ */
+describe('who is expected to call this', () => {
+  it('does not ask a server-rendered PHP monolith for a cross-origin policy', async () => {
+    // Pages rendered from templates, a JSON helper for its own AJAX, and
+    // `src/Controllers/` — told at high severity that cross-origin access was
+    // unrestricted. The Django monolith escaped it only because Django spells the same
+    // directory `views`.
+    const report = buildReport(await analyzeProject(fixture('php-monolith')), { profile: 'b2c-app' });
+    const cors = report.findings.filter((f) => /CORS/i.test(f.title) && f.status === 'missing');
+
+    expect(cors).toEqual([]);
+  });
+
+  it('still asks an API server that renders no page', async () => {
+    const root = await project({
+      'package.json': '{"name":"api","dependencies":{"express":"^4.18.0"}}',
+      'src/routes/users.js': "const express = require('express');\nconst router = express.Router();\nrouter.get('/users', (req, res) => res.json([]));\nmodule.exports = router;\n",
+    });
+
+    const report = buildReport(await analyzeProject(root), { profile: 'b2b-saas' });
+    expect(report.findings.some((f) => /CORS/i.test(f.title) && f.status === 'missing')).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('lets the framework answer when the templates are not in the repository', async () => {
+    // Reading it from the file listing alone was too fragile: a Django project whose
+    // templates live elsewhere looked like an API server and got asked again.
+    const root = await project({
+      'requirements.txt': 'django==5.0\n',
+      'app/urls.py': "from django.urls import path\nurlpatterns = []\n",
+      'app/views.py': "from django.shortcuts import render\n\ndef home(request):\n    return render(request, 'home.html')\n",
+    });
+
+    const report = buildReport(await analyzeProject(root), { profile: 'b2c-app' });
+    expect(report.findings.filter((f) => /CORS/i.test(f.title) && f.status === 'missing')).toEqual([]);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+});
