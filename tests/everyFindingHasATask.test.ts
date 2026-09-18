@@ -3,6 +3,7 @@ import { productProfiles } from '../src/expectations/productProfiles';
 import { toFindingId } from '../src/expectations/evaluateExpectations';
 import { getRemediationEntry } from '../src/planner/remediationCatalog';
 import { rules } from '../src/rules/rules';
+import { remediationCatalog } from '../src/planner/remediationCatalog';
 
 /**
  * 164 of 885 open findings across the verification corpus had no task behind them —
@@ -42,6 +43,34 @@ describe('a report does not ask for work the plan cannot describe', () => {
     expect(missing, `no remediation task for:\n${missing.join('\n')}`).toEqual([]);
   });
 
+  it('does not keep a task nothing can ask for', () => {
+    /**
+     * The mirror of the check above, and it found seven.
+     *
+     * `expectation.gdpr.required` and `expectation.billing.required` were written when
+     * those were single capabilities; they were later split into consent, export,
+     * erasure and retention, and into model and webhook integrity, and the old keys
+     * stayed behind. `expectation.authz.resource-level.required` outlived a rename to
+     * `authz.ownership`. A key nothing can produce is not harmless: it reads like
+     * coverage that is not there, and it is where a renamed finding quietly loses its
+     * task.
+     *
+     * Safe to delete because a plan is built once, at scan time, and stored — an old
+     * report is never re-planned.
+     */
+    const reachable = new Set<string>(rules.map((rule) => rule.id));
+    for (const profile of Object.values(productProfiles)) {
+      for (const capability of profile.capabilities) {
+        for (const importance of ['required', 'recommended', 'optional'] as const) {
+          reachable.add(toFindingId(capability, importance));
+        }
+      }
+    }
+
+    const unreachable = Object.keys(remediationCatalog).filter((key) => !reachable.has(key));
+    expect(unreachable, `no finding can produce:\n${unreachable.join('\n')}`).toEqual([]);
+  });
+
   it('reaches the same task whichever importance a profile chose', () => {
     // The finding id carries the importance as a suffix and the work is the same either
     // way, so a profile that recommends what another requires must still find the task.
@@ -55,5 +84,30 @@ describe('a report does not ask for work the plan cannot describe', () => {
         expect(required?.taskId, capability.id).toBe(recommended?.taskId);
       }
     }
+  });
+});
+
+/**
+ * The compliance mapping walks a list of prefixes and takes the first that matches, so
+ * a general prefix placed before a specific one silently swallows it. Nothing is
+ * shadowed today; the ordering dependency is invisible to whoever reorders next.
+ */
+describe('the compliance mapping is not order-dependent by accident', () => {
+  it('has no prefix that swallows a later one', async () => {
+    const source = await import('fs').then((fs) =>
+      fs.readFileSync(new URL('../src/report/complianceMapping.ts', import.meta.url), 'utf8'),
+    );
+    const prefixes = [...source.matchAll(/prefix:\s*'([^']+)'/g)].map((match) => match[1]);
+
+    expect(prefixes.length).toBeGreaterThan(5);
+
+    const shadowed: string[] = [];
+    for (let i = 0; i < prefixes.length; i += 1) {
+      for (let j = i + 1; j < prefixes.length; j += 1) {
+        if (prefixes[j].startsWith(prefixes[i])) shadowed.push(`${prefixes[j]} is unreachable behind ${prefixes[i]}`);
+      }
+    }
+
+    expect(shadowed).toEqual([]);
   });
 });
