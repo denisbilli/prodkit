@@ -125,7 +125,16 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       return boolDetail(sec, 'rateLimit') ? 'present' : 'missing';
     }
     case 'uploads.protection': {
-      if (!upload?.present) return 'not_applicable';
+      /**
+       * Nothing that looks like an upload route, and the owner says there is one.
+       *
+       * `not_applicable` is the right answer when the requirement was inferred: a
+       * project with no upload surface does not need upload protection. It is the wrong
+       * answer to somebody who has stated that their product takes files — either the
+       * uploads are somewhere this analyzer cannot see, or the declaration is wrong,
+       * and both are worth telling them.
+       */
+      if (!upload?.present) return capability.declared ? 'missing' : 'not_applicable';
       const exposed = boolDetail(upload, 'publicExposure');
       const protectedUploads = boolDetail(upload, 'protectedUploads');
       const validation = boolDetail(upload, 'validation');
@@ -508,7 +517,7 @@ function applyDeclarations(
 
   const out = capabilities.map((cap) =>
     required.has(cap.id) && IMPORTANCE_RANK[cap.importance] < IMPORTANCE_RANK.required
-      ? { ...cap, importance: 'required' as CapabilityImportance }
+      ? { ...cap, importance: 'required' as CapabilityImportance, declared: true }
       : cap,
   );
 
@@ -569,7 +578,21 @@ export function evaluateExpectedCapabilities(args: {
       ? 'not_applicable'
       : deriveStatus(args.analysis, { ...cap, importance: effectiveImportance }) as CapabilityStatus;
 
-    if (cap.id === 'uploads.protection' && status === 'not_applicable' && effectiveImportance === 'required') {
+    /**
+     * No upload surface in the code means the question does not arise — unless the
+     * owner said it does.
+     *
+     * This downgrade is right for a requirement the profile inferred: asking a project
+     * with no upload route to protect one is noise. It was also silently cancelling the
+     * declaration, so "we have file uploads" was the one answer of the four that
+     * changed nothing, and it changed nothing without saying so.
+     *
+     * When the owner says the product takes uploads and nothing here looks like an
+     * upload route, that is worth reporting either way: either the uploads are
+     * somewhere this cannot see, or the declaration is wrong. Both are things the
+     * reader wants to know.
+     */
+    if (cap.id === 'uploads.protection' && status === 'not_applicable' && effectiveImportance === 'required' && !cap.declared) {
       effectiveImportance = 'not_applicable';
     }
 
@@ -627,7 +650,16 @@ export function evaluateExpectedCapabilities(args: {
         // only becomes a finding when it is unmet, so the two differ only where low
         // confidence capped the severity.
         stakes: claimedSeverity,
-        description: `${cap.description} Current status: ${status}.`,
+        /**
+         * Where a requirement rests on the declaration rather than on the code, the
+         * finding says so. "Upload protection is missing" reads as a defect found; if
+         * nothing here even looks like an upload route, the reader needs to know the
+         * claim came from their own answer, so they can correct whichever of the two is
+         * wrong.
+         */
+        description: cap.declared && !detector(args.analysis, 'uploads.exposure')?.present && cap.id === 'uploads.protection'
+          ? `${cap.description} Nothing here looks like an upload route, so this rests on your answer that the product accepts files: either they are handled somewhere this cannot see, or the answer is wrong. Current status: ${status}.`
+          : `${cap.description} Current status: ${status}.`,
         recommendation: cap.recommendation,
         evidence: detectorEvidence.length > 0 ? detectorEvidence : [{ type: 'note', value: 'no direct evidence captured' }],
         confidence,

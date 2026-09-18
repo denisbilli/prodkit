@@ -80,6 +80,14 @@ export interface ExpectedCapability {
    * only the evidence for its own claim.
    */
   claim?: string;
+  /**
+   * True when this capability is required because the owner said so, not because the
+   * profile inferred it.
+   *
+   * A declaration raises a duty and can never remove one, so a rule that drops a
+   * requirement for want of evidence must not apply to one the owner asserted.
+   */
+  declared?: boolean;
   description: string;
   recommendation: string;
 }
