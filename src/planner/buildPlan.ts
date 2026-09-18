@@ -25,9 +25,18 @@ const severityOrder: Record<Finding['severity'], number> = {
 };
 
 const phaseMeta: Record<RemediationPhaseId, { title: string; description: string }> = {
+  /**
+   * The phase is about order, not about severity.
+   *
+   * It was titled "Critical production blockers", and fifty-one of the fifty-nine plans
+   * that had a non-empty one contained no critical finding at all — a heading announcing
+   * critical blockers directly above a report whose own count of critical issues was
+   * zero. The grouping is right; the promise in the words was not.
+   */
   'critical-blockers': {
-    title: 'Critical production blockers',
-    description: 'Fix the items most likely to cause immediate security, auth, or data-loss regressions.',
+    title: 'Security and access, first',
+    description:
+      'Identity, secrets and anything exposed without a check. These come first because the rest of the plan rests on them — not because each item is critical; every task carries its own severity.',
   },
   'saas-safety-layer': {
     title: 'SaaS safety layer',

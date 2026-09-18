@@ -35,12 +35,21 @@ function renderTask(task: RemediationTask): string {
 }
 
 function renderPhase(phase: RemediationPhase): string {
+  /**
+   * Four bare words in brackets are four facts a reader cannot tell apart.
+   *
+   * `[p1, small, low, safe_template]` was the whole annotation: which of those is the
+   * effort and which the risk is only knowable from the source. They are named now,
+   * which costs a line's width and saves the reader guessing.
+   */
   const tasks = phase.tasks.length > 0
-    ? phase.tasks.map((task) => `- ${task.id}: ${task.title} [${task.priority}, ${task.effort}, ${task.risk}, ${task.automationReadiness}]`).join('\n')
+    ? phase.tasks.map((task) => `- ${task.id}: ${task.title} — priority ${task.priority}, effort ${task.effort}, risk ${task.risk}, automation ${task.automationReadiness}`).join('\n')
     : '- none';
 
   return [
-    `## ${phase.title}`,
+    // A phase is part of the plan's list of phases, so it sits under it rather than
+    // beside it. Every phase was a sibling of the "Phases" heading that introduced them.
+    `### ${phase.title}`,
     '',
     phase.description,
     '',
