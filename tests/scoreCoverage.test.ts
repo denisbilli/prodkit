@@ -82,8 +82,11 @@ describe('a score carries how much was verified', () => {
      * was learned. Two repositories with the same three verdicts came out at 39 and at
      * 84, and the only difference between them was a `requirements.txt` — a Python
      * script with one was judged, an equally small one without it was called unreadable.
+     *
+     * Asked for a full reading, which is the path this rule is about: in observed-only
+     * mode the expectations never run, so few verdicts says nothing about the project.
      */
-    const report = buildReport(await analyzeProject(fixture('react-vite')));
+    const report = buildReport(await analyzeProject(fixture('three-viewer')), { profile: 'auto' });
 
     expect(report.diagnostics.assessedChecks).toBeLessThan(5);
     expect(report.inconclusive).toBe(true);

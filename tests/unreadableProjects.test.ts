@@ -66,7 +66,12 @@ describe('projects with no package manifest', () => {
       // and the reader is entitled to know which of the two the reading rests on.
       const analysis = await analyzeProject(fixture('browser-game-cdn'));
 
-      expect(analysis.stack.warnings.some((w) => /No dependency manifest was found/.test(w))).toBe(true);
+      // The sentence used to begin "No dependency manifest was found", which was printed
+      // for a Flutter application whose pubspec.yaml the analyzer had just read. It names
+      // the lists it is actually about.
+      expect(
+        analysis.stack.warnings.some((w) => /read from script tags and module imports rather than from a manifest/.test(w)),
+      ).toBe(true);
     });
   });
 

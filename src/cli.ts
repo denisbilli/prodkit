@@ -6,6 +6,7 @@ import { buildReport } from './report/buildReport';
 import { renderMarkdown } from './report/markdownReport';
 import { renderJson } from './report/jsonReport';
 import { buildPlan } from './planner/buildPlan';
+import { productProfileChoices } from './expectations/productProfiles';
 import { renderMarkdownPlan } from './planner/markdownPlan';
 import { renderJsonPlan } from './planner/jsonPlan';
 import { resolveProjectPath } from './utils/pathUtils';
@@ -13,6 +14,16 @@ import type { ProductProfile } from './expectations/types';
 import type { MaturityLevel } from './report/types';
 import type { ProjectAnalysis } from './analyzer/types';
 import { PRODKit_VERSION } from './version';
+
+/**
+ * The profiles this tool actually has, read from the same table the analyzer uses.
+ *
+ * The list was typed out by hand and named eight of them: `library`, `game`,
+ * `client-app` and `mobile-app` had been added since, so a user asking `--help` which
+ * profiles exist was told four fewer than they could pass — including every profile that
+ * covers something other than a web application.
+ */
+const PROFILE_OPTION_LIST = productProfileChoices().map((choice) => choice.id).join('|');
 
 type OutputFormat = 'markdown' | 'json';
 const allowedProfiles = ['observed-only', 'static-site', 'internal-tool', 'b2c-app', 'b2b-saas', 'ai-saas', 'marketplace', 'game', 'client-app', 'mobile-app', 'library', 'auto'] as const;
@@ -106,7 +117,15 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     report.detectedStack.warnings.length > 0 ? `Warnings: ${report.detectedStack.warnings.join('; ')}` : 'Warnings: none',
     `Workspaces: ${workspaceSummary}`,
     `Score: ${report.overallScore}/100`,
-    `Maturity: ${report.maturityLevel}${report.inconclusive ? ' (INCONCLUSIVE: project not recognized, score capped)' : ''}`,
+    /**
+     * The reasons, not a verdict about the project.
+     *
+     * This said "project not recognized" whatever the cause, two lines under
+     * "Detected frontend: flutter" — the same summary naming the stack it had just
+     * failed to recognise. The report has carried the reasons since the flag existed.
+     */
+    `Maturity: ${report.maturityLevel}${report.inconclusive ? ' (INCONCLUSIVE, score capped)' : ''}`,
+    ...(report.inconclusive ? report.inconclusiveReasons.map((reason) => `  - ${reason}`) : []),
     // Printed next to the score it is not allowed to change, so a reader who knows what
     // their project is can act on it in one step.
     ...(report.productProfile?.profileSuggestion
@@ -232,9 +251,10 @@ export async function runCli(argv = process.argv): Promise<void> {
 
   program
     .command('analyze')
+    .description('Read a repository and report what production would demand of it.')
     .argument('<path-to-project>', 'Path to target repository')
     .option('--format <format>', 'Output format: markdown|json')
-    .option('--profile <profile>', 'Product profile: observed-only|static-site|internal-tool|b2c-app|b2b-saas|ai-saas|marketplace|auto')
+    .option('--profile <profile>', `Product profile: ${PROFILE_OPTION_LIST}`)
     .option('--summary', 'Print summary only')
     .option('--output <path>', 'Output file path (optional)')
     .option('--fail-under <score>', 'Exit with an error if overall score is below this threshold (0-100)')
@@ -269,9 +289,10 @@ export async function runCli(argv = process.argv): Promise<void> {
 
   program
     .command('plan')
+    .description('Turn a report into an ordered list of remediation tasks.')
     .argument('<path-to-project>', 'Path to target repository')
     .option('--format <format>', 'Output format: markdown|json')
-    .option('--profile <profile>', 'Product profile: observed-only|static-site|internal-tool|b2c-app|b2b-saas|ai-saas|marketplace|auto')
+    .option('--profile <profile>', `Product profile: ${PROFILE_OPTION_LIST}`)
     .option('--summary', 'Print summary only')
     .option('--output <path>', 'Output file path (optional)')
     .action(async (targetPath: string, options: { format?: OutputFormat; profile?: string; summary?: boolean; output?: string }) => {

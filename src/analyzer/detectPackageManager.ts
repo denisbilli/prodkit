@@ -8,6 +8,35 @@ interface PackageManagerResolution {
   evidence: string[];
 }
 
+/**
+ * Manifests outside Node and Python, each one a file this analyzer already parses.
+ *
+ * Order matters only where two can coexist: a Gradle build with a `pom.xml` beside it is
+ * built by Gradle, and a `.csproj` next to a `packages.config` is NuGet either way.
+ *
+ * Read from the file list rather than from the workspace record, because the workspace
+ * record was built for Node and Python and knows nothing about these — which is the
+ * reason a Flutter project came out as `unknown` in the first place.
+ */
+const OTHER_MANIFESTS: Array<{ manager: PackageManager; pattern: RegExp }> = [
+  { manager: 'pub', pattern: /(^|\/)pubspec\.yaml$/ },
+  { manager: 'composer', pattern: /(^|\/)composer\.json$/ },
+  { manager: 'go modules', pattern: /(^|\/)go\.mod$/ },
+  { manager: 'bundler', pattern: /(^|\/)Gemfile$/ },
+  { manager: 'gradle', pattern: /(^|\/)build\.gradle(\.kts)?$/ },
+  { manager: 'maven', pattern: /(^|\/)pom\.xml$/ },
+  { manager: 'nuget', pattern: /\.(csproj|fsproj|vbproj)$/i },
+];
+
+function resolveFromOtherManifests(files: string[]): PackageManagerResolution | null {
+  for (const { manager, pattern } of OTHER_MANIFESTS) {
+    const match = files.find((file) => pattern.test(file));
+    if (match) return { manager, confidence: 'manifest', warnings: [], evidence: [match] };
+  }
+
+  return null;
+}
+
 function resolveWorkspaceManager(workspace: DetectContext['workspaces'][number]): PackageManagerResolution {
   const warnings: string[] = [];
 
@@ -64,7 +93,14 @@ export async function detectPackageManager(ctx: DetectContext): Promise<{
   });
 
   const rootWorkspace = workspaceManagers.find((w) => w.root === '.');
-  const selected = rootWorkspace ?? workspaceManagers.find((w) => w.manager !== 'unknown');
+  const fromWorkspaces = rootWorkspace ?? workspaceManagers.find((w) => w.manager !== 'unknown');
+
+  // Node and Python first, because the workspace record is built from their manifests and
+  // knows which of several it found. Anything else is resolved from the file list.
+  const selected = fromWorkspaces && fromWorkspaces.manager !== 'unknown'
+    ? fromWorkspaces
+    : resolveFromOtherManifests(ctx.files.all) ?? fromWorkspaces;
+
   if (selected) {
     return {
       manager: selected.manager,

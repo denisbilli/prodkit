@@ -1,3 +1,15 @@
+/**
+ * The names this tool can put to how a project declares its dependencies.
+ *
+ * It held seven, all of them Node or Python, so a Flutter application with a
+ * `pubspec.yaml` in its root reported "Package manager: unknown (unknown)" — in the
+ * same summary that had just read that file to identify Flutter. Five of the
+ * seventy-eight repositories in the verification corpus were in that position, across
+ * Dart, PHP, Kotlin and C#.
+ *
+ * Only managers whose manifest this analyzer actually reads are named here. A name it
+ * cannot back with a parsed file would be a guess from a filename.
+ */
 export type PackageManager =
   | 'npm'
   | 'pnpm'
@@ -5,6 +17,13 @@ export type PackageManager =
   | 'pip'
   | 'poetry'
   | 'python'
+  | 'pub'
+  | 'composer'
+  | 'go modules'
+  | 'bundler'
+  | 'gradle'
+  | 'maven'
+  | 'nuget'
   | 'unknown';
 
 export type PackageManagerConfidence = 'lockfile' | 'manifest' | 'inferred' | 'unknown';

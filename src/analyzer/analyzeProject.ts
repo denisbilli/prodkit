@@ -651,8 +651,16 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
         // Said out loud, because a dependency nobody declared is a weaker fact than one
         // that is pinned in a lockfile, and the reader is entitled to know which of the
         // two this reading rests on.
+        /**
+         * Which manifest was missing, not "a manifest".
+         *
+         * "No dependency manifest was found: dependencies were read from Python imports"
+         * was printed for a Flutter application with a `pubspec.yaml` in its root — the
+         * same file the analyzer had just read to identify Flutter. The sentence is about
+         * the Python and browser dependency lists specifically, so it says so.
+         */
         ...(inferredDependencySources.length > 0
-          ? [`No dependency manifest was found: dependencies were read from ${inferredDependencySources.join(' and ')}, so versions are unknown.`]
+          ? [`Some dependencies were read from ${inferredDependencySources.join(' and ')} rather than from a manifest, so their versions are unknown.`]
           : []),
       ],
       workspaces: workspaceStacks,

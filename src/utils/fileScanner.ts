@@ -62,6 +62,16 @@ export const DEFAULT_IGNORE = [
   'Intermediate/**',
   'DerivedData/**',
   '**/Pods/**',
+  /**
+   * Flutter's own generated tooling, and the word it chose for it.
+   *
+   * `ios/Flutter/ephemeral/` holds scripts Flutter writes and rewrites — one of them a
+   * Python helper for lldb. Its imports were being read as the project's dependencies,
+   * so a Dart application's report said some of its dependencies came from Python
+   * imports. The directory says what it is in its name.
+   */
+  '**/Flutter/ephemeral/**',
+  '**/.dart_tool/**',
   '**/Carthage/Build/**',
   // Composer, Go modules and Bundler all install into `vendor/`. The name means the
   // same thing in each: not ours.

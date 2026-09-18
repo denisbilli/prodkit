@@ -197,7 +197,21 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
    * verdicts or fewer and thirty reach ten or more; not one lands in between. Four
    * verdicts cannot characterise a product, however many files it has.
    */
-  const tooLittleAssessed = assessedChecks < MIN_ASSESSED_FOR_A_READING;
+  /**
+   * Only where the analysis was asked for a full reading.
+   *
+   * In observed-only mode nothing but the rules runs, and a small project reaches three
+   * or four verdicts because the expectations that would produce the rest were never
+   * requested — not because it is unreadable. The command-line tool defaults to that
+   * mode, and this rule, written against the profile path, turned twenty-three of its
+   * reports into "project not recognized": a Flutter application, a Vue application, a
+   * .NET game, each of them named on the line above by the same summary.
+   *
+   * Found by running the tool the way somebody who installed it would, rather than by
+   * calling the API the way the tests do.
+   */
+  const tooLittleAssessed = requestedProfile !== 'observed-only'
+    && assessedChecks < MIN_ASSESSED_FOR_A_READING;
   const inconclusive = nothingIdentified || tooLittleAssessed;
 
   // Each reason says which of the two it was, because they call for different things:
