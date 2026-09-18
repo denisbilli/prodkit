@@ -41,6 +41,23 @@ function isAServer(analysis: { stack: { backend: string[] } }): boolean {
   return analysis.stack.backend.length > 0;
 }
 
+/**
+ * Whether a question about users has a subject here.
+ *
+ * Authentication, per-record authorization, privacy duties and payment integrity are
+ * all questions about a system that has accounts and holds somebody's data. A
+ * command-line package has none, and reporting `passed` against it is not a kindness:
+ * it is counted among the checks the report says it verified, and the coverage line
+ * exists precisely to stop an absence of findings reading as quality.
+ *
+ * `gdpr.privacy` had been saying the quiet part out loud for a while — its own passing
+ * description read "Privacy/GDPR signals detected or not applicable", which is two
+ * different answers sharing one word.
+ */
+function hasUserFacingSurface(analysis: { stack: { backend: string[] } }): boolean {
+  return isAServer(analysis);
+}
+
 function sevForStatus(status: FindingStatus, missing: Severity): Severity {
   return status === 'passed' || status === 'unknown' ? 'info' : missing;
 }
@@ -359,7 +376,10 @@ export const rules: Rule[] = [
       const sec = analysis.detectors['security.core'];
       const loose = Boolean(sec?.details?.corsLoose);
       const strict = Boolean(sec?.details?.corsStrict);
-      const status: FindingStatus = strict ? 'passed' : loose ? 'partial' : 'unknown';
+      // Nothing answers a cross-origin request where nothing answers a request.
+      const status: FindingStatus = !hasUserFacingSurface(analysis)
+        ? 'unknown'
+        : strict ? 'passed' : loose ? 'partial' : 'unknown';
       return mkFinding({
         id: 'security.cors-origin',
         title: 'CORS origin restrictions',
@@ -463,7 +483,9 @@ export const rules: Rule[] = [
     severity: 'medium',
     evaluate: ({ analysis }) => {
       const auth = analysis.detectors['auth.core'];
-      const status = statusFromFlags(Boolean(auth?.present), auth?.complete);
+      const status: FindingStatus = hasUserFacingSurface(analysis)
+        ? statusFromFlags(Boolean(auth?.present), auth?.complete)
+        : 'unknown';
       return mkFinding({
         id: 'auth.core',
         title: 'Authentication baseline',
@@ -490,7 +512,10 @@ export const rules: Rule[] = [
       const hasRoles = Boolean(roles?.present);
       const hasPermissions = Boolean(permissions?.present);
       const hasResourceLevel = Boolean(resourceLevel?.present);
-      const status: FindingStatus = !hasAuth
+      // A question about who may act on which record needs a system that has records
+      // and callers. The auth detector alone was not enough of a gate: it answers from
+      // strings, and a package that searches for `requireAuth` contains it.
+      const status: FindingStatus = !hasAuth || !hasUserFacingSurface(analysis)
         ? 'unknown'
         : hasPermissions || hasResourceLevel
           ? 'passed'
@@ -582,7 +607,14 @@ export const rules: Rule[] = [
       const retention = analysis.detectors['gdpr.retention.job'];
       const hasUsers = Boolean(auth?.present);
       const hasGdpr = Boolean(consent?.present || dataExport?.present || erasure?.present || retention?.present);
-      const status: FindingStatus = hasUsers && !hasGdpr ? 'missing' : hasGdpr ? 'passed' : 'unknown';
+      /**
+       * Its passing description read "Privacy/GDPR signals detected or not applicable",
+       * which is two different answers sharing one word — and the one it chose counted
+       * towards the checks the report says it verified.
+       */
+      const status: FindingStatus = !hasUserFacingSurface(analysis)
+        ? 'unknown'
+        : hasUsers && !hasGdpr ? 'missing' : hasGdpr ? 'passed' : 'unknown';
       return mkFinding({
         id: 'gdpr.privacy',
         title: 'Privacy compliance signals',
@@ -620,7 +652,9 @@ export const rules: Rule[] = [
       const hasSignatureValidation = Boolean(signatureValidation?.present);
 
       let status: FindingStatus;
-      if (!hasStripe && !hasRoute) {
+      // Payment integrity is a question about something that takes payments. A package
+      // whose remediation advice mentions STRIPE_WEBHOOK_SECRET is not one.
+      if (!hasUserFacingSurface(analysis) || (!hasStripe && !hasRoute)) {
         status = 'unknown';
       } else if (hasRoute && hasRawBody && hasSecret && hasSignatureValidation) {
         status = 'passed';
