@@ -5,6 +5,7 @@ import { analyzeProject } from '../src/analyzer/analyzeProject';
 import { buildReport } from '../src/report/buildReport';
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
+const fixture = (name: string) => path.join(FIXTURES, name);
 
 /**
  * A sentence that fits two different answers is not an answer.
@@ -52,5 +53,38 @@ describe('a description belongs to one status', () => {
     }
 
     expect(straddling).toEqual([]);
+  });
+});
+
+/**
+ * A row that says "0 critical" must not be scored as though one were open.
+ *
+ * `stakes` is what a capability is worth before confidence is folded in; `severity` is
+ * what the report is willing to claim about it. The category ceiling used stakes, so a
+ * Django project with four of five security checks verified and one `high` finding open
+ * scored 20 of 100 — the critical ceiling — in a table row whose own critical column read
+ * zero, below an area with one of three verified.
+ */
+describe('a category score and the row it sits in agree', () => {
+  it('does not cap an area at the critical ceiling when nothing critical is open', async () => {
+    const report = buildReport(await analyzeProject(fixture('django-security-headers')), { profile: 'b2c-app' });
+    const security = report.categoryScores.find((entry) => entry.category === 'security');
+
+    const openSeverities = report.findings
+      .filter((f) => f.category === 'security' && f.status !== 'passed' && f.status !== 'unknown')
+      .map((f) => f.severity);
+
+    expect(openSeverities).not.toContain('critical');
+    expect(security?.criticalCount).toBe(0);
+    expect(security?.score).toBeGreaterThan(20);
+  });
+
+  it('still sinks an area that has a critical open', async () => {
+    // The ceiling exists so one unresolved critical cannot hide behind passing checks.
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'auto' });
+    const security = report.categoryScores.find((entry) => entry.category === 'security');
+
+    expect(security?.criticalCount).toBeGreaterThan(0);
+    expect(security?.score).toBeLessThanOrEqual(20);
   });
 });

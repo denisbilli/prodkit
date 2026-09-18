@@ -107,8 +107,23 @@ export function buildCategoryScores(findings: Finding[]): CategoryScore[] {
      * critical and nine passing checks is not 90% healthy". The cap keeps that;
      * the proportion does the ranking underneath it.
      */
+    /**
+     * The ceiling follows what the report says is wrong, not what the area is worth.
+     *
+     * These are two different numbers on purpose: `stakes` is what a capability is worth
+     * before confidence is folded in, and `severity` is what the report is willing to
+     * claim about it. Using stakes here capped a category at the critical ceiling while
+     * the row beside it read "0 critical" — a Django project with four of five security
+     * checks verified and one high finding open scored 20 of 100, below an area with one
+     * of three verified.
+     *
+     * The proportion below still uses stakes, which is right: how much of what is at
+     * stake is failing does not change because the report hedged. What changes is the
+     * cap, and a cap that says "nothing looks healthy while something severe is open"
+     * has to mean the severity the reader was shown.
+     */
     const worstOpen = actionable.reduce<Severity>(
-      (worst, finding) => (SEVERITY_WEIGHT[finding.stakes] > SEVERITY_WEIGHT[worst] ? finding.stakes : worst),
+      (worst, finding) => (SEVERITY_WEIGHT[finding.severity] > SEVERITY_WEIGHT[worst] ? finding.severity : worst),
       'info',
     );
     const ceiling = SEVERITY_CEILING[worstOpen];
