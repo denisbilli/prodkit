@@ -2,6 +2,7 @@ import { inferProductProfile } from '../expectations/inferProductProfile';
 import type { DetectorEvidence } from '../analyzer/types';
 import type { EvidenceQuality, Finding, FindingConfidence, FindingStatus, Severity } from '../report/types';
 import type { Rule } from './types';
+import { searchedFor } from '../analyzer/absenceEvidence';
 
 function statusFromFlags(present: boolean, complete?: boolean): FindingStatus {
   if (!present) return 'missing';
@@ -518,7 +519,20 @@ export const rules: Rule[] = [
               ? 'Upload handling was found, and none of it is publicly exposed.'
               : 'No upload handling was found in this repository.',
         recommendation: 'Protect upload routes with authz, validate MIME/type, and prefer private object storage.',
-        evidence: up?.evidence ?? [],
+        /**
+         * The evidence follows the claim.
+         *
+         * "No upload handling was found in this repository" used to arrive with six
+         * snippets under it, five of them Django auth decorators, and a confidence of
+         * high earned from them. Where nothing was found, the honest citation is the
+         * terms that were looked for.
+         */
+        evidence: status === 'unknown'
+          ? searchedFor('upload handling', ['multer', 'formidable', 'django-storages', 'FileField', '/uploads', 'express.static'])
+          // The routes and the public-serving lines, which is what this claim is about.
+          // Validation and antivirus signals are tagged separately and belong to other
+          // questions.
+          : evidenceForClaim(up?.evidence, 'uploads'),
       });
     },
   },

@@ -41,9 +41,19 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
   const pyUploadDeps = hasAnyPyDep(ctx, ['boto3']);
   const avDeps = hasAnyDep(ctx, ['clamav', 'clamscan']);
 
-  for (const d of uploadDeps) evidence.push({ type: 'dependency', value: d });
-  for (const d of pyUploadDeps) evidence.push({ type: 'dependency', value: d });
-  for (const d of avDeps) evidence.push({ type: 'dependency', value: d });
+  /**
+   * Each line tagged with the claim it supports.
+   *
+   * Everything this detector finds used to land in one array, so a report that said "no
+   * upload handling was found in this repository" cited six snippets under it — five of
+   * them `LoginRequiredMixin` and `@login_required`, one a PDF content type — and was
+   * stamped "confidence: high, evidence quality: strong" for them. That a project has
+   * authentication is why an upload check would matter; it is not evidence about
+   * uploads, and the rate-limit rule already carries that sentence for the same reason.
+   */
+  for (const d of uploadDeps) evidence.push({ type: 'dependency', value: d, claim: 'uploads' });
+  for (const d of pyUploadDeps) evidence.push({ type: 'dependency', value: d, claim: 'uploads' });
+  for (const d of avDeps) evidence.push({ type: 'dependency', value: d, claim: 'antivirus' });
 
   const routeSignals: UploadRouteSignal[] = [];
   for (const file of ctx.files.source) {
@@ -96,7 +106,7 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
   );
 
   for (const m of djangoProtectionSignals) {
-    evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+    evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'protection' });
   }
   const validationSignals = await searchInFiles(
     ctx.root,
@@ -109,10 +119,10 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
   const unprotectedRoutes = routeSignals.filter((r) => !r.protected);
 
   for (const r of routeSignals) {
-    evidence.push({ type: 'snippet', value: r.snippet, file: r.file, line: r.line });
+    evidence.push({ type: 'snippet', value: r.snippet, file: r.file, line: r.line, claim: 'uploads' });
   }
-  for (const m of djangoPublicSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
-  for (const m of validationSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });
+  for (const m of djangoPublicSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'uploads' });
+  for (const m of validationSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'validation' });
 
   const publicExposure = unprotectedRoutes.length > 0 || djangoPublicSignals.length > 0;
   const protectedSomehow = protectedRoutes.length > 0 || djangoProtectionSignals.length > 0;

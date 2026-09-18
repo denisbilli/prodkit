@@ -108,3 +108,49 @@ describe('what deployment means depends on what is being deployed', () => {
     expect(report.findings.find((f) => f.id === 'deployment.readiness')?.status).not.toBe('unknown');
   });
 });
+
+/**
+ * Evidence has to be about the claim it sits under.
+ *
+ * "No upload handling was found in this repository" arrived with six snippets beneath it
+ * — five Django auth decorators and a PDF content type — and a stamp of "confidence:
+ * high, evidence quality: strong" earned from them. That a project has authentication is
+ * why an upload check would matter; it is not evidence about uploads, which is the
+ * sentence the rate-limiting rule already carries for the same mistake.
+ */
+describe('an absence is evidenced by what was looked for', () => {
+  it('does not cite authentication lines under a claim about uploads', async () => {
+    const report = buildReport(await analyzeProject(fixture('django-basic')), { profile: 'auto' });
+    const uploads = report.findings.find((f) => f.id === 'uploads.public-exposure');
+
+    expect(uploads?.status).toBe('unknown');
+    expect(uploads?.evidence.every((item) => item.type !== 'snippet')).toBe(true);
+    expect(uploads?.evidence.some((item) => /searched for upload handling/.test(String(item.value)))).toBe(true);
+  });
+
+  it('cites the route rather than everything the detector touched', async () => {
+    /**
+     * The detector looks for four different things at once — upload routes, whether they
+     * are guarded, MIME validation, antivirus — and put all of it in one list. A claim
+     * about whether uploads are exposed is shown the routes, and the rest belongs to the
+     * questions it is about.
+     */
+    const report = buildReport(await analyzeProject(fixture('uploads-with-validation')), {
+      profile: 'auto',
+    });
+    const uploads = report.findings.find((f) => f.id === 'uploads.public-exposure');
+
+    expect(uploads?.evidence.length).toBeGreaterThan(0);
+    expect(uploads?.evidence.some((item) => /content-type|mimetype/i.test(String(item.value)))).toBe(false);
+  });
+
+  it('still cites the route when there is one to cite', async () => {
+    // The rule is about absence. Where uploads exist, the lines that show them are
+    // exactly what the reader needs.
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'auto' });
+    const uploads = report.findings.find((f) => f.id === 'uploads.public-exposure');
+
+    expect(uploads?.status).not.toBe('unknown');
+    expect(uploads?.evidence.some((item) => item.type === 'snippet')).toBe(true);
+  });
+});
