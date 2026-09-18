@@ -47,6 +47,72 @@ interface PlannedTaskState {
   task: RemediationTask;
   phaseId: RemediationPhaseId;
   severityRank: number;
+  /**
+   * The capabilities that say precisely what this task says generally.
+   *
+   * Carried on the state so the plan can be checked for the general form and its
+   * specific forms both being present, which is the one thing a reader cannot see for
+   * themselves: two steps that read differently and are the same work.
+   */
+  supersededBy?: string[];
+}
+
+/**
+ * Removes a task whose work is fully described by other tasks in the same plan.
+ *
+ * `gdpr.privacy` says "implement consent, export/erasure workflows, and retention
+ * policies", which is four GDPR capabilities restated as one sentence. Twelve of the
+ * seventy-eight repositories in the verification corpus got that step *and* all of the
+ * steps it summarises: a reader does the work and then meets an item telling them to do
+ * it. The catalogue has recorded the relationship since it was written and nothing read
+ * the field.
+ *
+ * Only when nothing the general task covers is left outstanding: every superseding
+ * capability is either in the plan already or was not a problem in the first place. With
+ * two of four present and the other two still open, the general task is the only step
+ * that reaches them, and dropping it would lose the work.
+ *
+ * The dropped task's finding keeps a step: its id moves onto the tasks that replace it,
+ * so nothing falls out of the plan's account of what it is answering.
+ */
+function dropSupersededTasks(
+  states: PlannedTaskState[],
+  actionableFindingIds: ReadonlySet<string>,
+): PlannedTaskState[] {
+  const plannedFindingIds = new Set(states.flatMap((state) => state.task.findingIds));
+
+  const survivors: PlannedTaskState[] = [];
+  const reassigned = new Map<string, string[]>();
+
+  for (const state of states) {
+    const superseders = state.supersededBy ?? [];
+
+    /**
+     * A capability that was never a problem needs no step, so it cannot be the reason
+     * the general task survives — but at least one of them has to be in the plan, or
+     * this task is the only thing pointing at the work. That is the observed-only case:
+     * no expectations ran, so none of the specific steps exist.
+     */
+    const outstanding = superseders.filter((id) => !plannedFindingIds.has(id) && actionableFindingIds.has(id));
+    const anyPlanned = superseders.some((id) => plannedFindingIds.has(id));
+    const fullyCovered = superseders.length > 0 && anyPlanned && outstanding.length === 0;
+
+    if (!fullyCovered) {
+      survivors.push(state);
+      continue;
+    }
+
+    for (const findingId of superseders) {
+      reassigned.set(findingId, [...(reassigned.get(findingId) ?? []), ...state.task.findingIds]);
+    }
+  }
+
+  return survivors.map((state) => {
+    const inherited = state.task.findingIds.flatMap((id) => reassigned.get(id) ?? []);
+    if (inherited.length === 0) return state;
+
+    return { ...state, task: { ...state.task, findingIds: unique([...state.task.findingIds, ...inherited]) } };
+  });
 }
 
 function unique(values: string[]): string[] {
@@ -194,11 +260,17 @@ export function buildPlan(report: ProductionReadinessReport): RemediationPlan {
         task: buildTask(seed, evidenceFiles),
         phaseId: entry.phaseId,
         severityRank: severityOrder[finding.severity],
+        supersededBy: entry.supersededBy,
       });
     }
   }
 
-  const states = sortStates(Array.from(taskStates.values()));
+  const states = sortStates(
+    dropSupersededTasks(
+      Array.from(taskStates.values()),
+      new Set(actionableFindings.map((finding) => finding.id)),
+    ),
+  );
   const tasks = states.map((state) => state.task);
   const phases = buildPhases(states);
   const quickWins = tasks.filter((task) => task.effort === 'small' && (task.risk === 'low' || task.risk === 'medium'));

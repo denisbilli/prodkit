@@ -30,6 +30,46 @@ describe('planner', () => {
     expect(plan.tasks.filter((task) => task.priority === 'p0').length).toBe(0);
   });
 
+  it('does not list the general form of work beside the work itself', async () => {
+    /**
+     * "Add privacy and GDPR control flows" is consent, export, erasure and retention
+     * restated as one sentence. Twelve of the seventy-eight repositories in the
+     * verification corpus got that step and all four of the steps it summarises: a
+     * reader does the work, then meets an item telling them to do it.
+     *
+     * The catalogue recorded the relationship when it was written, and nothing read the
+     * field.
+     */
+    const plan = buildPlan(buildReport(await analyzeProject(fixture('django-basic')), { profile: 'b2c-app' }));
+    const taskIds = plan.tasks.map((task) => task.id);
+
+    expect(taskIds).toContain('remediate.gdpr.consent');
+    expect(taskIds).toContain('remediate.gdpr.export');
+    expect(taskIds).toContain('remediate.gdpr.erasure');
+    expect(taskIds).not.toContain('remediate.gdpr.privacy');
+  });
+
+  it('keeps the finding whose task it dropped attached to the tasks that replace it', async () => {
+    // The step goes; what it was answering does not. Otherwise the plan stops accounting
+    // for a finding the report raised.
+    const plan = buildPlan(buildReport(await analyzeProject(fixture('django-basic')), { profile: 'b2c-app' }));
+
+    expect(plan.tasks.flatMap((task) => task.findingIds)).toContain('gdpr.privacy');
+  });
+
+  it('keeps the general task when nothing more specific was raised', async () => {
+    /**
+     * Observed-only: no profile, so no expectations ran and none of the specific steps
+     * exist. The general task is the only thing pointing at the work, and four
+     * repositories in the corpus are in exactly this position.
+     */
+    const plan = buildPlan(buildReport(await analyzeProject(fixture('django-basic'))));
+    const taskIds = plan.tasks.map((task) => task.id);
+
+    expect(taskIds).not.toContain('remediate.gdpr.consent');
+    expect(taskIds).toContain('remediate.gdpr.privacy');
+  });
+
   it('does not create a Stripe webhook task without strong Stripe signals', async () => {
     const analysis = await analyzeProject(fixture('movie-like-billing-no-stripe'));
     const report = buildReport(analysis);
