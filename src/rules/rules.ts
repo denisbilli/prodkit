@@ -37,8 +37,21 @@ function statusFromFlags(present: boolean, complete?: boolean): FindingStatus {
  * asking what kind of thing they were looking at, so they reported the absence of things
  * the project could not have.
  */
+/**
+ * Backend entries that mean "this language is here", not "this serves requests".
+ *
+ * `dotnet` is what the backend detector reports for C# with no web SDK — a project that
+ * actually serves comes back as `aspnet-core`, which is the whole reason the two are
+ * separate. Without the distinction a Unity game was asked for security headers "in
+ * this dotnet application" and told it had no authentication.
+ *
+ * `go` and `php` are deliberately absent: a go.mod with no framework in it still serves
+ * over net/http, and a bare PHP application's default output is a page.
+ */
+const LANGUAGE_ONLY_BACKENDS = new Set(['dotnet']);
+
 function isAServer(analysis: { stack: { backend: string[] } }): boolean {
-  return analysis.stack.backend.length > 0;
+  return analysis.stack.backend.some((framework) => !LANGUAGE_ONLY_BACKENDS.has(framework));
 }
 
 /**
@@ -306,7 +319,11 @@ export const rules: Rule[] = [
        * a false credit, counted among the checks the report says it verified. A string
        * is not a response.
        */
-      const ownsResponses = analysis.stack.backend.length > 0;
+      // The same notion of serving the rest of the file uses. Written out separately
+      // here at first, which is how a Unity game came to be asked for security headers
+      // "in this dotnet application" after the shared version had already learned that
+      // C# with no web SDK is a language, not a server.
+      const ownsResponses = isAServer(analysis);
       const status: FindingStatus = !ownsResponses
         ? 'unknown'
         : hasHeaders ? 'passed' : 'missing';

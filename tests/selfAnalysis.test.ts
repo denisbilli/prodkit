@@ -111,3 +111,39 @@ describe('a question about users needs a subject', () => {
     expect(answered.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * A Unity game was asked for security headers "in this dotnet application" and told it
+ * had no authentication. C# lands in the backend list as `dotnet`, and nothing asked
+ * whether that meant a server.
+ */
+describe('a language in the stack is not a server', () => {
+  it('does not ask a C# project with no web SDK to serve anything', async () => {
+    const report = buildReport(await analyzeProject(fixture('unity-game')), { profile: 'game' });
+
+    for (const id of ['security.helmet', 'auth.core', 'observability.health', 'security.cors-origin']) {
+      expect(report.findings.find((f) => f.id === id)?.status, id).not.toBe('missing');
+    }
+  });
+
+  it('still asks an ASP.NET application', async () => {
+    // The backend detector already separates the two: a project that actually serves
+    // comes back as `aspnet-core`, which is the whole reason they are different names.
+    const analysis = await analyzeProject(fixture('aspnet-api'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    expect(analysis.stack.backend).toContain('aspnet-core');
+    expect(report.findings.find((f) => f.id === 'security.helmet')?.status).not.toBe('unknown');
+  });
+
+  it('uses one notion of serving, not one per rule', async () => {
+    // The headers rule had written its own, so it kept asking after the shared version
+    // had learned better.
+    const report = buildReport(await analyzeProject(fixture('unity-game')), { profile: 'game' });
+    const serving = ['security.helmet', 'observability.health'].map(
+      (id) => report.findings.find((f) => f.id === id)?.status,
+    );
+
+    expect(new Set(serving).size).toBe(1);
+  });
+});
