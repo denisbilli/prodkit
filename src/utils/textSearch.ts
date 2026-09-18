@@ -56,6 +56,27 @@ function declaresRatherThanDoes(line: string): boolean {
 }
 
 /**
+ * The longest line this analyzer will cite.
+ *
+ * The product's promise is that every finding points at a line somebody can open and
+ * argue with. A bundled `index-BVY8w6Ig.js` is one line of forty thousand characters:
+ * the snippet shown is the first two hundred of it, which names no function, no file the
+ * author wrote, and nothing they can change. Two repositories in the verification corpus
+ * were citing exactly that, and one of them was the only evidence behind a claim about
+ * their authorization model.
+ *
+ * Skipping the line rather than the file, because a file is not minified — a line is.
+ * Real source stays well under this: of twelve thousand files analysed, eleven thousand
+ * have no line over two hundred characters, and the few hundred above five hundred are
+ * bundles, embedded data URIs and generated blobs.
+ *
+ * The cost is honest and small: a problem that exists only inside generated output is no
+ * longer reported. That output is not what anybody edits, and a finding nobody can act
+ * on is not worth the one it displaces.
+ */
+const MAX_CITABLE_LINE = 500;
+
+/**
  * Search a list of relative file paths for any of the given needles
  * (string or RegExp). Returns at most `limit` matches.
  */
@@ -73,6 +94,7 @@ export async function searchInFiles(
     const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (line.length > MAX_CITABLE_LINE) continue;
       if (declaresRatherThanDoes(line)) continue;
 
       for (const n of needles) {

@@ -1,8 +1,47 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
-import { searchInFiles } from '../utils/textSearch';
+import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
+
+/**
+ * In a product that talks to a model, `role` usually means who is speaking.
+ *
+ * `m.role === "assistant"` is a chat transcript, not an authorization check, and three
+ * repositories in the verification corpus were credited with a role model on the
+ * strength of one line of chat UI. One of them — an AI product with no roles anywhere —
+ * had that single line as the only evidence, and the report told its owner their
+ * authorization depth was "basic role checks" rather than nothing at all.
+ *
+ * Only the literals that cannot be an authorization role: `assistant`, `system`, `tool`,
+ * `function`, `developer`, `model`, `bot`. A comparison against `'user'` or `'admin'` is
+ * left alone — "user" is a perfectly ordinary role name, and a rule that dropped it
+ * would blind the detector to every two-role application.
+ *
+ * A line that pairs `role === 'user'` with nothing recognisable still gets through. That
+ * is the honest limit of what the shape of a line can tell.
+ */
+/**
+ * Showing somebody their role is not checking it.
+ *
+ * `{m.role === 'editor' ? <Pencil /> : <Eye />}` picks an icon. `{{ msg.role === 'user'
+ * ? '👤' : '🤖' }}` picks an avatar. Both are the interface displaying a value, and
+ * neither decides whether anything is allowed — which is what this detector claims when
+ * it fires.
+ *
+ * It costs nothing where a role model exists: an application that renders a role almost
+ * always guards on it somewhere too, and those lines are untouched. Where the rendered
+ * line was the *only* evidence, the claim rested on a label.
+ */
+const ROLE_IN_MARKUP = /[<{][^<>{}]*\brole\s*===?=?/;
+
+const CHAT_TURN_ROLE = /role\s*===?=?\s*["'`](?:assistant|system|tool|function|developer|model|bot)["'`]|["'`](?:assistant|system)["'`]\s*===?=?\s*\w*\.?role/i;
+
+function excludeChatTurnRoles(matches: TextMatch[]): TextMatch[] {
+  return matches.filter(
+    (match) => !CHAT_TURN_ROLE.test(match.snippet) && !ROLE_IN_MARKUP.test(match.snippet),
+  );
+}
 
 function depEvidence(deps: string[]): DetectorEvidence[] {
   return deps.map((d) => ({ type: 'dependency', value: d }));
@@ -138,7 +177,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     25
   );
 
-  const roleSignals = await searchInFiles(
+  const roleSignals = excludeChatTurnRoles(await searchInFiles(
     ctx.root,
     sourceFiles,
     [
@@ -151,7 +190,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /roles\.includes\(/i,
     ],
     20
-  );
+  ));
   const permissionSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
