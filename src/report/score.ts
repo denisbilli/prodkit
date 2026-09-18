@@ -37,6 +37,17 @@ export interface ScoreCoverage {
 const MIN_VERIFIED_FOR_PRODUCTION = 6;
 
 /**
+ * The fewest verdicts that can carry a reading at all.
+ *
+ * Below this the report has nothing to characterise: not a weak product, but a project
+ * this analyzer barely had anything to say about. In a corpus of seventy-eight
+ * repositories, eleven reach four verdicts or fewer and thirty reach ten or more —
+ * nothing lands in between, so the line sits in the gap rather than in the middle of a
+ * distribution.
+ */
+export const MIN_ASSESSED_FOR_A_READING = 5;
+
+/**
  * The highest score a report can reach when it may not claim the top band.
  *
  * The band boundary itself, deliberately: a report that cannot support the words

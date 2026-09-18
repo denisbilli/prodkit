@@ -1,6 +1,12 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import { runRules } from '../rules/ruleEngine';
-import { computeMaturity, computeScore, mayClaimTopBand, TOP_BAND_CEILING } from './score';
+import {
+  computeMaturity,
+  computeScore,
+  mayClaimTopBand,
+  MIN_ASSESSED_FOR_A_READING,
+  TOP_BAND_CEILING,
+} from './score';
 import { CATEGORIES } from './types';
 import type { Category, ExpectationMode, Finding, ProductionReadinessReport } from './types';
 import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectations';
@@ -161,16 +167,6 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     || analysis.stack.databases.length > 0
     || mobileDetected
     || gameEngineDetected;
-  const inconclusive = !stackDetected && analysis.workspaceStacks.length === 0;
-  const inconclusiveReasons: string[] = [];
-  if (inconclusive) {
-    inconclusiveReasons.push('No frontend, backend, or database stack signals were detected.');
-    inconclusiveReasons.push('No package manifest was found in any format this analyzer reads.');
-    if (analysis.files.source.length === 0) {
-      inconclusiveReasons.push('No recognizable source files were found.');
-    }
-  }
-
   /**
    * Coverage counts the expectations too, not only the observed rules.
    *
@@ -186,6 +182,40 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   const assessedChecks = findings.filter((f) => f.status !== 'unknown').length
     + Math.max(applicableExpectations - expectationFindings.length, 0);
   const coverage = { passed: passedChecksForMaturity, assessed: assessedChecks };
+
+  const nothingIdentified = !stackDetected && analysis.workspaceStacks.length === 0;
+
+  /**
+   * Too little reached a verdict to say anything about this project.
+   *
+   * The flag used to ask whether a manifest existed, and the claim it makes is about
+   * what was learned. Two repositories with the same three verdicts came out at 39 and
+   * at 84, and the only difference between them was a `requirements.txt`: a Python
+   * script with one was judged, an equally small one without it was called unreadable.
+   *
+   * Five is where the corpus splits. Of seventy-eight repositories, eleven reach four
+   * verdicts or fewer and thirty reach ten or more; not one lands in between. Four
+   * verdicts cannot characterise a product, however many files it has.
+   */
+  const tooLittleAssessed = assessedChecks < MIN_ASSESSED_FOR_A_READING;
+  const inconclusive = nothingIdentified || tooLittleAssessed;
+
+  // Each reason says which of the two it was, because they call for different things:
+  // one is a repository this analyzer cannot read, the other is one there is barely
+  // anything to read.
+  const inconclusiveReasons: string[] = [];
+  if (nothingIdentified) {
+    inconclusiveReasons.push('No frontend, backend, or database stack signals were detected.');
+    inconclusiveReasons.push('No package manifest was found in any format this analyzer reads.');
+    if (analysis.files.source.length === 0) {
+      inconclusiveReasons.push('No recognizable source files were found.');
+    }
+  }
+  if (tooLittleAssessed) {
+    inconclusiveReasons.push(
+      `Only ${assessedChecks} check${assessedChecks === 1 ? '' : 's'} reached a verdict, which is too few to characterise this project.`,
+    );
+  }
 
   // An unrecognized project has almost no applicable detectors, so the absence
   // of findings must not be rewarded with a high score: cap it at prototype.

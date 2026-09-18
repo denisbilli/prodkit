@@ -8,16 +8,21 @@ const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
 
 describe('product profile expectations', () => {
   it('keeps observed-only behavior when no profile is provided', async () => {
-    const analysis = await analyzeProject(fixture('react-vite'));
+    /**
+     * A fixture with enough verdicts to carry a reading.
+     *
+     * This was `react-vite`, four files, which reaches four verdicts — below the line at
+     * which a report can say anything at all, so its score is capped and the equality
+     * this test is about could not be seen. The point is that nothing is blended in, and
+     * it needs a project the analyzer can actually read to be visible.
+     */
+    const analysis = await analyzeProject(fixture('express-basic'));
     const report = buildReport(analysis);
 
     expect(report.expectedCapabilityScore).toBeUndefined();
     expect(report.productProfile).toBeUndefined();
-
-    // Nothing is blended in, so the overall score is the observed one — as far as the
-    // coverage ceiling allows. This fixture is four files and rests on a handful of
-    // checks, which is exactly the case the ceiling exists for.
-    expect(report.overallScore).toBe(Math.min(report.observedScore, 84));
+    expect(report.inconclusive).toBe(false);
+    expect(report.overallScore).toBe(report.observedScore);
   });
 
   it('applies b2b-saas expectations and lowers final score on a frontend-only fixture', async () => {

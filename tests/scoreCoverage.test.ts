@@ -76,6 +76,30 @@ describe('a score carries how much was verified', () => {
     expect(mayClaimTopBand({ passed: 3, assessed: 4 }, 0)).toBe(false);
   });
 
+  it('will not judge a project on four verdicts because it happens to have a manifest', async () => {
+    /**
+     * The flag used to ask whether a manifest existed; the claim it makes is about what
+     * was learned. Two repositories with the same three verdicts came out at 39 and at
+     * 84, and the only difference between them was a `requirements.txt` — a Python
+     * script with one was judged, an equally small one without it was called unreadable.
+     */
+    const report = buildReport(await analyzeProject(fixture('react-vite')));
+
+    expect(report.diagnostics.assessedChecks).toBeLessThan(5);
+    expect(report.inconclusive).toBe(true);
+    expect(report.inconclusiveReasons.join(' ')).toMatch(/too few to characterise/);
+    expect(report.overallScore).toBeLessThanOrEqual(39);
+  });
+
+  it('reads a project that reached a real body of verdicts', async () => {
+    // The line must sit where nothing real falls below it: every application in the
+    // verification corpus reaches ten verdicts or more even with no profile applied.
+    const report = buildReport(await analyzeProject(fixture('express-basic')));
+
+    expect(report.diagnostics.assessedChecks).toBeGreaterThanOrEqual(5);
+    expect(report.inconclusive).toBe(false);
+  });
+
   it('says out loud that a high score came from silence', async () => {
     const report = buildReport(await analyzeProject(fixture('vanilla-static')), { profile: 'auto' });
     const markdown = renderMarkdown(report);
