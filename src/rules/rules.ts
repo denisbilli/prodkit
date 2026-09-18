@@ -28,6 +28,19 @@ function statusFromFlags(present: boolean, complete?: boolean): FindingStatus {
  * Carrying `info` makes `severity === 'critical'` a safe question on its own. Scoring
  * is unaffected: score.ts already skips `unknown` before it looks at severity.
  */
+/**
+ * Whether anything in this repository answers a request.
+ *
+ * A Flutter application was told it has no health endpoint and no Docker artifacts. It
+ * runs on a phone: there is nothing to health-check and nothing to put in a container,
+ * and the same is true of a library and of a browser game. These rules ran without ever
+ * asking what kind of thing they were looking at, so they reported the absence of things
+ * the project could not have.
+ */
+function isAServer(analysis: { stack: { backend: string[] } }): boolean {
+  return analysis.stack.backend.length > 0;
+}
+
 function sevForStatus(status: FindingStatus, missing: Severity): Severity {
   return status === 'passed' || status === 'unknown' ? 'info' : missing;
 }
@@ -649,15 +662,31 @@ export const rules: Rule[] = [
     evaluate: ({ analysis }) => {
       const obs = analysis.detectors['observability.core'];
       const health = Boolean(obs?.details?.healthEndpoint);
-      const status: FindingStatus = health ? 'passed' : 'missing';
+      const serves = isAServer(analysis);
+      /**
+       * The credit needs the same gate as the blame.
+       *
+       * This analyzer searches source for `/health` and `/healthz`, so the tool that
+       * looks for a health endpoint contains the strings it looks for: reported against
+       * itself, a command-line package with no server anywhere came back "health
+       * endpoint detected", and scored 100 out of 100 partly on that. Third time this
+       * trap has been sprung — after Stripe constants in a hash implementation and
+       * security headers in a pattern table — and the answer is the same every time: a
+       * string is not the thing it names.
+       */
+      const status: FindingStatus = !serves ? 'unknown' : health ? 'passed' : 'missing';
       return mkFinding({
         id: 'observability.health',
         title: 'Healthcheck endpoint',
         category: 'observability',
         status,
         severity: sevForStatus(status, 'low'),
-        description: health ? 'Health endpoint detected.' : 'No health endpoint detected.',
-        recommendation: 'Add /health or /healthz endpoint for runtime and deployment checks.',
+        description: !serves
+          ? 'Nothing here answers requests, so there is no endpoint to check.'
+          : health
+            ? 'Health endpoint detected.'
+            : 'No health endpoint detected.',
+        recommendation: serves ? 'Add /health or /healthz endpoint for runtime and deployment checks.' : '',
         evidence: evidenceForClaim(obs?.evidence, 'health'),
       });
     },
@@ -686,7 +715,13 @@ export const rules: Rule[] = [
           : anyLogs
             ? 'Logging is in place, but unstructured: entries cannot be correlated or queried.'
             : 'No logging detected.',
-        recommendation: 'Adopt structured logs with request correlation ids.',
+        /**
+         * A phone application has no requests to correlate. What makes its failures
+         * visible is a crash reporter, which is a different instruction.
+         */
+        recommendation: isAServer(analysis)
+          ? 'Adopt structured logs with request correlation ids.'
+          : 'Report crashes and errors somewhere you can read them after the fact, rather than only to the console.',
         evidence: evidenceForClaim(obs?.evidence, 'logging'),
       });
     },
@@ -714,7 +749,17 @@ export const rules: Rule[] = [
          * PHP project to handle SIGTERM is a Node idiom pointed at a process model that
          * does not have one.
          */
-        recommendation: analysis.detectors['deployment.readiness']?.details?.gracefulShutdownApplies === false
+        /**
+         * Graceful shutdown is a question about a long-lived process that an operator
+         * can signal. PHP-FPM hands each request to a worker that exits on its own, and
+         * a phone application has no such process at all — the platform stops it.
+         *
+         * Decided here rather than in the detector, because this is the layer that
+         * knows the stack: reading it from file extensions put Flutter on the wrong
+         * side, since a Flutter repository carries Java stubs under `android/`.
+         */
+        recommendation: !isAServer(analysis)
+          || analysis.detectors['deployment.readiness']?.details?.gracefulShutdownApplies === false
           ? 'Add production-aware config and a CI workflow.'
           : 'Add production-aware config, CI workflow, and graceful shutdown handling.',
         evidence: dep?.evidence ?? [],
@@ -728,15 +773,25 @@ export const rules: Rule[] = [
     severity: 'low',
     evaluate: ({ analysis }) => {
       const docker = analysis.detectors['infra.docker'];
-      const status = statusFromFlags(Boolean(docker?.present), docker?.complete);
+      const mobile = analysis.detectors['mobile.platform']?.present === true;
+      const serves = isAServer(analysis);
+      const containerisable = serves && !mobile;
+      const status = docker?.present
+        ? statusFromFlags(true, docker.complete)
+        : containerisable ? 'missing' : 'unknown';
+
       return mkFinding({
         id: 'docker.presence',
         title: 'Docker/Docker Compose availability',
         category: 'deployment',
         status,
         severity: sevForStatus(status, 'low'),
-        description: docker?.present ? 'Docker signals found.' : 'No Docker artifacts found.',
-        recommendation: 'Provide Dockerfile and healthchecks for reproducible deployments.',
+        description: docker?.present
+          ? 'Docker signals found.'
+          : containerisable
+            ? 'No Docker artifacts found.'
+            : 'Nothing here is deployed as a container.',
+        recommendation: containerisable ? 'Provide Dockerfile and healthchecks for reproducible deployments.' : '',
         evidence: docker?.evidence ?? [],
       });
     },

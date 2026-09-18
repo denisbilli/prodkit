@@ -16,6 +16,12 @@ export async function detectDeployment(ctx: DetectContext): Promise<DetectorResu
     'Dockerfile', 'Containerfile', 'docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml',
     'Procfile', 'nginx.conf', 'fly.toml', 'render.yaml', 'railway.json', 'vercel.json', 'netlify.toml',
     'app.yaml', 'Makefile', 'skaffold.yaml', 'Chart.yaml',
+    /**
+     * How a phone application ships. Its deployment story is a store pipeline, not a
+     * container: `Fastfile`, a Codemagic configuration, signing material and an export
+     * options plist are the artifacts that decide whether a release is reproducible.
+     */
+    'codemagic.yaml', 'Fastfile', 'Appfile', 'ExportOptions.plist', 'key.properties',
   ];
   const presentFiles = ctx.files.all.filter((f) =>
     keyFiles.some((k) => f.endsWith(k))
@@ -64,6 +70,7 @@ export async function detectDeployment(ctx: DetectContext): Promise<DetectorResu
    * how its requests are served, and requiring the absence of JavaScript meant no real
    * PHP application ever qualified.
    */
+  /** PHP-FPM hands each request to a worker that exits when it is done. */
   const perRequestRuntime = ctx.files.source.some((f) => f.endsWith('.php'));
 
   const graceful = hits.some((h) => /SIGTERM|SIGINT/i.test(h.snippet));
