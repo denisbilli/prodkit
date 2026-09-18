@@ -194,3 +194,34 @@ describe('a reading that covers a minority of the repository', () => {
     expect(report.inconclusiveReasons.join(' ')).not.toMatch(/does not read/);
   });
 });
+
+/**
+ * A word, and three letters inside another word, are not the same thing.
+ *
+ * Ruff — a Python linter written in Rust — was read as a B2B SaaS. Two of the three
+ * signals behind that were substring collisions: `/otp/i` matched
+ * `VarError::NotPresent` and `PandasUseOfDotPivotOrUnstack`, and `memberId` matched
+ * `ScopedMemberId`, a symbol table in a compiler.
+ */
+describe('a keyword that happens to sit inside another word', () => {
+  it('does not credit two-factor authentication to a compiler', async () => {
+    const analysis = await analyzeProject(fixture('rust-compiler'));
+
+    expect(analysis.detectors['auth.2fa']?.present).toBe(false);
+  });
+
+  it('does not read a symbol table as a tenant membership', async () => {
+    // "Member" means a struct field in most languages and a person in a few; only a
+    // tenant word says which, which is this detector's own rule about weak words.
+    const analysis = await analyzeProject(fixture('rust-compiler'));
+
+    expect(analysis.detectors['tenancy.membership']?.present).toBe(false);
+  });
+
+  it('still finds a one-time code where somebody wrote one', async () => {
+    // The fix must not blind the check: these are how people actually write it.
+    const analysis = await analyzeProject(fixture('express-two-factor'));
+
+    expect(analysis.detectors['auth.2fa']?.present).toBe(true);
+  });
+});

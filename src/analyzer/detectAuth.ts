@@ -103,7 +103,21 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ],
     30
   );
-  const twoFaSignals = await searchInFiles(ctx.root, sourceFiles, [/two[_-]?factor/i, /otp/i, /totp/i], 20);
+  /**
+   * `otp` as a word, not as three letters inside another one.
+   *
+   * `/otp/i` matched `VarError::NotPresent` and `PandasUseOfDotPivotOrUpdate` — N-**otp**-resent
+   * and D-**otp**-ivot — so a Rust linter was credited with two-factor authentication.
+   * Two of the three signals behind that reading were substring collisions of this kind.
+   *
+   * Word boundaries in the languages people actually write: delimited by a non-letter
+   * (`otp_secret`, `verify(otp)`), or the capital that starts a camelCase word
+   * (`verifyOtp`, `otpCode`). `pyotp` no longer matches here and does not need to: it is
+   * a dependency, and dependencies are read from the manifest above.
+   */
+  const OTP_AS_A_WORD = /(?:^|[^a-z])t?otp(?:[^a-z]|$)|[a-z_](?:Otp|OTP|Totp|TOTP)/;
+
+  const twoFaSignals = await searchInFiles(ctx.root, sourceFiles, [/two[_-]?factor/i, OTP_AS_A_WORD], 20);
   const apiKeySignals = await searchInFiles(
     ctx.root,
     sourceFiles,
@@ -259,8 +273,17 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ? [...strongOrganization, ...weakOrganization]
     : [];
 
-  const strongMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...STRONG_TENANCY], 25);
-  const weakMembership = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25);
+  /**
+   * `memberId` is a weak word, by this detector's own rule.
+   *
+   * It was strong enough to stand alone, and `ScopedMemberId` — a symbol table in a
+   * compiler — was read as a tenant membership. "Member" means a struct field in most
+   * languages and a person in a few; only a tenant word says which. The comment above
+   * already states the principle: a weak word never stands on its own, however many
+   * files it appears in.
+   */
+  const strongMembership = await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25);
+  const weakMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...WEAK_TENANCY], 25);
 
   const membershipSignals = strongMembership.length > 0 ? [...strongMembership, ...weakMembership] : [];
   const b2bSignals = await searchInFiles(
