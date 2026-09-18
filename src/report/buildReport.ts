@@ -1,6 +1,6 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import { runRules } from '../rules/ruleEngine';
-import { computeMaturity, computeScore } from './score';
+import { computeMaturity, computeScore, mayClaimTopBand, TOP_BAND_CEILING } from './score';
 import { CATEGORIES } from './types';
 import type { Category, ExpectationMode, Finding, ProductionReadinessReport } from './types';
 import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectations';
@@ -171,9 +171,6 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     }
   }
 
-  // An unrecognized project has almost no applicable detectors, so the absence
-  // of findings must not be rewarded with a high score: cap it at prototype.
-  const overallScore = inconclusive ? Math.min(combinedScore, 39) : combinedScore;
   /**
    * Coverage counts the expectations too, not only the observed rules.
    *
@@ -188,10 +185,40 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   const passedChecksForMaturity = findings.filter((f) => f.status === 'passed').length + satisfiedExpectations;
   const assessedChecks = findings.filter((f) => f.status !== 'unknown').length
     + Math.max(applicableExpectations - expectationFindings.length, 0);
-  const maturityLevel = computeMaturity(overallScore, {
-    passed: passedChecksForMaturity,
-    assessed: assessedChecks,
-  });
+  const coverage = { passed: passedChecksForMaturity, assessed: assessedChecks };
+
+  // An unrecognized project has almost no applicable detectors, so the absence
+  // of findings must not be rewarded with a high score: cap it at prototype.
+  const scoreAfterInconclusive = inconclusive ? Math.min(combinedScore, 39) : combinedScore;
+
+  /**
+   * The number obeys the same rule as the label.
+   *
+   * The score starts at 100 and only ever subtracts, so a repository small enough that
+   * almost nothing applies to it keeps most of what it was handed. The maturity label
+   * has refused to call that production ready since the coverage rule was added — and
+   * the number beside it went on saying 98, above every real product in the verification
+   * corpus. A Python transcription script rested on three passing checks out of four and
+   * outscored this product's own web application, which rests on thirty.
+   *
+   * Nothing is subtracted for thin coverage, because there is nothing to subtract for:
+   * the report simply may not enter the top band on evidence that cannot support it.
+   */
+  /**
+   * An unresolved critical bars the top band too.
+   *
+   * Counted before the score is capped, because it is one of the two reasons the top
+   * band can be refused and both must reach the number, not only the label.
+   */
+  const openCriticals = findings.filter(
+    (f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown',
+  ).length;
+
+  const overallScore = mayClaimTopBand(coverage, openCriticals)
+    ? scoreAfterInconclusive
+    : Math.min(scoreAfterInconclusive, TOP_BAND_CEILING);
+
+  const maturityLevel = computeMaturity(overallScore, coverage, openCriticals);
 
   const findingsByCategory = Object.fromEntries(CATEGORIES.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
   for (const f of findings) findingsByCategory[f.category].push(f);

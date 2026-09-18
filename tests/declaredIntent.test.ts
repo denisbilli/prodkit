@@ -20,7 +20,15 @@ describe('declared product intent', () => {
     // — so it is added rather than merely raised.
     expect(expectationTitles(plain).some((t) => /Billing/i.test(t))).toBe(false);
     expect(expectationTitles(declared).some((t) => /Billing/i.test(t))).toBe(true);
-    expect(declared.overallScore).toBeLessThan(plain.overallScore);
+    /**
+     * The capability score, not the overall one.
+     *
+     * Both reports rest on a handful of checks — a brochure site is four files — so both
+     * overall scores sit on the coverage ceiling, where a difference of a few points
+     * cannot show. What the declaration changes is what was expected of the project, and
+     * that is the number that carries it.
+     */
+    expect(declared.expectedCapabilityScore ?? 100).toBeLessThan(plain.expectedCapabilityScore ?? 100);
   });
 
   it('never removes a finding the code earned', async () => {

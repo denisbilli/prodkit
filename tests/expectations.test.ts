@@ -13,7 +13,11 @@ describe('product profile expectations', () => {
 
     expect(report.expectedCapabilityScore).toBeUndefined();
     expect(report.productProfile).toBeUndefined();
-    expect(report.overallScore).toBe(report.observedScore);
+
+    // Nothing is blended in, so the overall score is the observed one — as far as the
+    // coverage ceiling allows. This fixture is four files and rests on a handful of
+    // checks, which is exactly the case the ceiling exists for.
+    expect(report.overallScore).toBe(Math.min(report.observedScore, 84));
   });
 
   it('applies b2b-saas expectations and lowers final score on a frontend-only fixture', async () => {

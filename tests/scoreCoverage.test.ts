@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { analyzeProject } from '../src/analyzer/analyzeProject';
 import { buildReport } from '../src/report/buildReport';
 import { renderMarkdown } from '../src/report/markdownReport';
-import { computeMaturity } from '../src/report/score';
+import { computeMaturity, coverageSupportsTopBand, mayClaimTopBand } from '../src/report/score';
 import { inferProductProfile } from '../src/expectations/inferProductProfile';
 import { scoreProfiles } from '../src/expectations/profileSignals';
 
@@ -34,6 +34,46 @@ describe('a score carries how much was verified', () => {
     // Nothing about coverage can promote a repository, only stop it claiming the top.
     expect(computeMaturity(50, { passed: 40, assessed: 40 })).toBe('early');
     expect(computeMaturity(30, { passed: 40, assessed: 40 })).toBe('prototype');
+  });
+
+  it('does not print a top-band number a report cannot support', async () => {
+    /**
+     * The label and the number, saying the same thing.
+     *
+     * The maturity label refused to call a thin report production ready, and the score
+     * beside it went on reading 96 or 98 — above every real product in the verification
+     * corpus. A Python transcription script rested on three passing checks out of four
+     * and outscored this product's own web application, which rests on thirty.
+     */
+    const report = buildReport(await analyzeProject(fixture('vanilla-static')), { profile: 'auto' });
+
+    expect(report.diagnostics.verifiedChecks).toBeLessThan(6);
+    expect(report.overallScore).toBeLessThanOrEqual(84);
+    expect(report.maturityLevel).not.toBe('production_ready');
+  });
+
+  it('leaves a well-covered report alone', () => {
+    // The ceiling must bite only where the evidence is thin, or it would flatten every
+    // real product onto the same number.
+    expect(coverageSupportsTopBand({ passed: 12, assessed: 17 })).toBe(true);
+    expect(coverageSupportsTopBand({ passed: 30, assessed: 40 })).toBe(true);
+    expect(coverageSupportsTopBand({ passed: 3, assessed: 4 })).toBe(false);
+    expect(coverageSupportsTopBand({ passed: 9, assessed: 35 })).toBe(false);
+  });
+
+  it('does not call anything production ready while a critical is open', () => {
+    // Forty-two passing checks and one unresolved critical came out at 91 and
+    // production ready. The category scores refused to let a critical hide behind
+    // passing checks long before the headline did.
+    expect(computeMaturity(91, { passed: 42, assessed: 43 }, 1)).toBe('partial');
+    expect(computeMaturity(91, { passed: 42, assessed: 43 }, 0)).toBe('production_ready');
+  });
+
+  it('bars the top-band number for both reasons, not only for thin evidence', () => {
+    // One place states both bars, so the number and the label cannot drift apart again.
+    expect(mayClaimTopBand({ passed: 42, assessed: 43 }, 0)).toBe(true);
+    expect(mayClaimTopBand({ passed: 42, assessed: 43 }, 1)).toBe(false);
+    expect(mayClaimTopBand({ passed: 3, assessed: 4 }, 0)).toBe(false);
   });
 
   it('says out loud that a high score came from silence', async () => {
