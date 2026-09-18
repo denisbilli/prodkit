@@ -232,9 +232,24 @@ export const rules: Rule[] = [
         category: 'env',
         status,
         severity: sevForStatus(status, 'medium'),
+        /**
+         * One sentence per answer.
+         *
+         * "Environment template looks available or env usage was not detected" is two
+         * different findings sharing a line, and sixty-two of the seventy-eight
+         * repositories in the corpus were shown it: nineteen that have a template, and
+         * forty-three that read no environment variables at all. A reader cannot tell
+         * which one they are, and those call for opposite actions — one is done, the
+         * other was never asked.
+         *
+         * The status already knew. This is the same mistake the privacy check was
+         * corrected for, still being made one rule above it.
+         */
         description: missing
           ? 'The project reads environment variables but no .env.example was detected.'
-          : 'Environment template looks available or env usage was not detected.',
+          : status === 'passed'
+          ? 'An environment template is present alongside the variables this project reads.'
+          : 'Nothing here reads environment variables, so there is no template to check.',
         recommendation: 'Provide a safe .env.example containing required keys and no secrets.',
         evidence: det?.evidence ?? [],
       });
@@ -370,7 +385,19 @@ export const rules: Rule[] = [
         category: 'security',
         status,
         severity: sevForStatus(status, 'medium'),
-        description: hasRate ? 'Rate limiting signals detected.' : 'No auth-focused rate limiting detected.',
+        /**
+         * `unknown` here means the check does not apply — this detector only reads
+         * Express middleware, and a Django project has rate limiting somewhere it cannot
+         * see. Saying "no rate limiting detected" for that is reporting the analyzer's
+         * blind spot as the project's gap.
+         */
+        description: status === 'passed'
+          ? 'Rate limiting signals detected on the authentication surface.'
+          : status === 'missing'
+          ? 'No auth-focused rate limiting detected.'
+          : !hasAuth
+          ? 'Nothing here authenticates anybody, so there is no login surface to throttle.'
+          : 'This check reads Express middleware, and this project does not use it — any throttling it has is somewhere this cannot see.',
         recommendation: 'Apply express-rate-limit (or equivalent) to login/register/password reset endpoints.',
         /**
          * The claim is about rate limiting, so the evidence is about rate limiting.
@@ -487,7 +514,9 @@ export const rules: Rule[] = [
             ? 'Uploads look publicly exposed without auth checks.'
             : status === 'partial'
               ? 'Uploads are exposed and some auth signals exist, review route protection.'
-              : 'No obvious public upload exposure signal detected.',
+              : status === 'passed'
+              ? 'Upload handling was found, and none of it is publicly exposed.'
+              : 'No upload handling was found in this repository.',
         recommendation: 'Protect upload routes with authz, validate MIME/type, and prefer private object storage.',
         evidence: up?.evidence ?? [],
       });
@@ -509,7 +538,13 @@ export const rules: Rule[] = [
         category: 'auth',
         status,
         severity: sevForStatus(status, 'medium'),
-        description: status === 'missing' ? 'No clear authentication signals detected.' : 'Authentication signals detected.',
+        description: status === 'missing'
+          ? 'No clear authentication signals detected.'
+          : status === 'unknown'
+          ? 'Nothing in this repository serves requests or holds accounts, so there is nobody here to authenticate.'
+          : status === 'partial'
+          ? 'Authentication signals detected, but not a complete flow.'
+          : 'Authentication signals detected.',
         recommendation: 'Implement robust auth flow and secure credential handling.',
         evidence: auth?.evidence ?? [],
       });
@@ -550,7 +585,11 @@ export const rules: Rule[] = [
             ? 'Permission-level authorization signals detected.'
             : status === 'partial'
               ? 'Only basic role checks detected.'
-              : 'No resource-level authorization signals detected.',
+              : status === 'missing'
+                ? 'No resource-level authorization signals detected.'
+                : !hasAuth
+                  ? 'Nothing here authenticates anybody, so there are no callers to authorize.'
+                  : 'Nothing in this repository serves requests, so there are no records to guard.',
         recommendation: 'Add policy/resource-level checks beyond coarse role gates.',
         evidence: [...(roles?.evidence ?? []), ...(permissions?.evidence ?? []), ...(resourceLevel?.evidence ?? [])],
       });
@@ -638,9 +677,15 @@ export const rules: Rule[] = [
         category: 'gdpr',
         status,
         severity: sevForStatus(status, 'medium'),
-        description: hasUsers && !hasGdpr
+        description: status === 'missing'
           ? 'Auth/users signals found but no GDPR/privacy controls detected.'
-          : 'Privacy/GDPR signals detected or not applicable from available evidence.',
+          : status === 'passed'
+          ? 'Consent, export, erasure or retention controls detected.'
+          : hasGdpr
+          ? 'Privacy controls were found, but nothing here serves requests or holds accounts for them to apply to.'
+          : !hasUserFacingSurface(analysis)
+          ? 'Nothing in this repository serves requests or holds accounts, so there is no personal data flow here to check.'
+          : 'No accounts or user records were detected, so there is nothing here for these duties to attach to.',
         recommendation: 'Implement consent, export/erasure workflows, and retention policies.',
         evidence: [
           ...(consent?.evidence ?? []),
@@ -812,7 +857,9 @@ export const rules: Rule[] = [
           ? 'Nothing in this repository is deployed as a running service, so how it reaches people — a registry, a store, a host — is decided outside it.'
           : status === 'missing'
           ? 'No meaningful deployment artifacts or prod/runtime signals detected.'
-          : 'Deployment artifacts or runtime production signals detected.',
+          : status === 'partial'
+          ? 'Deployment artifacts detected, but the production-aware runtime settings are incomplete.'
+          : 'Deployment artifacts and production-aware runtime settings detected.',
         /**
          * Graceful shutdown is left out where there is no signal to catch: PHP-FPM and
          * CGI hand each request to a worker that exits when it is done, and telling a
@@ -856,9 +903,11 @@ export const rules: Rule[] = [
         category: 'deployment',
         status,
         severity: sevForStatus(status, 'low'),
-        description: docker?.present
-          ? 'Docker signals found.'
-          : containerisable
+        description: status === 'passed'
+          ? 'A Dockerfile and a compose file were found.'
+          : status === 'partial'
+            ? 'Docker artifacts were found, but not the whole set — a Dockerfile without a compose file, or the reverse.'
+            : containerisable
             ? 'No Docker artifacts found.'
             : 'Nothing here is deployed as a container.',
         recommendation: containerisable ? 'Provide Dockerfile and healthchecks for reproducible deployments.' : '',
