@@ -2,7 +2,7 @@ import type { CategoryScore } from './categoryScores';
 import { weakestCategories } from './categoryScores';
 import type { Category, Finding, MaturityLevel } from './types';
 import type { ProductExpectationResult } from '../expectations/types';
-import { remediationCatalog } from '../planner/remediationCatalog';
+import { getRemediationEntry } from '../planner/remediationCatalog';
 import type { RemediationCatalogEntry } from '../planner/types';
 
 export interface ExecutiveSummary {
@@ -105,7 +105,7 @@ function estimateEffort(findings: Finding[], profile: ProductExpectationResult |
    */
   const byTask = new Map<string, number>();
   for (const finding of open) {
-    const entry = remediationCatalog[finding.id];
+    const entry = getRemediationEntry(finding.id);
     const key = entry?.taskId ?? finding.id;
     const cost = entry ? DAYS_PER_EFFORT[entry.effort] : DAYS_BY_SEVERITY[finding.severity];
     // A partial implementation is work already begun, not work not begun. Where two

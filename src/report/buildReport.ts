@@ -12,7 +12,7 @@ import { withBusinessImpact } from './businessImpact';
 import { withEvidenceDigest } from './evidenceDigest';
 import { buildComplianceMapping } from './complianceMapping';
 import { buildExecutiveSummary } from './executiveSummary';
-import { remediationCatalog } from '../planner/remediationCatalog';
+import { getRemediationEntry } from '../planner/remediationCatalog';
 
 export interface BuildReportOptions {
   profile?: ProductProfile;
@@ -221,7 +221,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   const suggestedNextSteps = findings
     .filter((f) => f.status !== 'passed' && f.status !== 'unknown')
     .filter((f) => {
-      const entry = remediationCatalog[f.id];
+      const entry = getRemediationEntry(f.id);
       if (entry?.supersededBy?.some((capabilityFindingId) => openFindingIds.has(capabilityFindingId))) return false;
 
       // One step per job. "Health endpoint: add a /health or /healthz endpoint" and

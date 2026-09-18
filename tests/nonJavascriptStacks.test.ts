@@ -234,3 +234,47 @@ describe('a key you hold is not a key you check', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 });
+
+describe('an authorization header is not an API key', () => {
+  it('does not read a bearer-token guard as an API-key scheme', async () => {
+    // `if (!req.headers.authorization) return res.status(401)` is how every session and
+    // bearer guard reads its header. A hardened Express fixture was claiming an
+    // API-key scheme it does not have — and a snapshot test said so, on a commit that
+    // went in without its result being read.
+    const root = await project({
+      'package.json': '{"name":"api","dependencies":{"express":"^4.18.0"}}',
+      'src/index.js': "app.use((req, res, next) => {\n  if (!req.headers.authorization) return res.status(401).json({ error: 'unauthorized' });\n  next();\n});\n",
+    });
+
+    const analysis = await analyzeProject(root);
+    expect(analysis.detectors['auth.apiKeys']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+});
+
+describe('a finding id does not contradict its own title', () => {
+  it('carries the importance the profile actually gave it', async () => {
+    // Nine of the twelve mapped ids hardcoded their suffix: `security.headers` said
+    // `.required` even where a profile recommends it, and `auth.api-keys` produced a
+    // finding titled "(required)" whose id read `.recommended`.
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'b2b-saas' });
+
+    for (const finding of report.findings) {
+      const match = /^expectation\..*\.(required|recommended)$/.exec(finding.id);
+      if (!match) continue;
+
+      expect(finding.title, finding.id).toContain(`(${match[1]})`);
+    }
+  });
+
+  it('still finds the remediation task for either suffix', async () => {
+    const { getRemediationEntry } = await import('../src/planner/remediationCatalog');
+
+    // The catalogue stores this one under `.required`; a profile that only recommends
+    // it must still reach the same task.
+    expect(getRemediationEntry('expectation.gdpr.export.required')?.taskId).toBeDefined();
+    expect(getRemediationEntry('expectation.gdpr.export.recommended')?.taskId)
+      .toBe(getRemediationEntry('expectation.gdpr.export.required')?.taskId);
+  });
+});

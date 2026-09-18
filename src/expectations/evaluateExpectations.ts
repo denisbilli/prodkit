@@ -202,22 +202,43 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
   }
 }
 
+/**
+ * The stable part of a finding's id, where it is not simply the capability's own.
+ *
+ * These names predate the capability ids and are what the remediation catalogue, the
+ * hosted application and every stored report are keyed on, so they stay.
+ */
+const FINDING_ID_BASE: Record<string, string> = {
+  'auth.baseline': 'expectation.auth',
+  'security.headers': 'expectation.security.headers',
+  'security.cors': 'expectation.security.cors',
+  'security.rate-limit': 'expectation.security.rate-limit',
+  'uploads.protection': 'expectation.uploads',
+  'observability.health': 'expectation.observability.health',
+  'observability.logging': 'expectation.observability.logging',
+  'deployment.readiness': 'expectation.deployment',
+  'deployment.docker': 'expectation.docker',
+  'audit.baseline': 'expectation.audit',
+  'jobs.background': 'expectation.jobs',
+  'auth.api-keys': 'expectation.auth.api-keys',
+};
+
+/**
+ * Nine of the twelve used to hardcode their suffix.
+ *
+ * `security.headers` said `.required` even where a profile asks for it as a
+ * recommendation, `deployment.docker` said `.recommended` even where it is required,
+ * and `auth.api-keys` produced a finding titled "(required)" at high severity whose id
+ * read `expectation.auth.api-keys.recommended`. A reader sees both lines, three apart,
+ * and they disagree.
+ *
+ * The suffix is part of the key, so it cannot simply be dropped; it can be made true.
+ * `getRemediationEntry` already matches across the two suffixes — it was written for
+ * exactly this — so the plan still finds its task.
+ */
 function toFindingId(capability: ExpectedCapability, importance: CapabilityImportance): string {
-  switch (capability.id) {
-    case 'auth.baseline': return 'expectation.auth.required';
-    case 'security.headers': return 'expectation.security.headers.required';
-    case 'security.cors': return 'expectation.security.cors.required';
-    case 'security.rate-limit': return 'expectation.security.rate-limit.required';
-    case 'uploads.protection': return 'expectation.uploads.required';
-    case 'observability.health': return 'expectation.observability.health.required';
-    case 'observability.logging': return importance === 'required' ? 'expectation.observability.logging.required' : 'expectation.observability.logging.recommended';
-    case 'deployment.readiness': return 'expectation.deployment.required';
-    case 'deployment.docker': return 'expectation.docker.recommended';
-    case 'audit.baseline': return 'expectation.audit.recommended';
-    case 'jobs.background': return 'expectation.jobs.recommended';
-    case 'auth.api-keys': return 'expectation.auth.api-keys.recommended';
-    default: return `expectation.${capability.id}.${importance}`;
-  }
+  const base = FINDING_ID_BASE[capability.id] ?? `expectation.${capability.id}`;
+  return `${base}.${importance}`;
 }
 
 function severityFor(capability: ExpectedCapability, status: CapabilityStatus, importance: CapabilityImportance): Finding['severity'] {

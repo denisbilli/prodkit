@@ -83,7 +83,13 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        * does.
        */
       /x-api-key/i,
-      /headers?\s*[[.(]\s*['"]?(authorization|x-api-key)/i,
+      /**
+       * `authorization` on its own is how every session and bearer-token guard reads
+       * its header: `if (!req.headers.authorization) return res.status(401)` is
+       * authentication, not API keys, and matching it made a hardened Express fixture
+       * claim an API-key scheme it does not have.
+       */
+      /headers?\s*[[.(]\s*['"]?x-api-key/i,
       /**
        * A verb on its own does not say which side you are on. `check_api_key(api_key)`
        * in a script that downloads from YouTube is a client making sure its own key
