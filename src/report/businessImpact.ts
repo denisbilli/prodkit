@@ -1,4 +1,4 @@
-import type { Category, Finding } from './types';
+import type { Finding } from './types';
 
 /**
  * Translates a finding into the consequence a non-engineer would care about.
@@ -47,27 +47,57 @@ const IMPACT_BY_FINDING: ReadonlyArray<[prefix: string, impact: string]> = [
   ['security.rate-limit', 'Credentials can be guessed in bulk and expensive endpoints can be used to run up your bill.'],
   ['uploads.public-exposure', 'Uploaded files are reachable by anyone who knows or guesses the path.'],
   ['billing.webhook', 'Payment notifications are not verified, so billing state can be changed by a forged request.'],
+  /**
+   * The profiles that are not a web application.
+   *
+   * This table was written for server products and never grew when `client-app`,
+   * `mobile-app` and `library` arrived, so a hundred and twenty-six actionable findings
+   * across the verification corpus said nothing at all here — every one of them in a
+   * product that is not a web application, which is the case this tool exists to judge
+   * on its own terms.
+   */
+  ['expectation.app.state-durability', 'Work the person has done lives only in storage the platform may clear, so a cleared cache, a private window or a reinstall loses it silently.'],
+  ['expectation.app.asset-delivery', 'The first screen waits on the network every time, and on a bad connection the product looks broken rather than slow.'],
+  ['expectation.client.error-reporting', 'A crash on somebody else device is invisible: the screen goes white, the person leaves, and nothing reaches anybody who could fix it.'],
+  ['expectation.mobile.offline', 'A network that comes and goes is the normal state of a phone, so the product spends part of every day showing a spinner in a lift or on a train.'],
+  ['expectation.mobile.credential-storage', 'A token in preferences or a plain file is readable on a rooted device and often travels into a backup, which is where it leaks from.'],
+  ['expectation.mobile.permissions', 'A permission asked with no reason attached is refused more often, and on iOS a missing purpose string is a review rejection rather than a warning.'],
+  ['expectation.mobile.forced-update', 'A version installed months ago keeps talking to the server whatever the release notes say, so a broken client cannot be retired.'],
+  ['expectation.mobile.privacy-declaration', 'What the store listing promises about data lives in a dashboard rather than beside the code, so it stops matching what the app collects and nobody notices.'],
+  ['expectation.packaging.license', 'Without a licence nobody may legally use the package, and a company that checks will refuse it at the dependency review.'],
+  ['expectation.packaging.entrypoints', 'Whoever installs the package cannot import it: what is published has no stated way in.'],
+  ['expectation.packaging.metadata', 'The registry cannot say what this is or who maintains it, so the package is hard to find and harder to trust.'],
+  ['expectation.docs.readme', 'Somebody who finds the package has nothing telling them what it does, so they move on.'],
+  ['expectation.quality.tests', 'Nothing proves the package works, so every release is a guess and every regression is found by a user.'],
+  ['expectation.quality.ci', 'The tests run when somebody remembers, which over a few months means they stop running.'],
+  ['expectation.b2c.notifications', 'There is no way to reach somebody after they close the tab: no confirmation, no password reset, no notice that something happened to their account.'],
+  ['expectation.b2c.onboarding', 'A new account lands on an empty product with nothing to do first, which is where most of them stop.'],
+  ['expectation.auth.api-keys', 'Machine access has to borrow a human session, so a script that stops working is indistinguishable from somebody signing out — and a leaked key cannot be revoked on its own.'],
+  ['auth.core', 'Anyone who finds a URL can use the product and read whatever it exposes. There is no notion of "your" data.'],
+  ['authz.resource-level', 'A normal user can read or change another user records by changing an identifier in the URL.'],
+  ['docker.presence', 'Environments drift between local, CI and production, and "works on my machine" becomes unfalsifiable.'],
+  ['env.example', 'Somebody setting the project up has to read the source to find out which variables it needs, and a missing one fails at runtime rather than at startup.'],
+  ['security.django-debug', 'With DEBUG on, an error page shows the stack, the settings and often the database contents to whoever triggered it.'],
+  ['security.django-secure-cookies', 'Session and CSRF cookies travel in the clear, so anybody on the same network can take a signed-in session.'],
   ['tenancy', 'Customer data is not separated, so one customer can reach another data.'],
   ['gdpr', 'A privacy obligation is unmet, and the obligation applies whether or not the feature exists.'],
   ['observability', 'Production behaviour is not visible, so problems are found late and diagnosed slowly.'],
   ['deployment', 'Releases are not reproducible, which makes recovery depend on individual memory.'],
 ];
 
-/** Fallback when no specific mapping matches, so every actionable finding says something. */
-const IMPACT_BY_CATEGORY: Partial<Record<Category, string>> = {
-  auth: 'Access to the product is not properly controlled.',
-  authz: 'Users can act beyond what their role should allow.',
-  tenancy: 'Customer data is not reliably separated.',
-  gdpr: 'A privacy obligation is unmet.',
-  security: 'A common attack is not defended against.',
-  uploads: 'Uploaded files are not properly controlled.',
-  billing: 'Revenue handling is incomplete or unverified.',
-  audit: 'Sensitive actions cannot be attributed after the fact.',
-  observability: 'Production behaviour is not visible.',
-  jobs: 'Long-running work is not handled reliably.',
-  deployment: 'Releases are not reproducible.',
-  env: 'Configuration or secrets are handled unsafely.',
-};
+/**
+ * There is no fallback, and that is the point.
+ *
+ * There was one, and it said things like "a common attack is not defended against" and
+ * "a privacy obligation is unmet" — the finding's own title with the detail removed.
+ * A hundred and two actionable findings in the verification corpus carried one of those
+ * twelve sentences, under a heading that promises what actually happens.
+ *
+ * Saying nothing is better: the finding, its evidence and its recommendation are still
+ * there, and a reader is not handed a sentence that adds a line and no information. A
+ * test keeps the list honest by failing when a finding the fixtures produce has no
+ * specific sentence.
+ */
 
 export function businessImpactFor(finding: Finding): string | undefined {
   if (finding.status === 'passed') return undefined;
@@ -76,7 +106,7 @@ export function businessImpactFor(finding: Finding): string | undefined {
     if (finding.id.startsWith(prefix)) return impact;
   }
 
-  return IMPACT_BY_CATEGORY[finding.category];
+  return undefined;
 }
 
 /** Attaches the business impact to every actionable finding. */
