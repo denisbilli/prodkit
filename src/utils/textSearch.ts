@@ -56,6 +56,20 @@ function declaresRatherThanDoes(line: string): boolean {
 }
 
 /**
+ * Whether this line may be quoted back to the reader as something the code does.
+ *
+ * The rules above were reachable only through the file search, so any detector that
+ * walked lines itself got none of them. The CORS middleware walk was one: it cited
+ * `// app.use(cors({` from a route somebody had commented out, and — pointed at this
+ * repository — cited this tool's own prose about the Express middleware and the
+ * sentence in its remediation catalogue that advises replacing `cors()` defaults.
+ * Three citations, none of them code that runs.
+ */
+export function isCitableLine(line: string): boolean {
+  return line.length <= MAX_CITABLE_LINE && !declaresRatherThanDoes(line);
+}
+
+/**
  * The longest line this analyzer will cite.
  *
  * The product's promise is that every finding points at a line somebody can open and
@@ -75,6 +89,33 @@ function declaresRatherThanDoes(line: string): boolean {
  * on is not worth the one it displaces.
  */
 const MAX_CITABLE_LINE = 500;
+
+/**
+ * The lines of one already-read file that match, with the same hygiene the file
+ * search applies: no comments, no pattern tables, no minified lines.
+ *
+ * Exported because a detector that has the text in hand should not have to choose
+ * between re-reading the file and skipping those rules. The CORS branch made that
+ * choice the wrong way: it tested the whole file for a header name and cited line 1
+ * with the words "explicit origin handling" — a conclusion where a line was promised.
+ */
+export function matchLines(text: string, needles: Array<string | RegExp>, file = ''): TextMatch[] {
+  const matches: TextMatch[] = [];
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.length > MAX_CITABLE_LINE) continue;
+    if (declaresRatherThanDoes(line)) continue;
+    for (const n of needles) {
+      const hit = typeof n === 'string' ? line.includes(n) : n.test(line);
+      if (hit) {
+        matches.push({ file, line: i + 1, snippet: line.trim().slice(0, 200) });
+        break;
+      }
+    }
+  }
+  return matches;
+}
 
 /**
  * Search a list of relative file paths for any of the given needles

@@ -2,8 +2,49 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
-import { searchInFiles } from '../utils/textSearch';
+import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
+
+/** Lines that decide which origins may call this server. */
+const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /ALLOWED_ORIGINS/, /allowedOrigins/i];
+/**
+ * The same line, allowing everyone.
+ *
+ * Both spellings, because `'Access-Control-Allow-Origin', '*'` and
+ * `ALLOWED_ORIGINS = ["*"]` are the same decision written in two frameworks, and only
+ * the first was being caught.
+ */
+const WILDCARD_ORIGIN = /(Access-Control-Allow-Origin["'\s:,]+\*)|(["']\*["'])/i;
+
+/**
+ * Flask's answer, which was invisible.
+ *
+ * `\bcors\s*\(` is case-sensitive, so `CORS(app)` matched nothing, and the extension's
+ * default is to allow every origin — the one configuration this check exists to find.
+ * A Flask application that opens itself to the whole web in one line was reported as
+ * having no cross-origin configuration at all.
+ */
+const IMPORTS_FLASK_CORS = /from\s+flask_cors\s+import|import\s+flask_cors/;
+const FLASK_CORS_CALL = /\bCORS\s*\(/;
+
+/**
+ * The line with its quoted text removed.
+ *
+ * `cors(` inside a string literal is never the middleware being applied — it is prose
+ * about it. This tool's own remediation catalogue, "Replace cors() defaults with an
+ * explicit allowlist.", was being cited as a CORS configuration, and no rule about the
+ * shape of the line could help: a standalone string in a list is deliberately not
+ * skipped, because `'django.contrib.auth',` in INSTALLED_APPS is the behaviour itself.
+ *
+ * Narrow on purpose. It is applied to this one question, where a call is what is being
+ * looked for, and not to the file search, where a string is often the answer.
+ */
+function withoutStringLiterals(line: string): string {
+  return line.replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '""');
+}
+
+/** The Express middleware, brought into the file that configures it. */
+const IMPORTS_CORS = /(require\(['"]cors['"]\))|(from\s+['"]cors['"])|(import\s+['"]cors['"])/;
 
 interface CorsHit {
   file: string;
@@ -19,7 +60,8 @@ function detectCorsConfig(text: string, file: string): { loose: CorsHit[]; stric
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (!/\bcors\s*\(/.test(line)) continue;
+    if (!isCitableLine(line)) continue;
+    if (!/\bcors\s*\(/.test(withoutStringLiterals(line))) continue;
 
     const snippet = line.trim().slice(0, 200);
     if (/\bcors\(\s*\)/.test(line)) {
@@ -49,6 +91,35 @@ function detectCorsConfig(text: string, file: string): { loose: CorsHit[]; stric
   }
 
   return { loose, strict };
+}
+
+/**
+ * A settings file that is Django's, rather than one that shares its name.
+ *
+ * `diet_hub/api/settings.py` is a FastAPI router that lets an administrator change
+ * application options from the browser. It was read as Django's configuration, and on
+ * the strength of the filename alone the project was credited with having security
+ * middleware it does not have — the one direction of error that matters here, because
+ * it hides a missing control rather than inventing a present one.
+ *
+ * Two conditions, because either alone is wrong. A repository can depend on Django and
+ * still own a dozen files called settings.py; a file can declare INSTALLED_APPS in a
+ * tutorial that the product does not run. And the first file named settings.py is not
+ * the right one: a project with `settings/base.py` and `settings/production.py` has
+ * several, so every candidate is examined and the first that is Django's is used.
+ */
+async function findDjangoSettings(ctx: DetectContext): Promise<{ file: string; text: string } | null> {
+  if (!ctx.pythonDeps.includes('django')) return null;
+
+  const candidates = ctx.files.all.filter((f) => /(^|\/)settings(_[a-z]+)?\.py$/i.test(f) || /(^|\/)settings\/[a-z_]+\.py$/i.test(f));
+  for (const file of candidates) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+    if (/^\s*INSTALLED_APPS\s*=/m.test(text) || /^\s*MIDDLEWARE\s*=/m.test(text) || /DJANGO_SETTINGS_MODULE/.test(text)) {
+      return { file, text };
+    }
+  }
+  return null;
 }
 
 export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult> {
@@ -103,13 +174,32 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
 
     // Framework-native CORS: an explicit allowlist checked against the Origin header,
     // rather than the Express cors() middleware.
-    if (/Access-Control-Allow-Origin/i.test(text) || /ALLOWED_ORIGINS/.test(text) || /allowedOrigins/i.test(text)) {
-      const wildcard = /Access-Control-Allow-Origin["'\s:,]+\*/i.test(text);
-      const hit = { snippet: 'explicit origin handling', file, line: 1 };
-      if (wildcard) corsLoose.push(hit);
-      else corsStrict.push(hit);
+    //
+    // Line by line, because the file is the wrong unit for this question twice over.
+    // It decided loose-or-strict from whether a wildcard appeared anywhere in the
+    // file, so one permissive route made an allowlist read as permissive and one
+    // allowlist made a wildcard read as restricted; and it cited line 1, which in
+    // every repository that triggered it was an import.
+    for (const m of matchLines(text, ORIGIN_HANDLING, file)) {
+      if (WILDCARD_ORIGIN.test(m.snippet)) corsLoose.push(m);
+      else corsStrict.push(m);
     }
 
+    // Only where the middleware is actually imported. A sentence in this tool's own
+    // remediation catalogue — "Replace cors() defaults with an explicit allowlist." —
+    // was being read as a CORS configuration, and a table of strings is not a comment,
+    // so no rule about the shape of the line could tell them apart. Whether the file
+    // imports the package can.
+    if (IMPORTS_FLASK_CORS.test(text)) {
+      const lines = text.split(/\r?\n/);
+      for (const m of matchLines(text, [FLASK_CORS_CALL], file).filter((m) => FLASK_CORS_CALL.test(withoutStringLiterals(m.snippet)))) {
+        const window = lines.slice(m.line - 1, m.line + 9).join('\n');
+        if (/\borigins\s*=/.test(window) || /\bresources\s*=/.test(window)) corsStrict.push(m);
+        else corsLoose.push(m);
+      }
+    }
+
+    if (!IMPORTS_CORS.test(text)) continue;
     if (!/\bcors\s*\(/.test(text)) continue;
     const detected = detectCorsConfig(text, file);
     corsLoose.push(...detected.loose);
@@ -143,26 +233,39 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   for (const m of bodyLimit) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'body-size' });
   for (const m of contentTypeCheck) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'content-type' });
 
-  const djangoSettings = ctx.files.all.find((f) => f.endsWith('settings.py'));
+  /**
+   * Django was credited for headers twice, and neither credit was earned.
+   *
+   * The first was the mere existence of a file named settings.py, which a FastAPI
+   * router satisfied. The second looked truer — `SecurityMiddleware` really does set
+   * those headers — but `django-admin startproject` writes that line into every new
+   * project, so it distinguishes nothing and would have credited the bare skeleton
+   * this repository keeps as a fixture precisely because it is unprotected. What is
+   * left is the `SECURE_*` settings above: lines somebody chose to write.
+   */
+  const djangoSettings = await findDjangoSettings(ctx);
   let djangoDebugTrue = false;
   let djangoSecureCookies = true;
   if (djangoSettings) {
-    const text = (await readTextFileSafe(ctx.root, djangoSettings)) ?? '';
-    if (/DEBUG\s*=\s*True/.test(text)) {
+    const { file, text } = djangoSettings;
+    const debugOn = matchLines(text, [/^\s*DEBUG\s*=\s*True\b/], file);
+    if (debugOn.length > 0) {
       djangoDebugTrue = true;
-      evidence.push({ type: 'snippet', value: 'DEBUG = True', file: djangoSettings, claim: 'django-debug' });
+      for (const m of debugOn) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'django-debug' });
     }
-    const insecureSession = /SESSION_COOKIE_SECURE\s*=\s*False/.test(text);
-    const insecureCsrf = /CSRF_COOKIE_SECURE\s*=\s*False/.test(text);
-    djangoSecureCookies = !(insecureSession || insecureCsrf);
-    if (insecureSession) evidence.push({ type: 'snippet', value: 'SESSION_COOKIE_SECURE = False', file: djangoSettings, claim: 'django-cookies' });
-    if (insecureCsrf) evidence.push({ type: 'snippet', value: 'CSRF_COOKIE_SECURE = False', file: djangoSettings, claim: 'django-cookies' });
+    const insecure = matchLines(
+      text,
+      [/^\s*SESSION_COOKIE_SECURE\s*=\s*False\b/, /^\s*CSRF_COOKIE_SECURE\s*=\s*False\b/],
+      file,
+    );
+    djangoSecureCookies = insecure.length === 0;
+    for (const m of insecure) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'django-cookies' });
   }
 
   return {
     key: 'security.core',
-    present: helmet || rateLimit || Boolean(djangoSettings),
-    complete: helmet && (rateLimit || Boolean(djangoSettings)),
+    present: helmet || rateLimit,
+    complete: helmet && rateLimit,
     evidence,
     details: {
       helmet,

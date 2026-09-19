@@ -422,9 +422,14 @@ export const rules: Rule[] = [
       const loose = Boolean(sec?.details?.corsLoose);
       const strict = Boolean(sec?.details?.corsStrict);
       // Nothing answers a cross-origin request where nothing answers a request.
+      //
+      // The permissive line decides, not the restricted one. While the file was the
+      // unit of judgement this hardly mattered; now that each line is read on its own,
+      // an allowlist on one route would otherwise absolve a wildcard on another — and
+      // a wildcard is open to the whole web no matter what the route beside it does.
       const status: FindingStatus = !hasUserFacingSurface(analysis)
         ? 'unknown'
-        : strict ? 'passed' : loose ? 'partial' : 'unknown';
+        : loose ? 'partial' : strict ? 'passed' : 'unknown';
       return mkFinding({
         id: 'security.cors-origin',
         title: 'CORS origin restrictions',
@@ -435,7 +440,9 @@ export const rules: Rule[] = [
           status === 'passed'
             ? 'CORS appears configured with explicit origins.'
             : status === 'partial'
-              ? 'CORS middleware detected without explicit origin restrictions.'
+              ? strict
+                ? 'Some routes restrict origins and at least one allows any origin.'
+                : 'CORS middleware detected without explicit origin restrictions.'
               : 'CORS configuration not detected.',
         recommendation: 'Configure allowlist origins and avoid permissive defaults in production.',
         evidence: evidenceForClaim(sec?.evidence, 'cors'),

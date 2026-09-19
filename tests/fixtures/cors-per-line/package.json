@@ -1,0 +1,5 @@
+{
+  "name": "cors-per-line",
+  "version": "1.0.0",
+  "dependencies": { "express": "^4.19.0" }
+}
