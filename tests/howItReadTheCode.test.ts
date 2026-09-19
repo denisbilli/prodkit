@@ -366,3 +366,36 @@ describe('a secret in a test is not a secret in production', () => {
     expect(report.criticalIssues.map((finding) => finding.id)).toContain('security.weak-secret');
   });
 });
+
+/**
+ * A table is visible only in the shape, which is where a syntax tree earns its keep.
+ *
+ * Ghost keeps a map of every setting to the group it belongs to —
+ * `admin_session_secret: 'core'` beside fifty-nine others — and was told it had a
+ * hardcoded secret. Read as text that line is a secret-named key assigned a short
+ * string, which is exactly the shape of a fallback. Read as a tree it says which group
+ * a setting is in.
+ */
+describe('an entry in a lookup table is not an assignment', () => {
+  it('does not read a settings map as hardcoded secrets', async () => {
+    const report = buildReport(await analyzeProject(fixture('settings-map')), { profile: 'auto' });
+    const weak = report.findings.find((finding) => finding.id === 'security.weak-secret');
+
+    expect(weak?.evidence.some((item) => item.file?.includes('setting-groups'))).toBe(false);
+  });
+
+  it('still raises the fallback in the configuration beside it', async () => {
+    // The same repository, the same severity, one file along: a mixed object with a
+    // real `|| 'dev-secret'` in it. Excusing tables must not excuse configuration.
+    const report = buildReport(await analyzeProject(fixture('settings-map')), { profile: 'auto' });
+    const weak = report.findings.find((finding) => finding.id === 'security.weak-secret');
+
+    expect(weak?.status).toBe('missing');
+    expect(weak?.evidence.some((item) => item.file?.includes('config'))).toBe(true);
+    /**
+     * And a small object whose properties are all plain strings is configuration too.
+     * Two of them is how a fallback is written; sixty is how a table is.
+     */
+    expect(weak?.evidence.some((item) => item.file?.includes('legacy-config'))).toBe(true);
+  });
+});

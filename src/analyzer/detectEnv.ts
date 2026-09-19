@@ -1,6 +1,7 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { readLookupTableLines } from './structural/lookupTables';
 
 const WEAK_SECRET_VALUE_RE =
   /(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)/i;
@@ -103,10 +104,24 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
     [FALLBACK_SECRET_RE, ENV_FALLBACK_RE, GENERIC_SECRET_ASSIGNMENT_RE],
     30
   );
+  /**
+   * Entries in a lookup table, which text cannot tell from assignments.
+   *
+   * `admin_session_secret: 'core'` is one property of a sixty-entry map from settings to
+   * the group they belong to, and Ghost was told it was a hardcoded secret. The table is
+   * visible only in the shape, so this is one of the places a syntax tree earns its
+   * keep. Absent the optional parser the map is null and nothing is excused, which is
+   * the behaviour this product had yesterday.
+   */
+  const lookupTables = await readLookupTableLines(ctx.root, sourceFiles);
+  const isTableEntry = (match: { file: string; line: number }): boolean =>
+    lookupTables?.get(match.file)?.has(match.line) === true;
+
   const weakHits = fallbackHits.filter(
     (m) => WEAK_SECRET_VALUE_RE.test(m.snippet)
       && SECRET_ASSIGNMENT_CONTEXT_RE.test(m.snippet)
       && !namesItself(m.snippet)
+      && !isTableEntry(m)
   );
   for (const m of weakHits) {
     const hitEvidence = { type: 'snippet', value: m.snippet, file: m.file, line: m.line } as const;
