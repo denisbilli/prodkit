@@ -284,3 +284,39 @@ describe('a directory named for one test fixture', () => {
     expect(analysis.stack.languages).not.toContain('php');
   });
 });
+
+/**
+ * A model SDK in the dependencies shows that a product calls a model. It does not show
+ * that AI is what the product is.
+ *
+ * Supabase, Mattermost and PostHog all came back "AI SaaS" — a backend platform, a chat
+ * server and an analytics product, each with one assistant feature inside it. Counting
+ * settles nothing: dify, a genuine AI platform, touches a model in 1.2% of its files and
+ * supabase in 1.2% too, while PostHog's 1.9% is higher than both.
+ */
+describe('what the AI profile claims', () => {
+  it('names itself after the evidence rather than after the product', async () => {
+    const { getProductProfile } = await import('../src/expectations/productProfiles');
+
+    expect(getProductProfile('ai-saas').title).toBe('SaaS that calls a model');
+  });
+
+  it('asks for exactly the duties that come with calling one', async () => {
+    /**
+     * The expectations were never the problem: this profile is B2B SaaS plus background
+     * jobs, cost control and prompt safety, and a product with one assistant feature
+     * owes all three for that feature. Nothing is taken away, which is what makes
+     * applying it to a platform defensible.
+     */
+    const { getProductProfile } = await import('../src/expectations/productProfiles');
+
+    const applicable = (id: 'ai-saas' | 'b2b-saas') =>
+      getProductProfile(id).capabilities.filter((capability) => capability.importance !== 'not_applicable').map((capability) => capability.id);
+
+    const extra = applicable('ai-saas').filter((id) => !applicable('b2b-saas').includes(id));
+    const missing = applicable('b2b-saas').filter((id) => !applicable('ai-saas').includes(id));
+
+    expect(extra.sort()).toEqual(['ai.cost-control', 'ai.prompt-safety', 'jobs.background']);
+    expect(missing).toEqual([]);
+  });
+});

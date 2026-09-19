@@ -744,8 +744,26 @@ export const productProfiles: Record<
 
   'ai-saas': defineProfile({
     id: 'ai-saas',
-    title: 'AI SaaS',
-    description: 'AI-powered SaaS with async workloads, upload safety, cost exposure and high observability needs.',
+    /**
+     * Named for what the evidence shows, not for what the product is about.
+     *
+     * The signal is a model SDK in the dependencies. That shows a product calls a model;
+     * it does not show that AI is what the product is. Supabase, Mattermost and PostHog
+     * all came back "AI SaaS" — a backend platform, a chat server and an analytics
+     * product, each with one assistant feature somewhere inside it.
+     *
+     * Counting was tried first and settles nothing: dify, a genuine AI platform, touches
+     * a model in 1.2% of its files and supabase in 1.2% too, while PostHog's 1.9% is
+     * higher than both. There is no proportion that separates them.
+     *
+     * What the profile *does* is right either way — it is B2B SaaS plus background
+     * jobs, cost control and prompt safety, and a product with one assistant feature
+     * owes all three for that feature. So the expectations stay and the title stops
+     * claiming more than the dependency proves.
+     */
+    title: 'SaaS that calls a model',
+    description:
+      'A hosted product that calls a language model somewhere in it: everything a B2B SaaS owes, plus the duties that come with sending somebody else\'s input to a model — a ceiling on what a request can spend, and treating what the model reads as untrusted.',
     importance: {
       'auth.baseline': 'required',
       'auth.mfa': 'recommended',
