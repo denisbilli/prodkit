@@ -286,9 +286,36 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * `const teamId = 'W7LPPWA48L'` in its notarization script.
    */
   const STRONG_TENANCY = [/organizationId/i, /organization_id/i, /tenantId/i, /tenant_id/i];
-  const WEAK_TENANCY = [/workspaceId/i, /workspace_id/i, /companyId/i];
+  const WEAK_TENANCY = [/workspaceId/i, /workspace_id/i, /companyId/i, /teamId/i, /team_id/i];
 
-  const strongOrganization = await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25);
+  /**
+   * A team that has members is an account.
+   *
+   * "Team" is the third word products use for a tenant, after organization and
+   * workspace — and unlike those two it also means a team: a sports application has
+   * teams and no tenants. Documenso is the case that made it matter: `teamId` in three
+   * hundred and eighty-eight files, `TeamMember` in seventy-nine, `organizationId` in
+   * none, and no tenancy detected at all.
+   *
+   * The pairing is what disambiguates. A membership table beside the team turns a
+   * domain entity into an account boundary, which is the same reasoning the detector
+   * already applies to weak words: never on its own, always with something that means
+   * only one thing.
+   */
+  const teamMembership = await searchInFiles(
+    ctx.root,
+    sourceFiles,
+    [/teamMember/i, /team_member/i, /teamMembership/i],
+    10,
+  );
+  const teamAsTenant = teamMembership.length > 0
+    ? await searchInFiles(ctx.root, sourceFiles, [/teamId/i, /team_id/i], 25)
+    : [];
+
+  const strongOrganization = [
+    ...(await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25)),
+    ...teamAsTenant,
+  ];
   const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25);
 
   // A weak word never stands on its own, however many files it appears in. Bruno says
@@ -307,7 +334,10 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * already states the principle: a weak word never stands on its own, however many
    * files it appears in.
    */
-  const strongMembership = await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25);
+  const strongMembership = [
+    ...(await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25)),
+    ...teamAsTenant,
+  ];
   const weakMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...WEAK_TENANCY], 25);
 
   const membershipSignals = strongMembership.length > 0 ? [...strongMembership, ...weakMembership] : [];

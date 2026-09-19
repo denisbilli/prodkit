@@ -243,3 +243,44 @@ describe('what a Python package ships, and what it merely offers', () => {
     expect(analysis.stack.backend).not.toContain('aiohttp');
   });
 });
+
+/**
+ * "Team" is the third word products use for a tenant, and the only one that also means
+ * a team.
+ *
+ * Documenso has `teamId` in 388 files, `TeamMember` in 79 and `organizationId` in none,
+ * and no tenancy was detected at all — so a document-signing product with teams and
+ * seats read as a consumer application.
+ */
+describe('a team that has members is an account', () => {
+  it('reads a team with a membership table as a tenant', async () => {
+    const analysis = await analyzeProject(fixture('team-tenant'));
+
+    expect(analysis.detectors['tenancy.organization']?.present).toBe(true);
+    expect(analysis.detectors['tenancy.membership']?.present).toBe(true);
+  });
+
+  it('does not read a league of football teams as multi-tenant', async () => {
+    // `homeTeamId` and `awayTeamId` with nobody belonging to them: a domain entity, not
+    // an account boundary. The pairing is what tells the two apart.
+    const analysis = await analyzeProject(fixture('sports-teams'));
+
+    expect(analysis.detectors['tenancy.organization']?.present).toBe(false);
+  });
+});
+
+/**
+ * `fixtures` was in the list of directories to skip and `fixture` was not.
+ */
+describe('a directory named for one test fixture', () => {
+  it('is skipped like the plural it was listed as', async () => {
+    /**
+     * `extra/fixture/authsources.php` made PHP one of the languages of an Elixir
+     * analytics product, and of cal.com, which is TypeScript.
+     */
+    const analysis = await analyzeProject(fixture('singular-fixture'));
+
+    expect(analysis.files.source.some((file) => file.includes('fixture/'))).toBe(false);
+    expect(analysis.stack.languages).not.toContain('php');
+  });
+});

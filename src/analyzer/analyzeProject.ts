@@ -130,7 +130,10 @@ function isTestOrExamplePath(file: string): boolean {
   // `__mocks__` was missing, and a mock is the most misleading file in a repository:
   // `application_fee_percent: null` inside a Stripe fixture made an open-source CRM read
   // as a marketplace taking a cut. A field set to null is evidence of absence.
-  return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures|frontend-example)(\/|$)/i.test(file)
+  // `fixtures` was listed and `fixture` was not, so `extra/fixture/authsources.php`
+  // made PHP one of the languages of an Elixir analytics product — and of cal.com,
+  // which is TypeScript.
+  return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures?|frontend-example)(\/|$)/i.test(file)
     || /(^|\/)test[-_][^/]+\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     /**
      * The other half of the convention.
@@ -746,7 +749,16 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
           : []),
       ],
       workspaces: workspaceStacks,
-      files: allFiles,
+      /**
+       * The files this reading actually covers, not every file on disk.
+       *
+       * Built from `allFiles`, a single `extra/fixture/authsources.php` made PHP one of
+       * the languages of an Elixir analytics product and of cal.com, which is
+       * TypeScript. The languages a report names should be the ones it read; test
+       * fixtures and generated output are excluded from the reading and belong out of
+       * this list for the same reason.
+       */
+      files: sourceFiles,
     }),
     packageJson,
     pythonDeps,
