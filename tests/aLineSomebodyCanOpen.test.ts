@@ -135,3 +135,28 @@ describe('Django is identified by Django, not by a filename', () => {
     expect(details.djangoSecureCookies).toBe(false);
   });
 });
+
+/**
+ * A measurement that never varies is not one.
+ *
+ * Upload type validation was `/mime/i` and `/content-type/i`, so every JSON response
+ * header in every project answered it: all six repositories in the corpus that handle
+ * uploads came back validated, two of them on the strength of a header on a 404. The
+ * flag decides whether upload protection reads `present` or `partial`.
+ */
+describe('upload validation means the uploaded file', () => {
+  it('is not answered by the Content-Type of a JSON response', async () => {
+    const analysis = await analyzeProject(fixture('uploads-json-headers-only'));
+
+    expect(analysis.detectors['uploads.exposure']?.details.validation).toBe(false);
+  });
+
+  it('is answered by the filter that rejects the wrong kind of file', async () => {
+    const analysis = await analyzeProject(fixture('uploads-filtered'));
+    const evidence = (analysis.detectors['uploads.exposure']?.evidence ?? []).filter((e) => e.claim === 'validation');
+
+    expect(analysis.detectors['uploads.exposure']?.details.validation).toBe(true);
+    expect(evidence.some((e) => e.value.includes('fileFilter'))).toBe(true);
+    expect(evidence.some((e) => e.value.includes('application/json'))).toBe(false);
+  });
+});

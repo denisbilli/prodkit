@@ -22,7 +22,14 @@ const DJANGO = {
   'requirements.txt': 'Django==5.0\n',
   'app/settings.py': `DEBUG = False\nMEDIA_URL = "media/"\nMEDIA_ROOT = "media"\nSECURE_HSTS_SECONDS = 31536000\n`,
   'app/urls.py': `from django.urls import include, path\n\nurlpatterns = [path("accounts/", include("django.contrib.auth.urls"))]\n`,
-  'app/views.py': `from django.contrib.auth.decorators import login_required\n\n@login_required\ndef submit_exercise(request):\n    return None\n`,
+  'app/views.py': `from django.contrib.auth.decorators import login_required\n\n@login_required\ndef submit_exercise(request):\n    document = request.FILES["document"]\n    return document.name\n`,
+};
+
+/** The same project, where the decorated view has nothing to do with files. */
+const DJANGO_NO_UPLOADS = {
+  ...DJANGO,
+  'app/views.py': `from django.contrib.auth.decorators import login_required\n\n@login_required\ndef dashboard(request):\n    return None\n`,
+  'app/uploads.py': `from django.urls import path\n\nurlpatterns = [path("upload/", None)]\n`,
 };
 
 /**
@@ -51,6 +58,77 @@ describe('a Django monolith is not an Express app with things missing', () => {
     // The route scan is Express-shaped and cannot see a decorator or a mixin, so an
     // upload view behind @login_required read as having no protection at all.
     expect(analysis.detectors['uploads.exposure']?.details?.protectedUploads).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not credit the login screen for protecting an upload it never touches', async () => {
+    // The detector argues in its own comments that authentication is not evidence
+    // about uploads, and then counted every @login_required in the project as upload
+    // protection: a photography business was credited for the decorators on its
+    // accounting views.
+    const root = await project(DJANGO_NO_UPLOADS);
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['uploads.exposure']?.details?.protectedUploads).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not read the stylesheet route as an exposed upload', async () => {
+    // `document_root=` on its own matched `static(settings.STATIC_URL, ...)` — CSS and
+    // JavaScript, which every Django project serves and nobody uploads.
+    const root = await project({
+      ...DJANGO,
+      'app/urls.py':
+        'from django.conf import settings\n' +
+        'from django.conf.urls.static import static\n\n' +
+        'urlpatterns = []\n' +
+        'urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)\n',
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['uploads.exposure']?.details?.publicExposure).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('does not report a media route that only runs in development', async () => {
+    // This is the line Django's own documentation gives, and the documentation wraps
+    // it in `if settings.DEBUG:` — which is the point of the snippet. The detector
+    // said so in a comment and counted the line anyway.
+    const root = await project({
+      ...DJANGO,
+      'app/urls.py':
+        'from django.conf import settings\n' +
+        'from django.conf.urls.static import static\n\n' +
+        'urlpatterns = []\n\n' +
+        'if settings.DEBUG:\n' +
+        '    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)\n',
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['uploads.exposure']?.details?.publicExposure).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('still reports a media route that runs in production', async () => {
+    const root = await project({
+      ...DJANGO,
+      'app/urls.py':
+        'from django.conf import settings\n' +
+        'from django.conf.urls.static import static\n\n' +
+        'urlpatterns = []\n' +
+        'urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)\n',
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['uploads.exposure']?.details?.publicExposure).toBe(true);
 
     await fs.rm(root, { recursive: true, force: true });
   });
