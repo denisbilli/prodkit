@@ -37,7 +37,21 @@ import { searchInFiles } from '../utils/textSearch';
 
 /** Files that say which platform this is, without reading their contents. */
 const IOS_MARKERS = [/(^|\/)Info\.plist$/i, /(^|\/)Podfile$/, /\.xcodeproj\//, /(^|\/)Package\.swift$/];
-const ANDROID_MARKERS = [/(^|\/)AndroidManifest\.xml$/i, /(^|\/)build\.gradle(\.kts)?$/];
+/**
+ * `AndroidManifest.xml` says Android. `build.gradle` says the JVM.
+ *
+ * Gradle builds Android applications, Spring services, Kotlin libraries and most of the
+ * Java world. Treating its presence as a platform made spring-petclinic — the canonical
+ * Spring web application — a mobile app at high confidence, and it would do the same to
+ * every JVM server ever written.
+ *
+ * A Gradle file earns the label by applying the Android plugin, which is the line that
+ * makes a build an Android build. That has to be read rather than matched on a path,
+ * which is why the two lists are separate.
+ */
+const ANDROID_MARKERS = [/(^|\/)AndroidManifest\.xml$/i];
+const GRADLE_FILES = /(^|\/)build\.gradle(\.kts)?$/;
+const ANDROID_GRADLE_PLUGIN = /com\.android\.(application|library)|(^|\s)android\s*\{/m;
 
 /** Gradle coordinates that put a secret in the Android keystore rather than in a file. */
 const SECURE_STORAGE_GRADLE = ['androidx.security:security-crypto', 'com.scottyab:secure-preferences'];
@@ -118,9 +132,20 @@ function matchesAny(files: string[], patterns: RegExp[]): string[] {
     .filter((file) => patterns.some((pattern) => pattern.test(file)));
 }
 
+async function androidGradleFiles(ctx: DetectContext): Promise<string[]> {
+  const found: string[] = [];
+
+  for (const file of ctx.files.all.filter((candidate) => GRADLE_FILES.test(candidate))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (text && ANDROID_GRADLE_PLUGIN.test(text)) found.push(file);
+  }
+
+  return found;
+}
+
 export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]> {
   const iosFiles = matchesAny(ctx.files.all, IOS_MARKERS);
-  const androidFiles = matchesAny(ctx.files.all, ANDROID_MARKERS);
+  const androidFiles = [...matchesAny(ctx.files.all, ANDROID_MARKERS), ...(await androidGradleFiles(ctx))];
   const flutterDeps = hasAnyDartDep(ctx, ['flutter']);
   const reactNativeDeps = hasAnyDep(ctx, ['react-native', 'expo']);
 

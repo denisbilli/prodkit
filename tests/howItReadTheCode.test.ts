@@ -51,3 +51,33 @@ describe('the report says how it read the code', () => {
     expect(markdown).toMatch(/rest on weaker evidence/);
   });
 });
+
+/**
+ * `AndroidManifest.xml` says Android. `build.gradle` says the JVM.
+ *
+ * spring-petclinic — the canonical Spring web application — was read as a mobile app at
+ * high confidence, on the strength of having a Gradle build. So would every JVM server
+ * ever written.
+ */
+describe('what makes a repository a phone application', () => {
+  it('does not call a Spring service a mobile app', async () => {
+    const analysis = await analyzeProject(fixture('spring-service'));
+
+    expect(analysis.detectors['mobile.platform']?.present).toBe(false);
+  });
+
+  it('still recognises an Android build', async () => {
+    // The line that makes a Gradle build an Android build is the plugin, and it has to
+    // be read rather than matched on a path.
+    const analysis = await analyzeProject(fixture('android-gradle-app'));
+
+    expect(analysis.detectors['mobile.platform']?.present).toBe(true);
+    expect((analysis.detectors['mobile.platform']?.details?.platforms as string[])).toContain('android');
+  });
+
+  it('still recognises a manifest without any Gradle at all', async () => {
+    const analysis = await analyzeProject(fixture('android-app'));
+
+    expect(analysis.detectors['mobile.platform']?.present).toBe(true);
+  });
+});
