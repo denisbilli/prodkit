@@ -1,6 +1,6 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import { runRules } from '../rules/ruleEngine';
-import { describeReadingDepth, readingDepths } from '../analyzer/readingDepth';
+import { readingDepths } from '../analyzer/readingDepth';
 import {
   computeMaturity,
   computeScore,
