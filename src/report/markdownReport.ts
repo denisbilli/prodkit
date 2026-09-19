@@ -1,4 +1,5 @@
 import type { Finding, ProductionReadinessReport } from './types';
+import { describeReadingDepth } from '../analyzer/readingDepth';
 
 function profileSummary(report: ProductionReadinessReport): string[] {
   const profile = report.productProfile;
@@ -264,6 +265,16 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
       ]
       : []),
     `- Diagnostics: ${report.diagnostics.analyzedFileCount} analyzed / ${report.diagnostics.skippedFileCount} skipped / ${report.diagnostics.workspaceCount} workspaces / ${report.diagnostics.detectorCount} detectors`,
+    /**
+     * How the code was read, beside how much of it there was.
+     *
+     * A keyword match in Go and a parsed guard in TypeScript were printed with the same
+     * confidence, and nothing in the report distinguished them. Silent when everything
+     * was parsed: a report congratulating itself on reading properly is noise.
+     */
+    ...(describeReadingDepth(report.diagnostics.readingDepth)
+      ? [`- ${describeReadingDepth(report.diagnostics.readingDepth)}`]
+      : []),
     `- Expectation mode: ${report.diagnostics.expectationMode}`,
     `- ProdKit version: ${report.diagnostics.prodkitVersion}`,
     `- Detector diagnostics: ${report.diagnostics.detectors.filter((d) => d.status === 'completed').length} completed / ${report.diagnostics.detectors.filter((d) => d.status === 'skipped').length} skipped`,

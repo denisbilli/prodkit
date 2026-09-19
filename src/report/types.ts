@@ -76,6 +76,8 @@ export type MaturityLevel = 'prototype' | 'early' | 'partial' | 'production_read
 
 export type ExpectationMode = 'observed-only' | 'explicit-profile' | 'auto-applied' | 'auto-inconclusive';
 
+import type { LanguageReading } from '../analyzer/readingDepth';
+
 export interface ReportDiagnostics {
   analyzedFileCount: number;
   skippedFileCount: number;
@@ -85,6 +87,14 @@ export interface ReportDiagnostics {
   assessedChecks: number;
   /** Of those, the ones that ran and found what they were looking for. */
   verifiedChecks: number;
+  /**
+   * How closely each language present was read.
+   *
+   * A finding matched from a keyword in Go and a finding read from a syntax tree in
+   * TypeScript were presented with identical confidence. They are not the same kind of
+   * fact, and the reader is entitled to know which one they have.
+   */
+  readingDepth: LanguageReading[];
   detectors: Array<{
     id: string;
     status: 'completed' | 'skipped';

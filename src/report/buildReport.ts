@@ -1,5 +1,6 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import { runRules } from '../rules/ruleEngine';
+import { describeReadingDepth, readingDepths } from '../analyzer/readingDepth';
 import {
   computeMaturity,
   computeScore,
@@ -357,6 +358,12 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     // to know that one rests on seventeen verdicts and the other on nine.
     assessedChecks,
     verifiedChecks: passedChecksForMaturity,
+    /**
+     * How closely each language was read, so a reader can weigh a finding by more than
+     * its severity. A keyword match in Go and a parsed guard in TypeScript were being
+     * presented with the same confidence.
+     */
+    readingDepth: readingDepths(analysis.files.source, analysis.files.unreadable),
     detectors: detectorDiagnostics(analysis),
     selectedProfile: requestedProfile,
     inferredProfile: productProfile?.inferredProfile,
