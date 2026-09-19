@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
+import { hasRuntimeDep, hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import {
@@ -17,8 +17,20 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   const frameworks: string[] = [];
   const evidence: DetectorEvidence[] = [];
 
+  /**
+   * Shipped, not merely present.
+   *
+   * axios declares `express` in devDependencies to run a test server against itself,
+   * and was read as having a backend — which kept a library out of the `library`
+   * profile. A server framework the product does not ship with is a fixture. The
+   * fallback below still reads the source, so a project that runs Express without
+   * declaring it is found anyway.
+   *
+   * Not one repository in the local corpus declares a backend framework only in
+   * devDependencies, so this changes nothing there and fixes a public library.
+   */
   // Express
-  if (hasDep(ctx, 'express')) {
+  if (hasRuntimeDep(ctx, 'express')) {
     frameworks.push('express');
     evidence.push({ type: 'dependency', value: 'express' });
   } else {
@@ -44,7 +56,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   // frontend-only meant an application with server routes, sessions and database
   // access was scored as though it had none of them.
   for (const [framework, dep] of NODE_BACKEND_FRAMEWORKS) {
-    if (hasDep(ctx, dep)) {
+    if (hasRuntimeDep(ctx, dep)) {
       frameworks.push(framework);
       evidence.push({ type: 'dependency', value: dep });
     }

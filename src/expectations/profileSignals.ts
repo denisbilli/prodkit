@@ -51,6 +51,14 @@ export interface ProfileFacts {
   gameEngine: boolean;
   /** A manifest that names and versions this, so something else can depend on it. */
   publishable: boolean;
+  /**
+   * The front end in this repository is its documentation, not its product.
+   *
+   * zod, axios, vite and ruff were all read from their docs sites: five public libraries
+   * out of five, none identified as a library. The site that documents a product is not
+   * the product.
+   */
+  documentationSite: boolean;
   /** Somewhere for a consumer to import: main, module, exports, bin, a console script. */
   entrypoints: boolean;
   packagedLicense: boolean;
@@ -96,6 +104,7 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
     containerised: present('deployment.docker'),
     gameEngine: present('game.engine'),
     publishable: complete('packaging.manifest'),
+    documentationSite: present('docs.site'),
     entrypoints: present('packaging.entrypoints'),
     packagedLicense: present('packaging.license'),
     tests: present('quality.tests'),
@@ -298,7 +307,19 @@ const RULES: ProfileRule[] = [
      * project serves requests, and a package is not served.
      */
     profile: 'library',
-    admissible: (f) => f.publishable && f.entrypoints && !f.frontend && !f.backend && f.mobilePlatforms.length === 0,
+    /**
+     * A front end that is documentation does not make a package an application.
+     *
+     * The gate used to be "no front end at all", which is right for a plain package and
+     * wrong for every library with a docs site — which is to say, every library anybody
+     * has heard of. A backend still disqualifies: a package is not served.
+     */
+    admissible: (f) =>
+      f.publishable
+      && f.entrypoints
+      && (!f.frontend || f.documentationSite)
+      && !f.backend
+      && f.mobilePlatforms.length === 0,
     signals: [
       { identifies: true, label: 'a manifest that names and versions it', weight: 3, holds: (f) => f.publishable },
       { identifies: true, label: 'an entry point for something else to import', weight: 2, holds: (f) => f.entrypoints },

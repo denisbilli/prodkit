@@ -544,9 +544,12 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   }
 
   const npmDeps: Record<string, string> = {};
+  const runtimeNpmDeps: Record<string, string> = {};
   for (const workspace of workspaces) {
     mergeDeps(npmDeps, workspace.packageJson?.dependencies);
     mergeDeps(npmDeps, workspace.packageJson?.devDependencies);
+    // Kept apart for one question only: whether this repository serves requests.
+    mergeDeps(runtimeNpmDeps, workspace.packageJson?.dependencies);
   }
 
   /**
@@ -600,6 +603,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   const ctx: DetectContext = {
     root,
     files: { all: allFiles, source: sourceFiles, config: configFiles, unreadable: unreadableLanguages(allFiles) },
+    runtimeNpmDeps,
     packageJson,
     pythonDeps,
     phpDeps: unique(phpDeps),

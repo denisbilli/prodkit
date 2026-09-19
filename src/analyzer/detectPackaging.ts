@@ -1,6 +1,7 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
+import { hasAnyDep, hasAnyPyDep } from './detectContext';
 
 /**
  * Whether a project is fit to be installed and depended on by someone else.
@@ -34,8 +35,53 @@ function collect(files: string[], pattern: RegExp, limit = 3): string[] {
   return files.filter((file) => pattern.test(file)).slice(0, limit);
 }
 
+
+/**
+ * Generators whose whole job is to build a documentation website.
+ *
+ * A package with a docs site in its repository was being read as whatever that site is
+ * built with. zod is a validation library and came back a client application; vite came
+ * back a client application; ruff — a linter written in Rust, with every packaging
+ * signal present — came back a static site, read from its React playground. Five public
+ * libraries out of five, all for this reason.
+ *
+ * The site that documents a product is not the product.
+ */
+const DOCS_GENERATORS = [
+  '@docusaurus/core', 'vitepress', 'nextra', '@astrojs/starlight', 'vuepress', 'docz',
+  'docsify-cli', 'mintlify', '@11ty/eleventy', 'mkdocs', 'mkdocs-material', 'sphinx',
+];
+
+/**
+ * Where a documentation site lives when it has no generator of its own.
+ *
+ * A hand-built docs site or a playground sits in a directory named for what it is. This
+ * is only consulted for the front-end files: a `docs/` folder full of Markdown says
+ * nothing either way, and a repository whose application happens to live under `www/`
+ * is not caught because the question asked is whether *every* front-end file is in one
+ * of these.
+ */
+const DOCS_DIRECTORIES = /^(docs?|website|playground|examples?|demo|www)\//i;
+
+const FRONTEND_FILE = /\.(tsx|jsx|vue|svelte|astro)$/;
+
 export async function detectPackaging(ctx: DetectContext): Promise<DetectorResult[]> {
   const all = ctx.files.all;
+
+  /**
+   * Whether the front end in this repository is its documentation rather than its product.
+   *
+   * Two ways to know, and both have to be about the front end specifically. A docs
+   * generator in the dependencies says so outright. Failing that, every front-end file
+   * living under a directory named for documentation says the same thing more quietly —
+   * and *every* matters: one component under `examples/` beside an application is an
+   * example, while an application that is entirely under `examples/` does not exist.
+   */
+  const docsGenerators: string[] = [...hasAnyDep(ctx, DOCS_GENERATORS), ...hasAnyPyDep(ctx, DOCS_GENERATORS)];
+  const frontendFiles = ctx.files.source.filter((file) => FRONTEND_FILE.test(file));
+  const frontendAllInDocs = frontendFiles.length > 0
+    && frontendFiles.every((file) => DOCS_DIRECTORIES.test(file));
+  const documentationSite = docsGenerators.length > 0 || frontendAllInDocs;
 
   const licenseFiles = collect(all, LICENSE_FILE);
   const declaredLicense = typeof (ctx.packageJson as { license?: unknown } | null)?.license === 'string';
@@ -132,6 +178,21 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
       complete: licenseFiles.length > 0 && declaredLicense,
       evidence: licenseEvidence,
       details: { files: licenseFiles.length, declared: declaredLicense },
+    },
+    {
+      /**
+       * A site that documents the product, as distinct from the product.
+       *
+       * Its own detector rather than a flag on the stack, because it is evidence a
+       * reader can check: either a generator in the manifest or the directory every
+       * front-end file sits in.
+       */
+      key: 'docs.site',
+      present: documentationSite,
+      evidence: docsGenerators.length > 0
+        ? docsGenerators.map((dep) => ({ type: 'dependency' as const, value: dep }))
+        : frontendFiles.slice(0, 5).map((file) => ({ type: 'file' as const, value: file, file })),
+      details: { generators: docsGenerators, frontendFiles: frontendFiles.length, allUnderDocs: frontendAllInDocs },
     },
     {
       key: 'docs.readme',

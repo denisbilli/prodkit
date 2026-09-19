@@ -115,3 +115,45 @@ describe('one project inside a repository is not the repository', () => {
     }
   });
 });
+
+/**
+ * Five public libraries out of five were not identified as libraries, and the mechanism
+ * was the same in all of them: the documentation site inside the repository.
+ *
+ * zod came back a client application, vite came back a client application, and ruff — a
+ * linter written in Rust with every packaging signal present — came back a static site,
+ * read from its React playground. The site that documents a product is not the product.
+ */
+describe('a package with a documentation site is still a package', () => {
+  it('recognises the docs site rather than mistaking it for the product', async () => {
+    const analysis = await analyzeProject(fixture('library-with-docs'));
+
+    expect(analysis.detectors['docs.site']?.present).toBe(true);
+    expect(buildReport(analysis, { profile: 'auto' }).productProfile?.inferredProfile).toBe('library');
+  });
+
+  it('does not read a test server as the product serving requests', async () => {
+    /**
+     * axios declares `express` in devDependencies to run a test server against itself,
+     * and was read as having a backend. A server framework the product does not ship
+     * with is a fixture. Not one repository in the local corpus declares a backend only
+     * in devDependencies, so this costs nothing there.
+     */
+    const analysis = await analyzeProject(fixture('library-with-docs'));
+
+    expect(analysis.stack.backend).toEqual([]);
+  });
+
+  it('still finds a server the product actually ships', async () => {
+    const analysis = await analyzeProject(fixture('express-basic'));
+
+    expect(analysis.stack.backend).toContain('express');
+  });
+
+  it('still keeps an application out of the library profile', async () => {
+    // The gate that matters is the backend, and it still closes.
+    const report = buildReport(await analyzeProject(fixture('express-secure')), { profile: 'auto' });
+
+    expect(report.productProfile?.inferredProfile).not.toBe('library');
+  });
+});

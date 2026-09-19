@@ -40,11 +40,30 @@ export interface DetectContext {
   swiftDeps: string[];
   /** Lowercased combined dependency map (deps + devDeps). */
   npmDeps: Record<string, string>;
+  /**
+   * Dependencies the product ships with, without the ones it only builds and tests with.
+   *
+   * `npmDeps` merges both, which is right for almost every question — React in
+   * devDependencies still means React — and wrong for one: a server framework. axios
+   * declares `express` in devDependencies to run a test server, and was read as having
+   * a backend, which kept it out of the `library` profile it plainly belongs to.
+   */
+  runtimeNpmDeps: Record<string, string>;
   workspaces: WorkspaceManifest[];
 }
 
 export function hasDep(ctx: DetectContext, name: string): boolean {
   return Object.prototype.hasOwnProperty.call(ctx.npmDeps, name.toLowerCase());
+}
+
+/**
+ * Declared as something the product runs on, not merely something present.
+ *
+ * Used for server frameworks only. A test server in devDependencies is a fixture; the
+ * question "does this repository serve requests" is answered by what it ships.
+ */
+export function hasRuntimeDep(ctx: DetectContext, name: string): boolean {
+  return Object.prototype.hasOwnProperty.call(ctx.runtimeNpmDeps, name.toLowerCase());
 }
 
 export function hasAnyDep(ctx: DetectContext, names: string[]): string[] {
