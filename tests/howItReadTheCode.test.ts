@@ -320,3 +320,49 @@ describe('what the AI profile claims', () => {
     expect(missing).toEqual([]);
   });
 });
+
+/**
+ * Three real products each raised a critical — the severity that bars a report from the
+ * top band — and every piece of evidence behind all three came from a test.
+ *
+ * cal.com from `playwright/` and `*.e2e.ts`, chatwoot from `spec/`, which is where every
+ * Ruby project puts its tests, medusa from `integration-tests/`. A syntax tree would
+ * have parsed the same files and reached the same conclusion, which is why what gets
+ * read comes before how it is read.
+ */
+describe('a secret in a test is not a secret in production', () => {
+  it('skips the conventions other ecosystems use for tests', async () => {
+    const analysis = await analyzeProject(fixture('secrets-in-tests'));
+
+    expect(analysis.files.source).toEqual(['src/auth.js']);
+  });
+
+  it('raises nothing against a project whose only fake secrets are in tests', async () => {
+    const report = buildReport(await analyzeProject(fixture('secrets-in-tests')), { profile: 'auto' });
+
+    expect(report.criticalIssues).toEqual([]);
+  });
+
+  it('does not read a header name as a secret', async () => {
+    /**
+     * `export const X_CAL_SECRET_KEY = "x-cal-secret-key"` is the name of an HTTP
+     * header, spelled in kebab-case beside the constant that holds it. Compared with
+     * punctuation and case stripped, because the whole trick is that the two differ
+     * only in spelling.
+     */
+    const analysis = await analyzeProject(fixture('secrets-in-tests'));
+    const weak = [
+      ...(analysis.detectors['env.secretFallback.jwt']?.evidence ?? []),
+      ...(analysis.detectors['env.secretFallback.apiKey']?.evidence ?? []),
+      ...(analysis.detectors['env.secretFallback.unknown']?.evidence ?? []),
+    ];
+
+    expect(weak.some((item) => String(item.value).includes('X_APP_SECRET_KEY'))).toBe(false);
+  });
+
+  it('still raises a real fallback secret', async () => {
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'auto' });
+
+    expect(report.criticalIssues.map((finding) => finding.id)).toContain('security.weak-secret');
+  });
+});

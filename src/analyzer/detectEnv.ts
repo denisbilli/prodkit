@@ -29,6 +29,30 @@ function classifySecretFallback(snippet: string): 'jwt' | 'session' | 'app' | 'a
   return 'unknown';
 }
 
+
+/**
+ * A value that is its own name is a name, not a secret.
+ *
+ * cal.com declares `export const X_CAL_SECRET_KEY = "x-cal-secret-key"` — the name of
+ * an HTTP header, spelled in kebab-case beside the constant that holds it — and it was
+ * reported as a hardcoded secret with the severity that bars a report from the top
+ * band. The same shape appears wherever a library names a field: `SECRET_KEY =
+ * 'AWS_SECRET_ACCESS_KEY'` in botocore is the name of an environment variable.
+ *
+ * Compared with the punctuation and case stripped, because the whole trick is that the
+ * two differ only in spelling: `X_CAL_SECRET_KEY` and `x-cal-secret-key` are the same
+ * eleven letters. Nothing else is excused — a real secret does not happen to equal the
+ * identifier it is assigned to.
+ */
+function namesItself(snippet: string): boolean {
+  const assignment = /([A-Za-z_][A-Za-z0-9_]*)\s*[:=]\s*["'`]([^"'`]+)["'`]/.exec(snippet);
+  if (!assignment) return false;
+
+  const flatten = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  return flatten(assignment[1]) === flatten(assignment[2]);
+}
+
 export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
   const evidence: DetectorEvidence[] = [];
   const weakSecretEvidence: DetectorEvidence[] = [];
@@ -80,7 +104,9 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
     30
   );
   const weakHits = fallbackHits.filter(
-    (m) => WEAK_SECRET_VALUE_RE.test(m.snippet) && SECRET_ASSIGNMENT_CONTEXT_RE.test(m.snippet)
+    (m) => WEAK_SECRET_VALUE_RE.test(m.snippet)
+      && SECRET_ASSIGNMENT_CONTEXT_RE.test(m.snippet)
+      && !namesItself(m.snippet)
   );
   for (const m of weakHits) {
     const hitEvidence = { type: 'snippet', value: m.snippet, file: m.file, line: m.line } as const;

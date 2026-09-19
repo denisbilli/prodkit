@@ -134,6 +134,20 @@ function isTestOrExamplePath(file: string): boolean {
   // made PHP one of the languages of an Elixir analytics product — and of cal.com,
   // which is TypeScript.
   return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures?|frontend-example)(\/|$)/i.test(file)
+    /**
+     * The conventions other ecosystems use, which this list did not know.
+     *
+     * Three real products each raised a critical — the severity that bars a report from
+     * the top band — and every piece of evidence behind all three came from a test:
+     * cal.com from `playwright/` and `*.e2e.ts`, chatwoot from `spec/`, which is where
+     * every Ruby project puts its tests, medusa from `integration-tests/`. A syntax tree
+     * would have parsed the same files and reached the same wrong conclusion, which is
+     * the argument for fixing what gets read before fixing how.
+     */
+    || /(^|\/)(spec|specs|e2e|integration-tests?|cypress|playwright|testing)(\/|$)/i.test(file)
+    || /\.(e2e|e2e-spec|cy|stories)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file)
+    || /_spec\.rb$/i.test(file)
+    || /_test\.(go|py|rb|java|cs|php)$/i.test(file)
     || /(^|\/)test[-_][^/]+\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     /**
      * The other half of the convention.
