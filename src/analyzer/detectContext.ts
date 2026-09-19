@@ -8,6 +8,8 @@ export interface WorkspaceManifest {
   requirementsDeps: string[];
   pyprojectPath?: string;
   pyprojectDeps: string[];
+  /** Of those, the ones installed by default rather than offered as an extra. */
+  pyprojectRuntimeDeps: string[];
   lockfiles: string[];
 }
 
@@ -49,6 +51,14 @@ export interface DetectContext {
    * a backend, which kept it out of the `library` profile it plainly belongs to.
    */
   runtimeNpmDeps: Record<string, string>;
+  /**
+   * Python packages installed by default, without the extras.
+   *
+   * A library that integrates with FastAPI declares it under
+   * `[project.optional-dependencies]`, and nobody installing the library gets a web
+   * server. Used for the same single question as `runtimeNpmDeps`.
+   */
+  runtimePythonDeps: string[];
   workspaces: WorkspaceManifest[];
 }
 
@@ -64,6 +74,11 @@ export function hasDep(ctx: DetectContext, name: string): boolean {
  */
 export function hasRuntimeDep(ctx: DetectContext, name: string): boolean {
   return Object.prototype.hasOwnProperty.call(ctx.runtimeNpmDeps, name.toLowerCase());
+}
+
+/** The Python counterpart: shipped, not merely offered as an extra. */
+export function hasRuntimePyDep(ctx: DetectContext, name: string): boolean {
+  return ctx.runtimePythonDeps.includes(name.toLowerCase());
 }
 
 export function hasAnyDep(ctx: DetectContext, names: string[]): string[] {

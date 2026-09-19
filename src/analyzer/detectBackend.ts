@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasRuntimeDep, hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
+import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasPyDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import {
@@ -174,15 +174,48 @@ export async function detectBackend(ctx: DetectContext): Promise<{
 
   // Python backend frameworks detected purely from dependencies. Django, Flask and
   // FastAPI have their own blocks below because each also has a source-level fallback.
+  /**
+   * Shipped, not offered as an extra — the Python half of the same rule.
+   *
+   * llama_index declares tornado, starlette, flask and fastapi among its optional
+   * integrations, and was read as running all four.
+   */
   for (const [framework, dep] of PYTHON_BACKEND_FRAMEWORKS) {
-    if (hasPyDep(ctx, dep)) {
+    if (hasRuntimePyDep(ctx, dep)) {
       frameworks.push(framework);
       evidence.push({ type: 'dependency', value: dep });
     }
   }
 
+  /**
+   * aiohttp is a client as often as it is a server.
+   *
+   * Thousands of packages depend on it to make HTTP requests; langchain is one, and was
+   * read as having a backend because of it — which cost it the `library` profile and
+   * earned it fifteen high findings about GDPR, billing and tenant isolation. The
+   * dependency says the library is present. Only `aiohttp.web` says it is being served.
+   *
+   * The source alone is enough, as elsewhere: a project that serves without declaring
+   * the dependency is still serving.
+   */
+  if (hasRuntimePyDep(ctx, 'aiohttp')) {
+    const serving = await searchInFiles(
+      ctx.root,
+      ctx.files.source.filter((file) => /\.py$/.test(file)),
+      [/aiohttp\.web/, /web\.Application\(/, /web\.RouteTableDef/, /from aiohttp import web/],
+      3,
+    );
+
+    if (serving.length) {
+      frameworks.push('aiohttp');
+      for (const match of serving) {
+        evidence.push({ type: 'snippet', value: match.snippet, file: match.file, line: match.line });
+      }
+    }
+  }
+
   // Flask
-  if (hasPyDep(ctx, 'flask')) {
+  if (hasRuntimePyDep(ctx, 'flask')) {
     frameworks.push('flask');
     evidence.push({ type: 'dependency', value: 'flask' });
   } else {
@@ -201,7 +234,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   }
 
   // FastAPI
-  if (hasPyDep(ctx, 'fastapi')) {
+  if (hasRuntimePyDep(ctx, 'fastapi')) {
     frameworks.push('fastapi');
     evidence.push({ type: 'dependency', value: 'fastapi' });
   } else {
@@ -226,7 +259,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   }
   const settingsFile = ctx.files.all.find((f) => f.endsWith('settings.py'));
   if (settingsFile) djangoSignals.push({ type: 'file', value: settingsFile });
-  if (hasPyDep(ctx, 'django')) djangoSignals.push({ type: 'dependency', value: 'django' });
+  if (hasRuntimePyDep(ctx, 'django')) djangoSignals.push({ type: 'dependency', value: 'django' });
   if (ctx.files.all.some((f) => f.endsWith('urls.py'))) {
     djangoSignals.push({ type: 'file', value: ctx.files.all.find((f) => f.endsWith('urls.py'))! });
   }

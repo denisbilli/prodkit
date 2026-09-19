@@ -174,7 +174,7 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 _Generated from the analyzer itself — run `npm run docs:stacks` after changing a detector._
 
-- **Backend:** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS, SvelteKit, Remix, Nuxt, Nitro, Astro, Django, Flask, FastAPI, Litestar, Sanic, Tornado, aiohttp, Starlette, Streamlit, Gradio, Dash, Chainlit, Gin, Echo, Fiber, chi, Gorilla, Beego, Go, Rails, Sinatra, Hanami, Roda, Grape, Ruby, Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, PHP, ASP.NET Core, .NET
+- **Backend:** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS, SvelteKit, Remix, Nuxt, Nitro, Astro, Django, Flask, FastAPI, aiohttp, Litestar, Sanic, Tornado, Starlette, Streamlit, Gradio, Dash, Chainlit, Gin, Echo, Fiber, chi, Gorilla, Beego, Go, Rails, Sinatra, Hanami, Roda, Grape, Ruby, Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, PHP, ASP.NET Core, .NET
 - **Frontend:** React, Vite, Vue, Nuxt, Svelte, Angular, Astro, Solid, Qwik, Preact, Remix, htmx, Tailwind CSS, Electron
 - **Mobile:** Flutter, React Native, iOS (native), Android (native)
 - **Databases:** Postgres, MySQL, SQLite, SQL Server, MongoDB, Redis, Firestore, DynamoDB, Convex
@@ -188,6 +188,7 @@ How some of these are decided:
 - **Django** — manage.py, settings.py and urls.py together
 - **Flask** — the dependency, or an import in the source
 - **FastAPI** — the dependency, or an import in the source
+- **aiohttp** — aiohttp.web in the source — the dependency alone is a client
 - **Go** — a go.mod with no framework in it — net/http is a real answer
 - **Ruby** — a Gemfile with no web framework in it
 - **PHP** — PHP sources with no framework in composer.json

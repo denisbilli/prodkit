@@ -201,3 +201,45 @@ describe('a package inside a workspace', () => {
     expect(report.productProfile?.inferredProfile).not.toBe('library');
   });
 });
+
+/**
+ * A library that integrates with web frameworks declares them as extras.
+ *
+ * langchain came back a hosted AI product with fifteen high findings — GDPR consent,
+ * billing, tenant isolation — because `fastapi` and `aiohttp` appear in its optional
+ * dependencies. llama_index declares four frameworks that way. Nobody installing either
+ * gets a web server.
+ */
+describe('what a Python package ships, and what it merely offers', () => {
+  it('does not read an optional extra as the product\'s server', async () => {
+    const analysis = await analyzeProject(fixture('python-library-extras'));
+
+    expect(analysis.stack.backend).toEqual([]);
+    expect(buildReport(analysis, { profile: 'auto' }).productProfile?.inferredProfile).toBe('library');
+  });
+
+  it('still reads a server the package installs by default', async () => {
+    const analysis = await analyzeProject(fixture('django-basic'));
+
+    expect(analysis.stack.backend).toContain('django');
+  });
+
+  it('counts an import as use, not as an offer', async () => {
+    /**
+     * A repository with no manifest at all — one file that imports Streamlit — declares
+     * nothing optional. Treating its imports as extras made a Streamlit application
+     * unreadable, which the corpus caught within a minute of the change.
+     */
+    const analysis = await analyzeProject(fixture('streamlit-app'));
+
+    expect(analysis.stack.backend).toContain('streamlit');
+  });
+
+  it('needs aiohttp to be serving, not merely present', async () => {
+    // aiohttp is a client as often as a server, and thousands of packages depend on it
+    // to make requests. `aiohttp.web` is what says it is being served.
+    const analysis = await analyzeProject(fixture('python-library-extras'));
+
+    expect(analysis.stack.backend).not.toContain('aiohttp');
+  });
+});

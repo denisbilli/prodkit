@@ -55,7 +55,26 @@ function normalizePyDepSpec(spec: string): string {
   return spec.split(/[\s<>=!~;[(]/)[0].trim().toLowerCase();
 }
 
+/**
+ * What a Python package installs by default, and what it merely offers.
+ *
+ * `[project.optional-dependencies]` and `[dependency-groups]` are extras: a library that
+ * integrates with FastAPI declares it there, and nobody installing the library gets a
+ * web server. langchain and llama_index declare four web frameworks between them that
+ * way, and were read as web applications — costing langchain the `library` profile and
+ * earning it fifteen high findings about GDPR, billing and tenant isolation.
+ *
+ * Mirrors what `dependencies` and `devDependencies` already do for npm.
+ */
+function parsePyprojectRuntime(text: string | null): string[] {
+  return parsePyprojectSections(text, true);
+}
+
 function parsePyproject(text: string | null): string[] {
+  return parsePyprojectSections(text, false);
+}
+
+function parsePyprojectSections(text: string | null, runtimeOnly: boolean): string[] {
   if (!text) return [];
   const deps: string[] = [];
   let section = '';
@@ -74,8 +93,8 @@ function parsePyproject(text: string | null): string[] {
 
     // Poetry-style tables: each key of the section is a dependency name.
     const isPoetryDepsSection = section === 'tool.poetry.dependencies'
-      || section === 'tool.poetry.dev-dependencies'
-      || /^tool\.poetry\.group\.[^.]+\.dependencies$/.test(section);
+      || (!runtimeOnly && (section === 'tool.poetry.dev-dependencies'
+        || /^tool\.poetry\.group\.[^.]+\.dependencies$/.test(section)));
     if (isPoetryDepsSection) {
       const match = line.match(/^([A-Za-z0-9_.-]+)\s*=/);
       if (match && match[1].toLowerCase() !== 'python') deps.push(match[1].toLowerCase());
@@ -83,9 +102,10 @@ function parsePyproject(text: string | null): string[] {
     }
 
     // PEP 621 / uv style: dependency specs live inside string arrays.
-    const isDepArraySection = section === 'project.optional-dependencies'
-      || section === 'dependency-groups'
-      || section === 'tool.uv';
+    const isDepArraySection = !runtimeOnly
+      && (section === 'project.optional-dependencies'
+        || section === 'dependency-groups'
+        || section === 'tool.uv');
     if (section === 'project' || isDepArraySection || inDependencyArray) {
       if (line.includes('include-group')) continue;
       const startsArray = section === 'project'
@@ -328,11 +348,17 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       requirementsDeps: parseRequirements(reqText),
       pyprojectPath: pyprojectFiles.includes(pyprojectPath) ? pyprojectPath : undefined,
       pyprojectDeps: parsePyproject(pyprojectText),
+      pyprojectRuntimeDeps: parsePyprojectRuntime(pyprojectText),
       lockfiles: wsLockfiles,
     });
   }
 
   const pythonDeps = unique(workspaces.flatMap((w) => [...w.requirementsDeps, ...w.pyprojectDeps]));
+  /**
+   * `requirements.txt` has no notion of an extra, so everything in it counts as shipped.
+   * Only pyproject distinguishes the two.
+   */
+  const runtimePythonDeps = unique(workspaces.flatMap((w) => [...w.requirementsDeps, ...w.pyprojectRuntimeDeps]));
 
   /**
    * Composer requirements. A published PHP application in the corpus reported a
@@ -567,6 +593,14 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     const imported = await pythonImports(root, sourceFiles);
     if (imported.length > 0) {
       pythonDeps.push(...imported);
+      /**
+       * An import is use, not an offer.
+       *
+       * These count as shipped as well as present. A repository with no manifest at all
+       * — one `main.py` that imports streamlit — declares nothing optional, and treating
+       * its imports as extras made a Streamlit application unreadable.
+       */
+      runtimePythonDeps.push(...imported);
       inferredDependencySources.push('Python imports');
     }
   }
@@ -604,6 +638,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     root,
     files: { all: allFiles, source: sourceFiles, config: configFiles, unreadable: unreadableLanguages(allFiles) },
     runtimeNpmDeps,
+    runtimePythonDeps,
     packageJson,
     pythonDeps,
     phpDeps: unique(phpDeps),

@@ -68,7 +68,6 @@ export const PYTHON_BACKEND_FRAMEWORKS: Array<[string, string]> = [
   ['litestar', 'litestar'],
   ['sanic', 'sanic'],
   ['tornado', 'tornado'],
-  ['aiohttp', 'aiohttp'],
   ['starlette', 'starlette'],
   /**
    * These serve an application over HTTP without calling themselves web frameworks,
@@ -274,6 +273,16 @@ export function supportedStacks(): StackCatalogue {
       { id: 'django', label: 'Django', detectedFrom: 'manage.py, settings.py and urls.py together' },
       { id: 'flask', label: 'Flask', detectedFrom: 'the dependency, or an import in the source' },
       { id: 'fastapi', label: 'FastAPI', detectedFrom: 'the dependency, or an import in the source' },
+      {
+        id: 'aiohttp',
+        label: 'aiohttp',
+        /**
+         * Listed separately because the dependency alone does not settle it: aiohttp is
+         * a client as often as a server, and thousands of packages depend on it to make
+         * requests. `aiohttp.web` is what says it is being served.
+         */
+        detectedFrom: 'aiohttp.web in the source — the dependency alone is a client',
+      },
       ...entries(PYTHON_BACKEND_FRAMEWORKS.map(([id]) => id)),
       ...entries(GO_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'go', label: 'Go', detectedFrom: 'a go.mod with no framework in it — net/http is a real answer' },
