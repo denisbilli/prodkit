@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
+import { readJsonSafe } from '../utils/readTextFileSafe';
 
 /**
  * Whether a project is fit to be installed and depended on by someone else.
@@ -61,9 +62,35 @@ const DOCS_GENERATORS = [
  * is not caught because the question asked is whether *every* front-end file is in one
  * of these.
  */
-const DOCS_DIRECTORIES = /^(docs?|website|playground|examples?|demo|www)\//i;
+export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www)\//i;
 
 const FRONTEND_FILE = /\.(tsx|jsx|vue|svelte|astro)$/;
+
+
+/**
+ * The published package inside a workspace, if there is one.
+ *
+ * Named, versioned, not private — the three things npm requires to accept a publish.
+ * A workspace full of private example applications has none, and gets the honest answer
+ * that nothing here is published.
+ */
+async function findPublishedMember(
+  ctx: DetectContext,
+): Promise<{ path: string; manifest: Record<string, unknown> } | null> {
+  const members = ctx.files.all
+    .filter((file) => /(^|\/)package\.json$/.test(file) && file !== 'package.json')
+    .slice(0, 60);
+
+  for (const file of members) {
+    const manifest = await readJsonSafe<Record<string, unknown>>(ctx.root, file);
+    if (!manifest) continue;
+
+    const named = typeof manifest.name === 'string' && typeof manifest.version === 'string';
+    if (named && manifest.private !== true) return { path: file, manifest };
+  }
+
+  return null;
+}
 
 export async function detectPackaging(ctx: DetectContext): Promise<DetectorResult[]> {
   const all = ctx.files.all;
@@ -125,7 +152,35 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
    * it starts; `types` is how a TypeScript consumer finds it. A Python package says the
    * same thing through `[project.scripts]` or a `packages` argument in setup.py.
    */
-  const pkg = (ctx.packageJson ?? {}) as Record<string, unknown>;
+  const rootPkg = (ctx.packageJson ?? {}) as Record<string, unknown>;
+
+  /**
+   * In a monorepo the root manifest is not the package.
+   *
+   * zod's root is `private: true` with `workspaces: ["packages/*"]`, no name, no version
+   * and no entry point; `zod` itself is `packages/zod/package.json`, named, versioned
+   * and exported. Reading only the root made the most downloaded validation library on
+   * npm a repository that publishes nothing — and vite the same.
+   *
+   * The published package is looked for among the members, and the first one that is
+   * named, versioned and not private is what this repository ships. Its manifest is
+   * what the evidence points at, so a reader can open the file the claim rests on rather
+   * than a root that says nothing.
+   */
+  /**
+   * Three ways to say the same thing.
+   *
+   * npm and yarn declare workspaces inside `package.json`; pnpm puts them in
+   * `pnpm-workspace.yaml`. Reading only the first meant vite — whose root has no
+   * `workspaces` field at all — was never looked into, and came back as a repository
+   * that publishes nothing.
+   */
+  const workspaceRoot = Array.isArray(rootPkg.workspaces)
+    || (typeof rootPkg.workspaces === 'object' && rootPkg.workspaces !== null)
+    || all.some((file) => /^(pnpm-workspace\.yaml|lerna\.json|nx\.json|turbo\.json)$/.test(file));
+  const publishedMember = workspaceRoot ? await findPublishedMember(ctx) : null;
+  const pkg = publishedMember?.manifest ?? rootPkg;
+
   const nodeEntrypoints = ['main', 'module', 'exports', 'bin'].filter((key) => pkg[key] !== undefined);
   const hasTypes = pkg.types !== undefined || pkg.typings !== undefined;
   const isPrivate = pkg.private === true;
@@ -156,7 +211,13 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
       key: 'packaging.manifest',
       present: hasManifest,
       complete: hasManifest && (named || pythonEntrypoints),
-      evidence: hasManifest ? [{ type: 'note', value: named ? 'a manifest with a name and a version' : 'a package manifest' }] : [],
+      evidence: hasManifest
+        ? [
+            publishedMember
+              ? { type: 'file' as const, value: `${publishedMember.path} names and versions the published package`, file: publishedMember.path }
+              : { type: 'note' as const, value: named ? 'a manifest with a name and a version' : 'a package manifest' },
+          ]
+        : [],
       details: { named, described, sourced, private: isPrivate },
     },
     {

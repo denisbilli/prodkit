@@ -1,0 +1,1 @@
+{ "name": "docs", "private": true, "dependencies": { "next": "^15.0.0", "react": "^18.3.1" } }

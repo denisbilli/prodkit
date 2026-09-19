@@ -157,3 +157,47 @@ describe('a package with a documentation site is still a package', () => {
     expect(report.productProfile?.inferredProfile).not.toBe('library');
   });
 });
+
+/**
+ * In a monorepo the root manifest is not the package.
+ *
+ * zod's root is `private: true` with `workspaces: ["packages/*"]`, no name, no version
+ * and no entry point; `zod` itself is `packages/zod/package.json`. vite does not even
+ * have a `workspaces` field — pnpm keeps that in its own file. Both came back as
+ * repositories that publish nothing.
+ */
+describe('a package inside a workspace', () => {
+  it('reads the published member rather than the workspace root', async () => {
+    const analysis = await analyzeProject(fixture('monorepo-library'));
+
+    expect(analysis.detectors['packaging.manifest']?.complete).toBe(true);
+    expect(analysis.detectors['packaging.entrypoints']?.present).toBe(true);
+  });
+
+  it('points the evidence at the manifest the claim rests on', async () => {
+    // A root that says nothing is not a citation somebody can check.
+    const analysis = await analyzeProject(fixture('monorepo-library'));
+    const cited = (analysis.detectors['packaging.manifest']?.evidence ?? []).map((item) => String(item.value));
+
+    expect(cited.join(' ')).toMatch(/packages\/core\/package\.json/);
+  });
+
+  it('does not count a docs site or a playground as the product\'s server', async () => {
+    /**
+     * zod's only workspace with a backend is `packages/docs`. vite's are ten directories
+     * under `playground/`, every one an Express server and none of them vite.
+     */
+    const report = buildReport(await analyzeProject(fixture('monorepo-library')), { profile: 'auto' });
+
+    // The servers are still detected — they are really there — and they are not the
+    // product's.
+    expect(report.detectedStack.backend.length).toBeGreaterThan(0);
+    expect(report.productProfile?.inferredProfile).toBe('library');
+  });
+
+  it('still counts a server that is the product', async () => {
+    const report = buildReport(await analyzeProject(fixture('express-secure')), { profile: 'auto' });
+
+    expect(report.productProfile?.inferredProfile).not.toBe('library');
+  });
+});

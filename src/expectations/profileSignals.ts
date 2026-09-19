@@ -1,5 +1,6 @@
 import type { ProjectAnalysis } from '../analyzer/types';
 import type { ProductProfile } from './types';
+import { DOCS_DIRECTORIES } from '../analyzer/detectPackaging';
 
 /**
  * Profiles are scored, not matched in order.
@@ -59,6 +60,14 @@ export interface ProfileFacts {
    * the product.
    */
   documentationSite: boolean;
+  /**
+   * A server the product ships, as distinct from one its documentation or playgrounds run.
+   *
+   * zod's only workspace with a backend is `packages/docs`. vite's are ten directories
+   * under `playground/`. Both were excluded from the `library` profile by a backend
+   * neither of them ships.
+   */
+  productBackend: boolean;
   /** Somewhere for a consumer to import: main, module, exports, bin, a console script. */
   entrypoints: boolean;
   packagedLicense: boolean;
@@ -75,6 +84,26 @@ export interface ProfileFacts {
    */
   mobileShare: number;
   sourceFiles: number;
+}
+
+
+/**
+ * Whether any backend in this repository belongs to the product.
+ *
+ * A workspace under `docs/`, `playground/` or `examples/` that runs a server is running
+ * it to demonstrate or test something. vite has ten such workspaces, every one of them
+ * an Express server, and none of them vite.
+ *
+ * Where no workspace declares a backend but the repository does, the signal came from
+ * the root and belongs to the product: there is nowhere else for it to come from.
+ */
+function hasProductBackend(analysis: ProjectAnalysis): boolean {
+  if (analysis.stack.backend.length === 0) return false;
+
+  const withBackend = analysis.workspaceStacks.filter((workspace) => workspace.backend.length > 0);
+  if (withBackend.length === 0) return true;
+
+  return withBackend.some((workspace) => !DOCS_DIRECTORIES.test(`${workspace.root}/`));
 }
 
 export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
@@ -105,6 +134,7 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
     gameEngine: present('game.engine'),
     publishable: complete('packaging.manifest'),
     documentationSite: present('docs.site'),
+    productBackend: hasProductBackend(analysis),
     entrypoints: present('packaging.entrypoints'),
     packagedLicense: present('packaging.license'),
     tests: present('quality.tests'),
@@ -318,7 +348,7 @@ const RULES: ProfileRule[] = [
       f.publishable
       && f.entrypoints
       && (!f.frontend || f.documentationSite)
-      && !f.backend
+      && !f.productBackend
       && f.mobilePlatforms.length === 0,
     signals: [
       { identifies: true, label: 'a manifest that names and versions it', weight: 3, holds: (f) => f.publishable },
