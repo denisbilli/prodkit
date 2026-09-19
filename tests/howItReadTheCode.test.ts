@@ -81,3 +81,37 @@ describe('what makes a repository a phone application', () => {
     expect(analysis.detectors['mobile.platform']?.present).toBe(true);
   });
 });
+
+/**
+ * A true signal about one project, read as a fact about the whole.
+ *
+ * dotnet/eShop contains a real MAUI client — the markers are not a false positive — and
+ * it is one project of a dozen: 137 source files of 515, beside a web application and
+ * eight services. The repository came back as a phone application.
+ */
+describe('one project inside a repository is not the repository', () => {
+  it('does not call a system with a mobile client a mobile app', async () => {
+    const analysis = await analyzeProject(fixture('dotnet-system'));
+    const report = buildReport(analysis, { profile: 'auto' });
+
+    // The markers are real and stay found; what changes is what they are taken to mean.
+    expect(analysis.detectors['mobile.platform']?.present).toBe(true);
+    expect(report.productProfile?.inferredProfile).not.toBe('mobile-app');
+  });
+
+  it('measures how much of the repository the mobile project is', async () => {
+    const analysis = await analyzeProject(fixture('dotnet-system'));
+
+    expect(analysis.detectors['mobile.platform']?.details?.sourceShare as number).toBeLessThan(0.5);
+  });
+
+  it('still calls a phone application a phone application', async () => {
+    // Every repository in the corpus that is one has its manifest at the root and scores
+    // 1, including the Xcode layout where the project bundle sits beside the sources.
+    for (const name of ['android-app', 'flutter-app', 'android-gradle-app', 'swift-app']) {
+      const analysis = await analyzeProject(fixture(name));
+
+      expect(analysis.detectors['mobile.platform']?.details?.sourceShare as number, name).toBe(1);
+    }
+  });
+});

@@ -58,6 +58,14 @@ export interface ProfileFacts {
   gameSignals: number;
   /** Ships to a phone: Flutter, React Native, or an iOS/Android project in the tree. */
   mobilePlatforms: string[];
+  /**
+   * How much of the repository the mobile project is, between 0 and 1.
+   *
+   * A true signal about one project was being read as a fact about the whole: eShop's
+   * MAUI client is 137 source files of 515, beside a web application and eight services,
+   * and the repository came back as a phone application.
+   */
+  mobileShare: number;
   sourceFiles: number;
 }
 
@@ -93,6 +101,7 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
     tests: present('quality.tests'),
     gameSignals: Number(analysis.detectors['game.engine']?.details?.supportingSignals ?? 0),
     mobilePlatforms: (analysis.detectors['mobile.platform']?.details?.platforms as string[] | undefined) ?? [],
+    mobileShare: (analysis.detectors['mobile.platform']?.details?.sourceShare as number | undefined) ?? 0,
     sourceFiles: analysis.files.source.length,
   };
 }
@@ -240,7 +249,15 @@ const RULES: ProfileRule[] = [
      */
     profile: 'mobile-app',
     refines: 'client-app',
-    admissible: (f) => f.mobilePlatforms.length > 0 && !f.tenancy,
+    /**
+     * The mobile project has to be the repository, not a project inside it.
+     *
+     * Every repository in the corpus that is a phone application has its manifest at the
+     * root and scores 1. eShop scores 0.27 and is a .NET system with a MAUI client in it.
+     * Half is the line, and it sits in the gap between those two rather than in the
+     * middle of a distribution.
+     */
+    admissible: (f) => f.mobilePlatforms.length > 0 && f.mobileShare >= 0.5 && !f.tenancy,
     signals: [
       { identifies: true, label: 'a mobile project in the repository', weight: 5, holds: (f) => f.mobilePlatforms.length > 0 },
       {

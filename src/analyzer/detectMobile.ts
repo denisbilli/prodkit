@@ -143,6 +143,71 @@ async function androidGradleFiles(ctx: DetectContext): Promise<string[]> {
   return found;
 }
 
+
+/**
+ * Directory names that are part of a platform's layout rather than the project's.
+ *
+ * `src/ClientApp/Platforms/Android/AndroidManifest.xml` belongs to a project called
+ * ClientApp; the three segments after it are how MAUI arranges a project, not where the
+ * project begins. Walking past them finds the root a person would name.
+ */
+const PLATFORM_LAYOUT = new Set([
+  'platforms', 'android', 'ios', 'maccatalyst', 'app', 'src', 'main', 'res', 'xcshareddata',
+]);
+
+function mobileProjectRoot(marker: string): string {
+  const segments = marker.split('/').slice(0, -1);
+
+  /**
+   * `.xcodeproj` sits beside the sources, not above them.
+   *
+   * `DonGeremIA.xcodeproj/project.pbxproj` names a project whose Swift files are in
+   * `DonGeremIA/`, a sibling. Stopping at the bundle put the project root somewhere no
+   * source file lives and scored a Swift application at zero.
+   */
+  while (
+    segments.length > 0
+    && (PLATFORM_LAYOUT.has(segments[segments.length - 1].toLowerCase())
+      || /\.(xcodeproj|xcworkspace)$/i.test(segments[segments.length - 1]))
+  ) {
+    segments.pop();
+  }
+
+  return segments.join('/');
+}
+
+/**
+ * How much of the repository the mobile project actually is.
+ *
+ * dotnet/eShop contains a real MAUI client — the markers are not a false positive — and
+ * it is one project of a dozen: 137 source files of 515, beside a web application and
+ * eight services. The repository was reported as a mobile application because a true
+ * signal about a part was read as a fact about the whole.
+ *
+ * Every repository in the verification corpus that *is* a phone application scores 1
+ * here: the manifest sits at its root. The gap between that and eShop's 0.27 is where
+ * the line goes.
+ */
+function mobileSourceShare(sourceFiles: string[], markers: string[]): number {
+  if (sourceFiles.length === 0) return 0;
+
+  /**
+   * No file marker means the platform came from a dependency.
+   *
+   * A Flutter project is recognised by `flutter` in its `pubspec.yaml`, and a React
+   * Native one by its `package.json` — a fact about the project's own manifest rather
+   * than about a subdirectory. Scoring those at zero made every Flutter application in
+   * the corpus stop being a mobile application.
+   */
+  if (markers.length === 0) return 1;
+
+  const roots = new Set(markers.map(mobileProjectRoot));
+  if (roots.has('')) return 1;
+
+  const inside = sourceFiles.filter((file) => [...roots].some((root) => file.startsWith(`${root}/`)));
+  return inside.length / sourceFiles.length;
+}
+
 export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]> {
   const iosFiles = matchesAny(ctx.files.all, IOS_MARKERS);
   const androidFiles = [...matchesAny(ctx.files.all, ANDROID_MARKERS), ...(await androidGradleFiles(ctx))];
@@ -170,6 +235,7 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
   }
 
   const isMobile = platforms.length > 0;
+  const share = mobileSourceShare(ctx.files.source, [...iosFiles, ...androidFiles]);
 
   /**
    * Every capability below reports `present: false` when this is not a mobile project,
@@ -336,7 +402,7 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
       key: 'mobile.platform',
       present: true,
       evidence: platformEvidence,
-      details: { platforms },
+      details: { platforms, sourceShare: share },
     },
     {
       key: 'mobile.permissions',
