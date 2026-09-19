@@ -399,3 +399,41 @@ describe('an entry in a lookup table is not an assignment', () => {
     expect(weak?.evidence.some((item) => item.file?.includes('legacy-config'))).toBe(true);
   });
 });
+
+/**
+ * A match in the documentation is a match about the documentation.
+ *
+ * Medusa was told its CORS policy was open, evidenced entirely from `www/apps/cloud/` —
+ * the site that documents Medusa. Vite keeps ten Express servers under `playground/`
+ * for a related reason. These are not false matches: the lines are there, and they are
+ * about something other than the product.
+ */
+describe('a finding evidenced only in the documentation', () => {
+  it('does not claim the product does it', async () => {
+    const report = buildReport(await analyzeProject(fixture('product-with-docs')), { profile: 'auto' });
+    const cors = report.findings.find((finding) => finding.id === 'security.cors-origin');
+
+    expect(cors?.status).toBe('unknown');
+    expect(cors?.description).toMatch(/documentation site or a playground/);
+  });
+
+  it('keeps a finding with one line in the product', async () => {
+    /**
+     * The rule is "every citation", not "any". Medusa's webhook finding cites sixty-eight
+     * files, twenty of them in `packages/core`, and it stands — I had read only the
+     * first three, which were all documentation, and concluded wrongly.
+     */
+    const report = buildReport(await analyzeProject(fixture('express-basic')), { profile: 'auto' });
+    const uploads = report.findings.find((finding) => finding.id === 'uploads.public-exposure');
+
+    expect(uploads?.status).not.toBe('unknown');
+  });
+
+  it('keeps every finding when the documentation is the product', async () => {
+    // A repository whose source is all under `docs/` is a documentation site, and its
+    // findings are its own.
+    const analysis = await analyzeProject(fixture('product-with-docs'));
+
+    expect(analysis.files.source.some((file) => !file.startsWith('www/'))).toBe(true);
+  });
+});

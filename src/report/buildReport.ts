@@ -20,6 +20,7 @@ import { withEvidenceDigest } from './evidenceDigest';
 import { buildComplianceMapping } from './complianceMapping';
 import { buildExecutiveSummary } from './executiveSummary';
 import { getRemediationEntry } from '../planner/remediationCatalog';
+import { DOCS_DIRECTORIES } from '../analyzer/detectPackaging';
 
 export interface BuildReportOptions {
   profile?: ProductProfile;
@@ -84,6 +85,29 @@ function determineExpectationMode(
   return 'explicit-profile';
 }
 
+
+/**
+ * A finding whose every citation is in the documentation site or a playground.
+ *
+ * Medusa was told its CORS policy was open, evidenced from `www/apps/cloud/`, and that
+ * its Stripe webhook handling was unverified, evidenced from the documentation's
+ * `sidebar.mjs` — the navigation menu that lists a page about webhooks. Vite keeps ten
+ * Express servers under `playground/` for the same kind of reason.
+ *
+ * These are not false matches: the lines are there. They are matches about something
+ * other than the product, and a report that cannot tell the two apart tells its reader
+ * to go and fix a documentation site.
+ *
+ * Only where the repository has source outside those directories. A documentation site
+ * that *is* the product keeps every finding it earns.
+ */
+function onlyEvidencedInDocumentation(finding: Finding, hasProductSource: boolean): boolean {
+  if (!hasProductSource) return false;
+
+  const cited = finding.evidence.filter((item) => item.file);
+  return cited.length > 0 && cited.every((item) => DOCS_DIRECTORIES.test(item.file as string));
+}
+
 export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOptions): ProductionReadinessReport {
   const observedFindings = runRules(analysis);
   const observedScore = computeScore(observedFindings);
@@ -144,8 +168,27 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     }
   }
 
+  /**
+   * Whether this repository is more than its documentation.
+   *
+   * If every source file lives under `docs/` or `website/`, the documentation is the
+   * product and its findings are the product's.
+   */
+  const hasProductSource = analysis.files.source.some((file) => !DOCS_DIRECTORIES.test(file));
+
   const findings = withEvidenceDigest(withBusinessImpact(
-    [...observedFindings, ...expectationFindings].sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b)),
+    [...observedFindings, ...expectationFindings]
+      .map((finding) =>
+        onlyEvidencedInDocumentation(finding, hasProductSource)
+          ? {
+              ...finding,
+              status: 'unknown' as const,
+              severity: 'info' as const,
+              description: `${finding.description} Every line behind this is in the documentation site or a playground rather than in the product, so nothing here says the product does it.`,
+            }
+          : finding,
+      )
+      .sort((a, b) => bySeverityPriority(a) - bySeverityPriority(b)),
   ));
   const combinedScore = expectationScore === undefined
     ? observedScore
