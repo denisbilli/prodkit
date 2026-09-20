@@ -404,6 +404,31 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * `CORS_ORIGIN_ALLOW_ALL`, which is what it was called before version 3.5 — is the
    * one line that opens it.
    */
+  /**
+   * Laravel's answer, which is a file with a name the framework chose.
+   *
+   * `config/cors.php` is published by Laravel and read by its own middleware; a
+   * project either has it or does not. Firefly III has one whose `'allowed_origins'`
+   * is `['*']`, and the report said it had no cross-origin configuration at all —
+   * the worst direction for this check, because a project that opened itself to the
+   * whole web read as one that had not thought about it.
+   *
+   * The path is the anchor and the array is the answer: a bare `'*'` is the wide-open
+   * case, and a list of origins is one somebody chose.
+   */
+  for (const file of source.concat(ctx.files.all).filter((f) => /(^|\/)config\/cors\.php$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+
+    const origins = /'allowed_origins'\s*=>\s*\[([^\]]*)\]/.exec(text);
+    const line = origins ? text.slice(0, origins.index).split('\n').length : 1;
+    const hit: CorsHit = { file, line, snippet: (origins?.[0] ?? "config/cors.php").replace(/\s+/g, ' ').trim().slice(0, 200) };
+
+    if (!origins || /^\s*'\*'\s*,?\s*$/.test(origins[1])) corsLoose.push(hit);
+    else corsStrict.push(hit);
+    break;
+  }
+
   const django = await findDjangoSettings(ctx);
   if (django) {
     const middlewareLine = django.text

@@ -1,0 +1,59 @@
+import * as path from 'path';
+import { describe, expect, it } from 'vitest';
+import { analyzeProject } from '../src/analyzer/analyzeProject';
+import { buildReport } from '../src/report/buildReport';
+
+const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
+
+const statusOf = (report: { findings: Array<{ id: string; status: string }>; passedChecks: Array<{ id: string; status: string }> }, id: string) =>
+  [...report.findings, ...report.passedChecks].find((f) => f.id === id)?.status;
+
+/**
+ * PHP, measured on two real products: Firefly III (Laravel) and Sylius (Symfony).
+ *
+ * Laravel puts both answers in files whose names the framework chose, and nothing
+ * here opened either. `config/cors.php` is published by Laravel and read by its own
+ * middleware; Firefly III has one whose `allowed_origins` is `['*']`, and the report
+ * said it had no cross-origin configuration at all — the worst direction for this
+ * check, because a project that opened itself to the whole web read as one that had
+ * not thought about it.
+ */
+describe('cross-origin handling in Laravel', () => {
+  it('reads the configuration file the framework publishes', async () => {
+    const report = buildReport(await analyzeProject(fixture('laravel-chosen-origins')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('passed');
+  });
+
+  it('calls a wildcard allowlist what it is', async () => {
+    const report = buildReport(await analyzeProject(fixture('laravel-open-cors')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('partial');
+  });
+});
+
+/**
+ * PHP has one driver — PDO, in the runtime — so `composer.json` says nothing about
+ * which engine a project talks to, and nothing here read the file that does. Firefly
+ * III reported no data layer, above a `config/database.php` whose first line of
+ * substance is `'default' => env('DB_CONNECTION', 'mysql')`.
+ */
+describe('the database a Laravel project falls back to', () => {
+  it('is read from the configuration rather than from a package', async () => {
+    const analysis = await analyzeProject(fixture('laravel-open-cors'));
+
+    expect(analysis.stack.databases).toContain('postgres');
+  });
+
+  /**
+   * Only the default. Laravel's file ships every driver it supports in `connections`
+   * whether the project uses them or not, so reading those would credit this fixture
+   * with sqlite and mysql as well.
+   */
+  it('does not credit the project with every driver the file mentions', async () => {
+    const analysis = await analyzeProject(fixture('laravel-open-cors'));
+
+    expect(analysis.stack.databases).not.toContain('sqlite');
+    expect(analysis.stack.databases).not.toContain('mysql');
+  });
+});

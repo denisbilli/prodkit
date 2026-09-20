@@ -151,6 +151,44 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
     for (const hit of hits) evidence.push({ type: 'dependency', value: hit });
   }
 
+  /**
+   * Laravel, whose database is named in a configuration file rather than in a package.
+   *
+   * PHP has one driver — PDO, in the runtime — so `composer.json` says nothing about
+   * which engine a project talks to, and nothing here read the place that does.
+   * Firefly III reported no data layer at all, above a `config/database.php` whose
+   * first line of substance is `'default' => env('DB_CONNECTION', 'mysql')`.
+   *
+   * Only the default is read. Laravel's file ships every driver it supports in the
+   * `connections` array whether the project uses them or not, so reading those would
+   * credit each project with four databases; the default is the one it actually falls
+   * back to when nothing is configured, which is the project's own statement.
+   */
+  const LARAVEL_DRIVERS: Record<string, string> = {
+    mysql: 'mysql',
+    mariadb: 'mysql',
+    pgsql: 'postgres',
+    sqlite: 'sqlite',
+    sqlsrv: 'sqlserver',
+  };
+
+  for (const file of ctx.files.all.filter((f) => /(^|\/)config\/database\.php$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+
+    const defaultLine = /^\s*'default'\s*=>.*?['"]([a-z]+)['"]/m.exec(text);
+    const driver = defaultLine ? LARAVEL_DRIVERS[defaultLine[1]] : undefined;
+    if (!driver) continue;
+
+    databases.add(driver);
+    evidence.push({
+      type: 'snippet',
+      value: defaultLine![0].trim().slice(0, 200),
+      file,
+      line: text.slice(0, defaultLine!.index).split('\n').length,
+    });
+  }
+
   const dotnetHits: Array<[string, string[]]> = [
     ['postgres', ['Npgsql']],
     ['mysql', ['MySql.Data', 'Pomelo.EntityFrameworkCore.MySql']],
