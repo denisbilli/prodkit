@@ -88,8 +88,30 @@ const DAYS_BY_SEVERITY: Record<Finding['severity'], number> = {
   info: 0,
 };
 
-function estimateEffort(findings: Finding[], profile: ProductExpectationResult | undefined): string {
-  if (!profile) return 'Not estimated without a product profile.';
+function estimateEffort(
+  findings: Finding[],
+  profile: ProductExpectationResult | undefined,
+  inconclusive: boolean,
+): string {
+  /**
+   * "Nothing outstanding to estimate" is a claim about the work, and a report that
+   * could not read the repository has no basis for it.
+   *
+   * A Python transcription script whose verdict says "ProdKit could not judge this
+   * project" was told there was nothing to do. It is the last number in the report and
+   * the same mistake as all the others: an empty list of findings read as an empty
+   * list of problems.
+   */
+  if (inconclusive) return 'Not estimated: too little of this repository could be read.';
+
+  /**
+   * The inconclusive-inference profile is no profile.
+   *
+   * It carries an empty capability set, so estimating against it measures the observed
+   * findings and calls the answer an estimate of the gap. The sentence for having no
+   * profile already exists and is the true one.
+   */
+  if (!profile || profile.selectedProfile === 'auto') return 'Not estimated without a product profile.';
 
   const open = findings.filter((f) => f.status !== 'passed' && f.status !== 'unknown');
   if (open.length === 0) return 'Nothing outstanding to estimate.';
@@ -326,7 +348,7 @@ export function buildExecutiveSummary(args: {
      * the same praise.
      */
     strengths: args.inconclusive ? [] : buildStrengths(args.categoryScores, args.findings),
-    estimatedEffort: estimateEffort(args.findings, args.profile),
+    estimatedEffort: estimateEffort(args.findings, args.profile, args.inconclusive),
     scoreExplanation,
   };
 }

@@ -212,9 +212,22 @@ function sortStates(states: PlannedTaskState[]): PlannedTaskState[] {
   return ordered;
 }
 
-function summarizePlan(tasks: RemediationTask[], actionableFindingCount: number): string {
+function summarizePlan(
+  tasks: RemediationTask[],
+  actionableFindingCount: number,
+  inconclusive: boolean,
+): string {
   if (tasks.length === 0) {
-    return 'ProdKit found no actionable remediation tasks from the current deterministic findings.';
+    /**
+     * An empty plan means two different things and said one sentence for both.
+     *
+     * "Found no actionable remediation tasks" reads as "there is nothing to do". On a
+     * repository this analyzer could not read, there is nothing to do *because it
+     * could not look* — and that is the opposite advice.
+     */
+    return inconclusive
+      ? 'No plan: too little of this repository could be read to say what it needs.'
+      : 'ProdKit found no actionable remediation tasks from the current deterministic findings.';
   }
 
   const quickWins = tasks.filter((task) => task.effort === 'small' && (task.risk === 'low' || task.risk === 'medium')).length;
@@ -291,7 +304,7 @@ export function buildPlan(report: ProductionReadinessReport): RemediationPlan {
     generatedAt: new Date().toISOString(),
     score: report.overallScore,
     maturityLevel: report.maturityLevel,
-    summary: summarizePlan(tasks, actionableFindings.length),
+    summary: summarizePlan(tasks, actionableFindings.length, report.inconclusive),
     phases,
     tasks,
     quickWins,
