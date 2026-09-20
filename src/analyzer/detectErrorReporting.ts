@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Whether a crash reaches the people who can fix it.
@@ -63,7 +64,7 @@ export async function detectErrorReporting(ctx: DetectContext): Promise<Detector
     // A reporting service is wired up once and covers everything; a hand-rolled handler
     // usually covers what its author remembered.
     complete: deps.length > 0,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'somewhere a crash in the browser is sent', ['@sentry/browser', '@sentry/react', '@bugsnag/js', 'rollbar', 'logrocket', '@datadog/browser-rum', 'sentry-sdk', 'window.onerror', 'addEventListener("error")', 'addEventListener("unhandledrejection")']),
     details: { services: deps, handlers: handlers.length },
   };
 }

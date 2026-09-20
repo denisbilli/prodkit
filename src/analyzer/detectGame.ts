@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Whether this project is a game.
@@ -197,7 +198,7 @@ async function detectStatePersistence(ctx: DetectContext): Promise<DetectorResul
     present: saves || durable,
     // Client storage alone is the partial case: it saves, until it does not.
     complete: durable,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'anywhere progress is written down', ['localStorage', 'sessionStorage', 'IndexedDB', 'a save route', 'schema.prisma', 'a .sql file', 'pg', 'mongoose', 'better-sqlite3']),
     details: { durable, clientStorage: clientOnly.length > 0, saveRoutines: saveRoutes.length },
   };
 }
@@ -238,7 +239,7 @@ async function detectAssetDelivery(ctx: DetectContext): Promise<DetectorResult> 
   return {
     key: 'app.assetDelivery',
     present: hits.length > 0 || headerFiles.length > 0,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'anything that lets a browser keep the assets', ['express.static(..., maxAge)', 'Cache-Control: max-age', 'setHeaders:', 'assetPrefix:', 'immutable', '_headers', 'netlify.toml', 'vercel.json']),
     details: { inCode: hits.length, headerFiles: headerFiles.length },
   };
 }

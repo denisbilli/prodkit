@@ -22,3 +22,24 @@ export function searchedFor(what: string, terms: string[], claim?: string): Dete
     ...(claim ? { claim } : {}),
   }];
 }
+
+/**
+ * The evidence, or the search that came up empty — never neither.
+ *
+ * Measured across eighty-three repositories: 768 of 2101 findings carried "no direct
+ * evidence captured", and 180 of those were `high`. A reader is told at high severity
+ * that their product has no error reporting, no roles, no tenant isolation, and the
+ * only thing under it is a sentence that reads like an admission of not having looked.
+ *
+ * Every detector already knows what it searched for. This is the one line that makes
+ * it say so, so that a reader whose roles are called `capabilities` can see why they
+ * were missed and tell us we are wrong.
+ */
+export function evidenceOrSearch(
+  evidence: DetectorEvidence[],
+  what: string,
+  terms: string[],
+  claim?: string
+): DetectorEvidence[] {
+  return evidence.length > 0 ? evidence : searchedFor(what, terms, claim);
+}

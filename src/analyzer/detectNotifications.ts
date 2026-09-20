@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Signals for the two things a consumer product needs that a backend service does not:
@@ -62,7 +63,7 @@ async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> 
     key: 'notifications.transactional',
     present: capable || wired,
     complete: capable && wired,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'a way to tell a user something happened', ['nodemailer', 'resend', '@sendgrid/mail', 'postmark', 'mailgun', 'django.core.mail', 'sendMail(', 'send_mail(', 'firebase-admin messaging', 'an email template file']),
     details: {
       emailDependency: emailDeps.length > 0,
       pushDependency: pushDeps.length > 0,
@@ -92,7 +93,7 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
     key: 'onboarding.flow',
     present: strong || hits.length > 0,
     complete: strong,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'anything that takes a new user through a first run', ['onboarding', 'getting-started', 'welcome', 'firstRun', 'setup wizard', 'a file named for onboarding']),
     details: { onboardingFiles: files.length, onboardingSignals: hits.length },
   };
 }

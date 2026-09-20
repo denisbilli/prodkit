@@ -3,7 +3,7 @@ import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readRoleChecks } from './structural/roleChecks';
-import { searchedFor } from './absenceEvidence';
+import { evidenceOrSearch, searchedFor } from './absenceEvidence';
 import { fileNameEvidence, searchFileNames } from './fileNames';
 
 /**
@@ -385,7 +385,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       key: 'auth.core',
       present: hasAuth,
       complete: hasAuth && hasAuthz,
-      evidence: [...depEvidence(authDeps), ...snippetEvidence(routeSignals)],
+      evidence: evidenceOrSearch([...depEvidence(authDeps), ...snippetEvidence(routeSignals)], 'a way for somebody to sign in', ['next-auth', 'passport', 'lucia', '@clerk/', '@supabase/auth', 'django.contrib.auth', 'devise', 'jsonwebtoken', 'a /login or /signin route', 'signIn(', 'authenticate(']),
       details: {
         hasAuth,
         hasAuthz,
@@ -413,7 +413,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     {
       key: 'auth.apiKeys',
       present: apiKeySignals.length > 0,
-      evidence: snippetEvidence(apiKeySignals),
+      evidence: evidenceOrSearch(snippetEvidence(apiKeySignals), 'keys this product issues and checks', ['x-api-key', 'api_keys.find', 'api_keys.where', 'hashedApiKey', 'token scope']),
     },
     {
       key: 'auth.passwordReset',
@@ -440,22 +440,22 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     {
       key: 'authz.roles',
       present: roleSignals.length > 0,
-      evidence: snippetEvidence(roleSignals),
+      evidence: evidenceOrSearch(snippetEvidence(roleSignals), 'role checks', ['role ===', 'hasRole', 'isAdmin', 'user.role', 'roles.includes', '@Roles', 'role_required']),
     },
     {
       key: 'authz.permissions',
       present: permissionSignals.length > 0,
-      evidence: snippetEvidence(permissionSignals),
+      evidence: evidenceOrSearch(snippetEvidence(permissionSignals), 'permission checks', ['requirePermission', 'permission_classes', 'permissions.py', 'authorize(', 'can(']),
     },
     {
       key: 'authz.resourceLevel',
       present: resourceLevelSignals.length > 0 || permissionSignals.length > 0,
-      evidence: snippetEvidence(resourceLevelSignals),
+      evidence: evidenceOrSearch(snippetEvidence(resourceLevelSignals), 'a check that the row belongs to the caller', ['requirePermission', 'permission_classes', 'authorize(', 'canAccess(', 'hasAccessTo(', 'ownerId', 'createdBy', 'req.user.id', 'userId ===']),
     },
     {
       key: 'tenancy.organization',
       present: hasOrganization,
-      evidence: snippetEvidence(organizationSignals),
+      evidence: evidenceOrSearch(snippetEvidence(organizationSignals), 'a tenant of its own', ['organizationId', 'organization_id', 'tenantId', 'tenant_id', 'workspaceId', 'accountId']),
       details: {
         b2bHint,
         missingTenantRisk: b2bHint && !hasOrganization,
@@ -464,7 +464,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     {
       key: 'tenancy.membership',
       present: membershipSignals.length > 0,
-      evidence: snippetEvidence(membershipSignals),
+      evidence: evidenceOrSearch(snippetEvidence(membershipSignals), 'a membership joining a person to a tenant', ['membership', 'organizationMember', 'teamMember', 'workspaceMember', 'memberId with a tenant word beside it']),
     },
   ];
 }

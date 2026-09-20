@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import { hasAnyDartDep, hasAnyDep, hasAnyGradleDep, hasAnySwiftDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { searchInFiles } from '../utils/textSearch';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Whether this is an application that ships to somebody else's phone, and what that
@@ -409,10 +410,18 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
       // Declared-and-explained, or asked at the moment of use. A manifest full of
       // permissions with nothing next to them is the failing case, not the passing one.
       present: permissionsExplained,
-      evidence: permissionEvidence,
+      evidence: evidenceOrSearch(permissionEvidence, 'a reason given for each permission asked for', ['NSCameraUsageDescription and the other NS*UsageDescription keys', 'a permission rationale beside uses-permission', 'requestPermissions(', 'Permission.request']),
     },
-    { key: 'mobile.credentialStorage', present: credentialEvidence.length > 0, evidence: credentialEvidence },
-    { key: 'mobile.offline', present: offlineDeps.length > 0, evidence: offlineEvidence },
+    {
+      key: 'mobile.credentialStorage',
+      present: credentialEvidence.length > 0,
+      evidence: evidenceOrSearch(credentialEvidence, 'a secure store for credentials on the device', ['react-native-keychain', 'expo-secure-store', 'flutter_secure_storage', 'KeychainAccess', 'kSecClass', 'EncryptedSharedPreferences', 'AndroidKeyStore', 'SecItemAdd']),
+    },
+    {
+      key: 'mobile.offline',
+      present: offlineDeps.length > 0,
+      evidence: evidenceOrSearch(offlineEvidence, 'a local database the app can read with no network', ['sqflite', 'drift', 'hive', 'isar', 'objectbox', 'realm', 'androidx.room', 'sqldelight', 'grdb.swift', 'sqlite.swift']),
+    },
     {
       key: 'mobile.forcedUpdate',
       present: forcedUpdate.length > 0,

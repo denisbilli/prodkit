@@ -3,6 +3,7 @@ import type { DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { readJsonSafe } from '../utils/readTextFileSafe';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Whether a project is fit to be installed and depended on by someone else.
@@ -237,7 +238,7 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
       // answer, and a reader who has one does not need the other to use the code.
       present: licenseFiles.length > 0 || declaredLicense,
       complete: licenseFiles.length > 0 && declaredLicense,
-      evidence: licenseEvidence,
+      evidence: evidenceOrSearch(licenseEvidence, 'a licence', ['LICENSE', 'LICENCE', 'COPYING', 'a license field in package.json', 'a license classifier in pyproject.toml']),
       details: { files: licenseFiles.length, declared: declaredLicense },
     },
     {
@@ -259,18 +260,26 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
       key: 'docs.readme',
       present: readmeFiles.length > 0,
       complete: readmeLength > 400,
-      evidence: readmeFiles.map((file) => ({ type: 'file' as const, value: `${file} (${readmeLength} characters)`, file })),
+      evidence: evidenceOrSearch(
+        readmeFiles.map((file) => ({ type: 'file' as const, value: `${file} (${readmeLength} characters)`, file })),
+        'a readme',
+        ['README', 'README.md', 'README.rst', 'readme.txt'],
+      ),
       details: { length: readmeLength },
     },
     {
       key: 'quality.tests',
       present: testFiles.length > 0,
       complete: testFiles.length > 0 && (hasTestScript || hasPyTestRunner),
-      evidence: [
-        ...testFiles.slice(0, 3).map((file) => ({ type: 'file' as const, value: file, file })),
-        ...(hasTestScript ? [{ type: 'note' as const, value: 'an "npm test" script' }] : []),
-        ...(hasPyTestRunner ? [{ type: 'note' as const, value: 'a Python test runner' }] : []),
-      ],
+      evidence: evidenceOrSearch(
+        [
+          ...testFiles.slice(0, 3).map((file) => ({ type: 'file' as const, value: file, file })),
+          ...(hasTestScript ? [{ type: 'note' as const, value: 'an "npm test" script' }] : []),
+          ...(hasPyTestRunner ? [{ type: 'note' as const, value: 'a Python test runner' }] : []),
+        ],
+        'tests',
+        ['a path under test/ or tests/', '*.test.*', '*.spec.*', 'test_*.py', '*_test.go', 'an "npm test" script', 'pytest', 'tox'],
+      ),
       details: { files: testFiles.length, runner: hasTestScript || hasPyTestRunner },
     },
     {

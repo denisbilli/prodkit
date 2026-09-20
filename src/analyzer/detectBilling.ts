@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { evidenceOrSearch } from './absenceEvidence';
 
 function toEvidence(matches: Array<{ snippet: string; file: string; line: number }>): DetectorEvidence[] {
   return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
@@ -150,7 +151,7 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     {
       key: 'billing.stripe',
       present: hasStrongStripeSignal,
-      evidence,
+      evidence: evidenceOrSearch(evidence, 'a payment integration', ['stripe', '@stripe/stripe-js', 'checkout.sessions.create', 'paddle', 'lemonsqueezy', 'braintree', 'a route under /webhook/stripe']),
       details: {
         stripe: hasStrongStripeSignal,
       },

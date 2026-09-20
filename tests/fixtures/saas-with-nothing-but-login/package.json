@@ -1,0 +1,11 @@
+{
+  "name": "saas-with-nothing-but-login",
+  "version": "1.0.0",
+  "scripts": { "start": "node src/server.js" },
+  "dependencies": {
+    "express": "^4.19.0",
+    "stripe": "^16.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "pg": "^8.11.0"
+  }
+}
