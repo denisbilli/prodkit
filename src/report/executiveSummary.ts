@@ -187,6 +187,26 @@ function buildVerdict(args: {
   }
 
   const { gap, profileTitle } = args.profile;
+
+  /**
+   * A profile that requires nothing cannot be satisfied by having nothing.
+   *
+   * `static-site` marks every capability recommended or optional, so
+   * `requiredMissing === 0 && requiredPartial === 0` is true before anything is
+   * measured. Five static sites in the verification corpus were told they covered
+   * everything expected of them while satisfying one applicable capability out of six
+   * — the verdict and the coverage line disagreeing on the same page.
+   *
+   * The same answer as no profile at all, because it is the same situation: launch
+   * readiness is a question about requirements, and this profile states none.
+   */
+  if (gap.requiredTotal === 0) {
+    return {
+      verdict: `Nothing is strictly required of ${profileTitle}, so nothing is blocking a launch. ${gap.satisfied} of ${gap.applicableTotal} expected ${gap.applicableTotal === 1 ? 'capability is' : 'capabilities are'} in place.`,
+      launchReady: null,
+    };
+  }
+
   const launchReady = gap.requiredMissing === 0 && gap.requiredPartial === 0;
 
   if (launchReady) {

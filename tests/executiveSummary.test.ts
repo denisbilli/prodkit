@@ -19,10 +19,28 @@ describe('executive summary', () => {
   });
 
   it('reports launch readiness when nothing required is missing', async () => {
+    // Judged as `static-site` before, which requires nothing at all — so this passed
+    // before anything was measured. `internal-tool` states one requirement and this
+    // fixture meets it, which is the case the test is named for.
+    const analysis = await analyzeProject(fixture('express-secure'));
+    const report = buildReport(analysis, { profile: 'internal-tool' });
+
+    expect(report.productProfile?.gap.requiredTotal).toBeGreaterThan(0);
+    expect(report.executiveSummary.launchReady).toBe(true);
+  });
+
+  it('does not report launch readiness against a profile that requires nothing', async () => {
+    // `static-site` marks every capability recommended or optional, so "nothing
+    // required is missing" is true before anything is measured. Five static sites in
+    // the verification corpus were told they covered everything expected of them
+    // while satisfying one applicable capability out of six.
     const analysis = await analyzeProject(fixture('express-secure'));
     const report = buildReport(analysis, { profile: 'static-site' });
 
-    expect(report.executiveSummary.launchReady).toBe(true);
+    expect(report.productProfile?.gap.requiredTotal).toBe(0);
+    expect(report.executiveSummary.launchReady).toBeNull();
+    expect(report.executiveSummary.verdict).not.toMatch(/covers everything expected/i);
+    expect(report.executiveSummary.verdict).toMatch(/Nothing is strictly required/i);
   });
 
   it('scales the effort estimate with the size of the gap', async () => {
