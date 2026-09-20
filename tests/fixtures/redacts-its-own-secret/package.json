@@ -1,0 +1,5 @@
+{
+  "name": "redacts-its-own-secret",
+  "version": "1.0.0",
+  "dependencies": { "commander": "^12.0.0" }
+}

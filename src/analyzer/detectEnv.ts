@@ -22,6 +22,16 @@ const SECRET_ASSIGNMENT_CONTEXT_RE =
 
 const GENERIC_SECRET_ASSIGNMENT_RE = /(JWT_SECRET|SECRET_KEY|SESSION_SECRET|API_KEY)\s*[:=]\s*['"][^'"]+['"]/i;
 
+/**
+ * A value that exists to hide a secret, not to be one.
+ *
+ * `config.global_settings.jwt_secret = "***"` is windmill's own redaction, in the
+ * command that prints an instance's settings, and it was reported as a hardcoded
+ * secret. The weak-value test runs on the whole line, and the line says "secret"
+ * because the identifier does — so the value itself was never looked at.
+ */
+const REDACTED_VALUE_RE = /[:=]\s*['"`](\*{2,}|x{3,}|<?\[?redacted\]?>?|hidden|\.{3,})['"`]/i;
+
 function classifySecretFallback(snippet: string): 'jwt' | 'session' | 'app' | 'apiKey' | 'unknown' {
   if (/JWT_SECRET/i.test(snippet)) return 'jwt';
   if (/SESSION_SECRET/i.test(snippet)) return 'session';
@@ -143,6 +153,7 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
       && SECRET_ASSIGNMENT_CONTEXT_RE.test(m.snippet)
       && !namesItself(m.snippet)
       && !valueIsAnIdentifier(m.snippet)
+      && !REDACTED_VALUE_RE.test(m.snippet)
       && !isTableEntry(m)
   );
   for (const m of weakHits) {

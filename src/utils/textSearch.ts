@@ -1,4 +1,5 @@
 import { readTextFileSafe } from './readTextFileSafe';
+import { testOnlyLines } from '../analyzer/developmentOnly';
 
 export interface TextMatch {
   file: string;
@@ -102,8 +103,15 @@ const MAX_CITABLE_LINE = 500;
 export function matchLines(text: string, needles: Array<string | RegExp>, file = ''): TextMatch[] {
   const matches: TextMatch[] = [];
   const lines = text.split(/\r?\n/);
+  /**
+   * Rust keeps its unit tests in the file they test, so no path filter can exclude
+   * them. windmill was reported with a `critical` hardcoded secret that was the
+   * fixture of a test asserting the wrong secret is rejected.
+   */
+  const testOnly = testOnlyLines(file, text);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (testOnly.has(i + 1)) continue;
     if (line.length > MAX_CITABLE_LINE) continue;
     if (declaresRatherThanDoes(line)) continue;
     for (const n of needles) {
@@ -133,8 +141,10 @@ export async function searchInFiles(
     const text = await readTextFileSafe(root, file);
     if (!text) continue;
     const lines = text.split(/\r?\n/);
+    const testOnly = testOnlyLines(file, text);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (testOnly.has(i + 1)) continue;
       if (line.length > MAX_CITABLE_LINE) continue;
       if (declaresRatherThanDoes(line)) continue;
 
