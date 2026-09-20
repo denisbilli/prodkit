@@ -54,6 +54,27 @@ function namesItself(snippet: string): boolean {
   return flatten(assignment[1]) === flatten(assignment[2]);
 }
 
+/**
+ * The value is the name of something, spelled the way every language spells a name.
+ *
+ * `REDIS_SECRET_KEY = "SECRET_TOKEN"` in Discourse is the Redis key under which the
+ * secret is stored — the comment directly above it says so — and it was reported as a
+ * hardcoded secret at `critical`, the severity that bars a report from the top band.
+ * `namesItself` could not catch it: the constant and its value are two different
+ * names, so the letters do not match.
+ *
+ * What settles it is the shape. `SECRET_TOKEN` is SCREAMING_SNAKE_CASE, which is how
+ * constants, environment variables and Redis keys are written and not how secrets are
+ * written — a secret is entropy, and this has none. Kept to that one casing on
+ * purpose: `dev-secret` and `changeme` are lowercase and stay caught.
+ */
+function valueIsAnIdentifier(snippet: string): boolean {
+  const assignment = /([A-Za-z_][A-Za-z0-9_]*)\s*[:=]\s*["'`]([^"'`]+)["'`]/.exec(snippet);
+  if (!assignment) return false;
+
+  return /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(assignment[2]);
+}
+
 export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
   const evidence: DetectorEvidence[] = [];
   const weakSecretEvidence: DetectorEvidence[] = [];
@@ -121,6 +142,7 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
     (m) => WEAK_SECRET_VALUE_RE.test(m.snippet)
       && SECRET_ASSIGNMENT_CONTEXT_RE.test(m.snippet)
       && !namesItself(m.snippet)
+      && !valueIsAnIdentifier(m.snippet)
       && !isTableEntry(m)
   );
   for (const m of weakHits) {

@@ -160,3 +160,31 @@ describe('upload validation means the uploaded file', () => {
     expect(evidence.some((e) => e.value.includes('application/json'))).toBe(false);
   });
 });
+
+/**
+ * Two claims a Ruby forum earned that it had not earned.
+ *
+ * Discourse was reported with a `critical` hardcoded secret and a wide-open CORS
+ * policy. The secret was `REDIS_SECRET_KEY = "SECRET_TOKEN"` — the Redis key the
+ * secret is stored under, as the comment directly above it says — and one of the two
+ * CORS lines was in `config/environments/development.rb`, which production never
+ * loads.
+ */
+describe('a name is not a secret, and development is not production', () => {
+  it('does not read a SCREAMING_SNAKE value as a hardcoded secret', async () => {
+    const analysis = await analyzeProject(fixture('rails-dev-cors'));
+    const weak = Object.keys(analysis.detectors)
+      .filter((key) => key.startsWith('env.secretFallback'))
+      .map((key) => analysis.detectors[key]);
+
+    expect(weak.some((detector) => detector?.present)).toBe(false);
+  });
+
+  it('does not read a header set in a Rails development environment', async () => {
+    const analysis = await analyzeProject(fixture('rails-dev-cors'));
+    const details = analysis.detectors['security.core']?.details ?? {};
+
+    expect(details.corsLoose).toBe(false);
+    expect(details.corsStrict).toBe(false);
+  });
+});

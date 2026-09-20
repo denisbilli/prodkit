@@ -4,6 +4,7 @@ import { hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
+import { isDevelopmentOnlyFile } from './developmentOnly';
 
 /** Lines that decide which origins may call this server. */
 const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /ALLOWED_ORIGINS/, /allowedOrigins/i];
@@ -169,6 +170,9 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   const corsLoose: CorsHit[] = [];
   const corsStrict: CorsHit[] = [];
   for (const file of source) {
+    // Rails picks one environment file by RAILS_ENV, so a header set in
+    // development.rb is not a header this product sends.
+    if (isDevelopmentOnlyFile(file)) continue;
     const text = await readTextFileSafe(ctx.root, file);
     if (!text) continue;
 
