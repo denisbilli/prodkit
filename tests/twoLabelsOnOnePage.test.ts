@@ -60,3 +60,34 @@ describe('the maturity band and the launch verdict do not contradict each other'
     expect(report.maturityLevel).toBe('production_ready');
   });
 })
+
+/**
+ * "Role model: partial", on a product whose every privileged route calls
+ * `requireRole(actor, ["owner", "admin"])`.
+ *
+ * The capability read "permissions present, or roles present and the answer is
+ * partial", so a working role model was half-built for want of a separate permission
+ * table it never claimed to need. Its own description is "distinct roles so that not
+ * every authenticated user can do everything", and its recommendation says "model
+ * roles *or* permissions".
+ */
+describe('a role model is a role model', () => {
+  it('accepts roles without a separate permission system', async () => {
+    const report = buildReport(await analyzeProject(path.join(FIXTURES, 'express-roles-only')), {
+      profile: 'b2b-saas',
+    });
+    const roles = report.productProfile?.capabilities.find((c) => c.capabilityId === 'authz.roles');
+
+    expect(report.detectedStack.backend).toContain('express');
+    expect(roles?.status).toBe('present');
+  });
+
+  it('still calls it missing where neither is there', async () => {
+    const report = buildReport(await analyzeProject(path.join(FIXTURES, 'saas-with-nothing-but-login')), {
+      profile: 'b2b-saas',
+    });
+    const roles = report.productProfile?.capabilities.find((c) => c.capabilityId === 'authz.roles');
+
+    expect(roles?.status).toBe('missing');
+  });
+})

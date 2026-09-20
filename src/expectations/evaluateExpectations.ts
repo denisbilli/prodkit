@@ -55,8 +55,25 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       return detector(analysis, 'auth.emailVerification')?.present ? 'present' : 'missing';
     }
     case 'authz.roles': {
-      if (authzPerm?.present) return 'present';
-      if (authzRoles?.present) return 'partial';
+      /**
+       * Roles or permissions, which is what the capability asks for.
+       *
+       * It read "permissions present, or roles present and the answer is partial", so
+       * a product with `requireRole(actor, ["owner", "admin"])` checked on every
+       * privileged route was told its role model was half-built — for want of a
+       * separate permission table it never claimed to need. The capability's own
+       * description is "distinct roles so that not every authenticated user can do
+       * everything", and its recommendation says "model roles *or* permissions".
+       *
+       * It cost this product's own web application the top band: one blocking
+       * required capability, and this was it.
+       *
+       * The roles detector already means roles that are *checked* rather than roles
+       * that are named — `role ===` in a chat transcript has been excluded since the
+       * guard-versus-label distinction was added — so there is nothing left for a
+       * partial to mean here.
+       */
+      if (authzPerm?.present || authzRoles?.present) return 'present';
       return 'missing';
     }
     case 'authz.ownership': {
