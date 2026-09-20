@@ -188,6 +188,26 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       /X-Frame-Options/i,
       /SECURE_HSTS_SECONDS/,
       /securityHeaders/i,
+      /**
+       * Django's spelling of the same decisions.
+       *
+       * The list held the HTTP header names and one Django setting, so a project that
+       * writes `X_FRAME_OPTIONS = "SAMEORIGIN"` — the setting, with underscores, which
+       * is the only way to say it in Django — matched nothing. paperless-ngx sets it
+       * and was told at `high` to add security headers.
+       *
+       * Only the settings that choose a policy. `SECURE_PROXY_SSL_HEADER` is not one
+       * of them: it tells Django how to tell it is behind HTTPS, and every deployment
+       * behind a proxy needs it whether or not anybody thought about headers. And
+       * `SecurityMiddleware` itself stays out, for the reason recorded further down —
+       * `django-admin startproject` writes it into every new project.
+       */
+      /^\s*X_FRAME_OPTIONS\s*=/m,
+      /^\s*SECURE_CONTENT_TYPE_NOSNIFF\s*=/m,
+      /^\s*SECURE_BROWSER_XSS_FILTER\s*=/m,
+      /^\s*SECURE_REFERRER_POLICY\s*=/m,
+      /^\s*SECURE_CROSS_ORIGIN_OPENER_POLICY\s*=/m,
+      /^\s*CSP_DEFAULT_SRC\s*=/m,
     ],
     20,
   );
@@ -358,10 +378,31 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       if (at !== -1) {
         const window = lines.slice(at, Math.min(lines.length, at + 12)).join('\n');
         if (STARLETTE_CORS_CALL.test(window)) {
-          const allowList = /allow_origins\s*=\s*\[([^\]]*)\]/.exec(window);
           const hit: CorsHit = { file, line: at + 1, snippet: lines[at].trim().slice(0, 200) };
+          const allowList = /allow_origins\s*=\s*\[([^\]]*)\]/.exec(window);
 
-          if (!allowList || /^\s*["']\*["']\s*,?\s*$/.test(allowList[1])) corsLoose.push(hit);
+          if (allowList) {
+            if (/^\s*["']\*["']\s*,?\s*$/.test(allowList[1])) corsLoose.push(hit);
+            else corsStrict.push(hit);
+            continue;
+          }
+
+          /**
+           * `allow_origins=allowed_origins`, which is how a real application writes it.
+           *
+           * mealie builds the list from its settings and passes the name, and calling
+           * that "no explicit origin restrictions" at `high` reads as advice to add
+           * the allowlist it has. The wildcard is written literally when it is meant —
+           * `allow_origins=["*"]` — so a name is followed to its assignment, and a
+           * value assembled somewhere this cannot see is a configuration rather than a
+           * wildcard.
+           */
+          const named = /allow_origins\s*=\s*([A-Za-z_][\w.]*)/.exec(window);
+          const assigned = named
+            ? new RegExp(`^\\s*${named[1].split('.').pop()}\\s*=\\s*\\[([^\\]]*)\\]`, 'm').exec(text)
+            : null;
+
+          if (assigned && /^\s*["']\*["']\s*,?\s*$/.test(assigned[1])) corsLoose.push(hit);
           else corsStrict.push(hit);
         }
       }
