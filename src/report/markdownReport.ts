@@ -299,8 +299,8 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
      * confidence, and nothing in the report distinguished them. Silent when everything
      * was parsed: a report congratulating itself on reading properly is noise.
      */
-    ...(describeReadingDepth(report.diagnostics.readingDepth)
-      ? [`- ${describeReadingDepth(report.diagnostics.readingDepth)}`]
+    ...(describeReadingDepth(report.diagnostics.readingDepth, report.diagnostics.parsedStructure)
+      ? [`- ${describeReadingDepth(report.diagnostics.readingDepth, report.diagnostics.parsedStructure)}`]
       : []),
     `- Expectation mode: ${report.diagnostics.expectationMode}`,
     `- ProdKit version: ${report.diagnostics.prodkitVersion}`,

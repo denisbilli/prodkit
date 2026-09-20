@@ -137,4 +137,12 @@ export interface ProjectAnalysis {
   workspaceStacks: WorkspaceStack[];
   files: ProjectFiles;
   detectors: Record<string, DetectorResult>;
+  /**
+   * Whether the optional TypeScript compiler was there while the detectors ran.
+   *
+   * Carried on the analysis rather than asked for at report time, because it is a fact
+   * about this reading and not about the machine printing it: the report's claim of how
+   * deeply it read has to match what the detectors were actually able to do.
+   */
+  parsedStructure: boolean;
 }

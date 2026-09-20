@@ -43,3 +43,17 @@ export async function loadTypeScript(): Promise<typeof TypeScriptApi | null> {
 export function resetTypeScriptCache(): void {
   cached = undefined;
 }
+
+/**
+ * Whether the parser is there, for the report rather than for a reader.
+ *
+ * `readingDepths` printed `parsed` for every `.ts` and `.js` file on the strength of the
+ * extension alone, and said nothing when everything was parsed — so on a machine without
+ * the optional compiler the report was silent in exactly the case it needed to speak.
+ * Measured on the fixture corpus: seven of a hundred and thirty-three repositories
+ * answer differently with the compiler hidden, and one of them reports a hardcoded
+ * signing secret as `passed`.
+ */
+export async function typeScriptIsAvailable(): Promise<boolean> {
+  return (await loadTypeScript()) !== null;
+}

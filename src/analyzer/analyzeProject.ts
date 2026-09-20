@@ -30,6 +30,7 @@ import { buildStackInfo, mergeDetectors } from './detectStack';
 import type { DetectContext, WorkspaceManifest } from './detectContext';
 import type { PackageJson, ProjectAnalysis, WorkspaceStack } from './types';
 import { stat } from 'node:fs/promises';
+import { typeScriptIsAvailable } from './structural/loadTypeScript';
 
 const packageJsonSchema = z
   .object({
@@ -847,6 +848,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   return {
     projectPath: root,
     scannedAt: new Date().toISOString(),
+    parsedStructure: await typeScriptIsAvailable(),
     stack: buildStackInfo({
       frontend: frontend.frameworks,
       backend: backend.frameworks,

@@ -104,6 +104,14 @@ export interface ReportDiagnostics {
    * fact, and the reader is entitled to know which one they have.
    */
   readingDepth: LanguageReading[];
+  /**
+   * Whether the optional TypeScript compiler was loaded for this reading.
+   *
+   * Two readings with the same `readingDepth` list are not the same reading: JavaScript
+   * shows as `searched` only when the compiler was missing, and that is the one a reader
+   * can fix.
+   */
+  parsedStructure: boolean;
   detectors: Array<{
     id: string;
     status: 'completed' | 'skipped';

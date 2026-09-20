@@ -441,7 +441,8 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
      * its severity. A keyword match in Go and a parsed guard in TypeScript were being
      * presented with the same confidence.
      */
-    readingDepth: readingDepths(analysis.files.source, analysis.files.unreadable),
+    readingDepth: readingDepths(analysis.files.source, analysis.files.unreadable, analysis.parsedStructure),
+    parsedStructure: analysis.parsedStructure,
     detectors: detectorDiagnostics(analysis),
     selectedProfile: requestedProfile,
     inferredProfile: productProfile?.inferredProfile,

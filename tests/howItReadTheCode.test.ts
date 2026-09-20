@@ -18,28 +18,59 @@ const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
 describe('the report says how it read the code', () => {
   it('calls a language parsed only where a parser reads it', async () => {
     const analysis = await analyzeProject(fixture('roles-and-chat'));
-    const readings = readingDepths(analysis.files.source, analysis.files.unreadable);
+    const readings = readingDepths(analysis.files.source, analysis.files.unreadable, analysis.parsedStructure);
 
     expect(readings.find((entry) => entry.language === 'JavaScript')?.depth).toBe('parsed');
   });
 
   it('calls a language searched where only keywords reach it', async () => {
     const analysis = await analyzeProject(fixture('django-basic'));
-    const readings = readingDepths(analysis.files.source, analysis.files.unreadable);
+    const readings = readingDepths(analysis.files.source, analysis.files.unreadable, analysis.parsedStructure);
 
     expect(readings.find((entry) => entry.language === 'Python')?.depth).toBe('searched');
   });
 
   it('counts a language it cannot read at all as skipped', async () => {
     const analysis = await analyzeProject(fixture('phoenix-app'));
-    const readings = readingDepths(analysis.files.source, analysis.files.unreadable);
+    const readings = readingDepths(analysis.files.source, analysis.files.unreadable, analysis.parsedStructure);
 
     expect(readings.find((entry) => entry.language === 'Elixir')?.depth).toBe('skipped');
   });
 
   it('says nothing when everything was parsed', () => {
     // A report congratulating itself on reading properly is noise.
-    expect(describeReadingDepth([{ language: 'TypeScript', files: 40, depth: 'parsed' }])).toBeUndefined();
+    expect(describeReadingDepth([{ language: 'TypeScript', files: 40, depth: 'parsed' }], true)).toBeUndefined();
+  });
+
+  /**
+   * The case the list was silent in, and the only one a reader can act on.
+   *
+   * `depthFor` read the extension and nothing else, so on a machine without the
+   * optional compiler a JavaScript repository still printed `parsed` — and since the
+   * sentence only speaks when something was shallower than the rest, the report said
+   * nothing at all. Measured: seven of the hundred and thirty-three fixtures answer
+   * differently with the compiler hidden, and `segreto-in-italiano` reports a hardcoded
+   * signing secret as `passed`.
+   */
+  it('calls JavaScript searched when the optional compiler is not installed', async () => {
+    const analysis = await analyzeProject(fixture('roles-and-chat'));
+    const readings = readingDepths(analysis.files.source, analysis.files.unreadable, false);
+
+    expect(readings.find((entry) => entry.language === 'JavaScript')?.depth).toBe('searched');
+  });
+
+  it('tells a reader without the compiler that structure went unread, and how to fix it', () => {
+    const sentence = describeReadingDepth([{ language: 'TypeScript', files: 40, depth: 'searched' }], false);
+
+    expect(sentence).toMatch(/typescript` peer dependency is not installed/);
+    expect(sentence).toMatch(/Install it alongside this package/);
+  });
+
+  it('does not blame the compiler for a language no parser here will ever read', () => {
+    const sentence = describeReadingDepth([{ language: 'Go', files: 40, depth: 'searched' }], false);
+
+    expect(sentence).toMatch(/Go was read as text/);
+    expect(sentence).not.toMatch(/peer dependency/);
   });
 
   it('tells the reader, rather than only the diagnostics', async () => {

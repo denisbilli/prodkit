@@ -37,9 +37,28 @@ export interface LanguageReading {
  */
 const PARSED_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 
-/** Languages whose files are read as text but never parsed. */
-function depthFor(files: string[]): ReadingDepth {
+/**
+ * The catalogue labels those extensions carry, so the missing-compiler clause fires for
+ * the languages it can actually do something about and stays quiet on a Go repository.
+ */
+const PARSED_EXTENSIONS_LANGUAGES = new Set(
+  LANGUAGES.filter(({ extensions }) => ['a.ts', 'a.tsx', 'a.js', 'a.jsx', 'a.mjs', 'a.cjs'].some((name) => extensions.test(name))).map(
+    ({ label }) => label,
+  ),
+);
+
+/**
+ * Languages whose files are read as text but never parsed.
+ *
+ * The extension says a parser *could* read this file; `parserAvailable` says one
+ * actually did. The optional TypeScript peer is absent on any machine that installed
+ * this package without it — `npx prodkit` against a repository is the ordinary case —
+ * and until this argument existed the report claimed `parsed` there just the same, on
+ * the strength of the file name.
+ */
+function depthFor(files: string[], parserAvailable: boolean): ReadingDepth {
   if (files.length === 0) return 'skipped';
+  if (!parserAvailable) return 'searched';
 
   return files.every((file) => PARSED_EXTENSIONS.test(file)) ? 'parsed' : 'searched';
 }
@@ -51,14 +70,18 @@ function depthFor(files: string[]): ReadingDepth {
  * directory was not read because it was not the project's, which is a different fact and
  * one the reader does not need here.
  */
-export function readingDepths(sourceFiles: string[], unreadable: Array<{ language: string; files: number }>): LanguageReading[] {
+export function readingDepths(
+  sourceFiles: string[],
+  unreadable: Array<{ language: string; files: number }>,
+  parserAvailable: boolean,
+): LanguageReading[] {
   const readings: LanguageReading[] = [];
 
   for (const { label, extensions } of LANGUAGES) {
     const files = sourceFiles.filter((file) => extensions.test(file));
     if (files.length === 0) continue;
 
-    readings.push({ language: label, files: files.length, depth: depthFor(files) });
+    readings.push({ language: label, files: files.length, depth: depthFor(files, parserAvailable) });
   }
 
   for (const entry of unreadable) {
@@ -74,8 +97,15 @@ export function readingDepths(sourceFiles: string[], unreadable: Array<{ languag
  * Silent where everything was parsed: a report that congratulates itself on reading
  * properly is noise. It speaks when some of the reading was shallower than the rest,
  * which is the case that misleads.
+ *
+ * `parserAvailable` separates two shallow readings that look identical in the list and
+ * are not. Go is searched because nothing here will ever parse Go, and a reader can do
+ * nothing about it. JavaScript is searched only when the optional compiler is missing,
+ * and installing it changes the answer — on the fixture corpus, seven repositories of a
+ * hundred and thirty-three answer differently. Telling a reader to install a package is
+ * worth a clause; telling them their Go is read by keyword is worth a different one.
  */
-export function describeReadingDepth(readings: LanguageReading[]): string | undefined {
+export function describeReadingDepth(readings: LanguageReading[], parserAvailable: boolean): string | undefined {
   const searched = readings.filter((entry) => entry.depth === 'searched');
   const skipped = readings.filter((entry) => entry.depth === 'skipped');
 
@@ -93,5 +123,15 @@ export function describeReadingDepth(readings: LanguageReading[]): string | unde
     parts.push(`${skipped.map((entry) => `${entry.language} (${entry.files} files)`).join(', ')} not read at all`);
   }
 
-  return `How this repository was read: ${parts.join('; ')}. A keyword can appear in a comment, a test fixture or a variable name, so findings in those languages rest on weaker evidence than the ones this analyzer parsed.`;
+  const missingParser = !parserAvailable && readings.some((entry) => PARSED_EXTENSIONS_LANGUAGES.has(entry.language));
+
+  return [
+    `How this repository was read: ${parts.join('; ')}.`,
+    'A keyword can appear in a comment, a test fixture or a variable name, so findings in those languages rest on weaker evidence than the ones this analyzer parsed.',
+    ...(missingParser
+      ? [
+        'The optional `typescript` peer dependency is not installed, so no JavaScript or TypeScript was parsed here either: every structural question — which literal reaches a signing call, whether a comparison guards a route or picks a label — went unasked. Install it alongside this package and re-run to get those answers.',
+      ]
+      : []),
+  ].join(' ');
 }
