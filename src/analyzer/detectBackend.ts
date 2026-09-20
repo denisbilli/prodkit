@@ -131,27 +131,28 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   }
 
   /** Rust, read from Cargo.toml. */
-  let namedRustFramework = false;
-
   for (const [framework, deps] of RUST_BACKEND_FRAMEWORKS) {
     const hits = hasAnyRuntimeRustDep(ctx, deps);
     if (!hits.length) continue;
 
-    namedRustFramework = true;
     frameworks.push(framework);
     for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
   }
 
-  // Same reasoning as Go: a crate that serves requests from the standard library and a
-  // hand-rolled loop is still a backend, and a Cargo.toml alone is not.
-  if (
-    !namedRustFramework
-    && languageShare(ctx, /\.rs$/) >= MINIMUM_BACKEND_SHARE
-    && ctx.files.all.some((f) => /(^|\/)Cargo\.toml$/.test(f))
-  ) {
-    frameworks.push('rust');
-    evidence.push({ type: 'note', value: 'a Cargo manifest with no web framework named in it' });
-  }
+  /**
+   * No fallback for Rust, and removing it is a correction of my own over-reach.
+   *
+   * This was written to mirror Go's, whose justification is that plenty of production
+   * services use `net/http` and nothing else. Rust's standard library has no HTTP
+   * server at all, so the mirror does not hold: a crate with no web framework is
+   * overwhelmingly a library, a parser or a command-line tool.
+   *
+   * ruff is the measurement. A linter with `Cargo.toml` at its root reported
+   * `backend: rust`, and "a backend disqualifies a library" then profiled it as a
+   * client application — so teaching this analyzer to read Rust made it worse at
+   * reading the best-known Rust project in the corpus. `hyper` joins the framework
+   * list instead: it is what a Rust service uses when it uses no framework.
+   */
 
   /** Ruby, read from the Gemfile. */
   let namedRubyFramework = false;

@@ -56,6 +56,8 @@ export const RUST_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['poem', ['poem']],
   ['salvo', ['salvo']],
   ['tower-http', ['tower-http']],
+  // What a Rust service uses when it uses no framework: the HTTP layer itself.
+  ['hyper', ['hyper']],
 ];
 
 /**
@@ -235,6 +237,7 @@ const LABELS: Record<string, string> = {
   poem: 'Poem',
   salvo: 'Salvo',
   'tower-http': 'Tower HTTP',
+  hyper: 'Hyper',
   rust: 'Rust',
   rails: 'Rails',
   sinatra: 'Sinatra',
