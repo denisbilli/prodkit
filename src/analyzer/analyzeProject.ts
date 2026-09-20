@@ -641,6 +641,27 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   }
 
   /**
+   * Package.resolved, which is where a Swift project's dependencies are actually
+   * legible.
+   *
+   * `Package.swift` is read above, and on a real application it usually declares the
+   * modules of that package rather than the whole tree: WordPress-iOS resolves 40-odd
+   * packages and `sentry-cocoa` — its crash reporter — appears only here. The lockfile
+   * is data rather than source, it names every transitive dependency, and it is
+   * committed by convention, which makes it the better of the two to read.
+   *
+   * `identity` rather than `location`, because that is the name SPM itself uses and
+   * the one that survives a repository moving host.
+   */
+  for (const file of ownManifests.filter((f) => /(^|\/)Package\.resolved$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    for (const match of raw.matchAll(/"identity"\s*:\s*"([^"]+)"/g)) {
+      swiftDeps.push(match[1].toLowerCase());
+    }
+  }
+
+  /**
    * .csproj, which is XML rather than JSON or one-entry-per-line.
    *
    * Parsed with regular expressions like the others, and here that decision needs more

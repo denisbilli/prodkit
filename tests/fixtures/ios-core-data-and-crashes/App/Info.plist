@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.example.notes</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allows you to attach a photograph to a note</string>
+</dict>
+</plist>

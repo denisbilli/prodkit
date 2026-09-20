@@ -1,0 +1,13 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.example.mail'
+    compileSdk 34
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+}

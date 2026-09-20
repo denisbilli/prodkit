@@ -86,6 +86,27 @@ const OFFLINE_SWIFT = [
   'realmswift',
 ];
 
+/**
+ * Local storage the platform itself provides, which no dependency list will hold.
+ *
+ * Every entry in the lists above is a third-party database, and the two most widely
+ * used stores on these platforms ship with the operating system: Core Data on Apple's,
+ * `SQLiteDatabase` on Android's. Measured on two real applications whose whole purpose
+ * is working without a network — WordPress-iOS keeps its posts in Core Data,
+ * thunderbird-android keeps its mail in SQLite — and both were told at `high` that they
+ * store nothing locally.
+ *
+ * These are types the platform defines, not names an author picked: `NSManagedObjectContext`
+ * belongs to Core Data and appears nowhere else, and `getWritableDatabase()` is the one
+ * way an Android application opens its own database.
+ */
+const PLATFORM_LOCAL_STORES = [
+  /NSPersistentContainer|NSManagedObjectContext|NSPersistentStoreCoordinator/,
+  /ModelContainer\s*\(|@Model\b/,
+  /SQLiteOpenHelper|getWritableDatabase\s*\(|getReadableDatabase\s*\(/,
+  /android\.database\.sqlite\.SQLiteDatabase/,
+];
+
 /** Dependencies that put a secret somewhere the operating system protects. */
 const SECURE_STORAGE_DEPS = [
   'flutter_secure_storage',
@@ -363,8 +384,16 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     3,
   );
 
+  const platformStores = await searchInFiles(ctx.root, ctx.files.source, PLATFORM_LOCAL_STORES, 3);
+
   const offlineEvidence: DetectorEvidence[] = [
     ...offlineDeps.map<DetectorEvidence>((dep) => ({ type: 'dependency', value: dep })),
+    ...platformStores.map<DetectorEvidence>((match) => ({
+      type: 'snippet',
+      value: match.snippet,
+      file: match.file,
+      line: match.line,
+    })),
     ...connectivityChecks.map<DetectorEvidence>((match) => ({
       type: 'snippet',
       value: match.snippet,
@@ -419,8 +448,8 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     },
     {
       key: 'mobile.offline',
-      present: offlineDeps.length > 0,
-      evidence: evidenceOrSearch(offlineEvidence, 'a local database the app can read with no network', ['sqflite', 'drift', 'hive', 'isar', 'objectbox', 'realm', 'androidx.room', 'sqldelight', 'grdb.swift', 'sqlite.swift']),
+      present: offlineDeps.length > 0 || platformStores.length > 0,
+      evidence: evidenceOrSearch(offlineEvidence, 'a local database the app can read with no network', ['sqflite', 'drift', 'hive', 'isar', 'objectbox', 'realm', 'androidx.room', 'sqldelight', 'grdb.swift', 'sqlite.swift', 'NSManagedObjectContext', 'SQLiteOpenHelper', 'getWritableDatabase(']),
     },
     {
       key: 'mobile.forcedUpdate',
