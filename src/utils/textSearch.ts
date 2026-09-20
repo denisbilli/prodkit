@@ -1,5 +1,6 @@
 import { readTextFileSafe } from './readTextFileSafe';
 import { testOnlyLines } from '../analyzer/developmentOnly';
+import { proseLines } from '../analyzer/proseLines';
 
 export interface TextMatch {
   file: string;
@@ -109,9 +110,11 @@ export function matchLines(text: string, needles: Array<string | RegExp>, file =
    * fixture of a test asserting the wrong secret is rejected.
    */
   const testOnly = testOnlyLines(file, text);
+  /** A Python docstring is prose with no line marker to recognise it by. */
+  const prose = proseLines(file, text);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (testOnly.has(i + 1)) continue;
+    if (testOnly.has(i + 1) || prose.has(i + 1)) continue;
     if (line.length > MAX_CITABLE_LINE) continue;
     if (declaresRatherThanDoes(line)) continue;
     for (const n of needles) {
@@ -142,9 +145,10 @@ export async function searchInFiles(
     if (!text) continue;
     const lines = text.split(/\r?\n/);
     const testOnly = testOnlyLines(file, text);
+    const prose = proseLines(file, text);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (testOnly.has(i + 1)) continue;
+      if (testOnly.has(i + 1) || prose.has(i + 1)) continue;
       if (line.length > MAX_CITABLE_LINE) continue;
       if (declaresRatherThanDoes(line)) continue;
 
