@@ -1,0 +1,5 @@
+{
+  "name": "logs-under-another-name",
+  "version": "1.0.0",
+  "dependencies": { "express": "^4.19.0", "roarr": "^7.21.0" }
+}

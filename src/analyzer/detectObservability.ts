@@ -3,10 +3,37 @@ import type { DetectContext } from './detectContext';
 import { hasAnyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
+import { readPackageValueUses } from './structural/valuesFromPackage';
+
+/**
+ * Logging packages, which the ecosystem names and the author does not.
+ *
+ * The list was four long and the search beside it read `logger.` — the author's own
+ * variable. A repository using Roarr, bound to `shout`, was reported as having no
+ * logging at all: wrong package, wrong variable, two ways to miss the same thing.
+ *
+ * A list of package names is still a list, but it is a list of names nobody in the
+ * repository being analysed chose. That is the difference the whole exercise is about.
+ */
+const LOGGING_PACKAGES = [
+  'winston',
+  'pino',
+  'morgan',
+  'bunyan',
+  'roarr',
+  'loglevel',
+  'signale',
+  'consola',
+  'tslog',
+  'log4js',
+  '@logtail/node',
+  'debug',
+  'npmlog',
+];
 
 export async function detectObservability(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
-  const logDeps = hasAnyDep(ctx, ['winston', 'pino', 'morgan', 'bunyan']);
+  const logDeps = hasAnyDep(ctx, LOGGING_PACKAGES);
   const sentryDeps = hasAnyDep(ctx, ['@sentry/node', 'sentry-sdk']);
   for (const d of logDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
   for (const d of sentryDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
@@ -87,6 +114,27 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
     10,
   );
   for (const m of plainLogging) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'logging' });
+
+  /**
+   * Where a value from a logging package is used, whatever it was called.
+   *
+   * `const shout = Roarr.child(...)` then `shout.info(...)` is structured logging, and
+   * the text search cannot see it because `shout` is a name its author invented. The
+   * import is the anchor and the binding is the chain.
+   *
+   * Evidence, not verdict, and the distinction is measured rather than assumed. This
+   * walk can only fire where one of the packages above is imported, and a package that
+   * is imported is a package the manifest declares — workspace manifests included, as
+   * a monorepo fixture confirmed. So it never changes the answer, and the clause that
+   * pretended it might was removed rather than left to look load-bearing.
+   *
+   * What it does change is what the reader is shown: "pino is in your package.json"
+   * becomes "pino is used at server.js:8". The claim was always about the second.
+   */
+  const boundLoggerUses = await readPackageValueUses(ctx.root, ctx.files.source, LOGGING_PACKAGES);
+  for (const use of (boundLoggerUses ?? []).slice(0, 10)) {
+    evidence.push({ type: 'file', value: `a logger from ${logDeps[0] ?? 'a logging package'} is used here`, file: use.file, line: use.line, claim: 'logging' });
+  }
 
   const hasStructuredLogging = logDeps.length > 0 || structuredHits.length > 0;
   const hasAnyLogging = hasStructuredLogging || plainLogging.length > 0;
