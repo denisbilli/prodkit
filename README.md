@@ -176,7 +176,7 @@ _Generated from the analyzer itself — run `npm run docs:stacks` after changing
 
 - **Backend:** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS, SvelteKit, Remix, Nuxt, Nitro, Astro, Django, Flask, FastAPI, aiohttp, Litestar, Sanic, Tornado, Starlette, Streamlit, Gradio, Dash, Chainlit, Gin, Echo, Fiber, chi, Gorilla, Beego, Go, Axum, Actix Web, Rocket, Warp, Tide, Poem, Salvo, Tower HTTP, Hyper, Spring Boot, Quarkus, Micronaut, Ktor, Javalin, Vert.x, Dropwizard, Helidon, Rails, Sinatra, Hanami, Roda, Grape, Ruby, Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, PHP, ASP.NET Core, .NET
 - **Frontend:** React, Vite, Vue, Nuxt, Svelte, Angular, Astro, Solid, Qwik, Preact, Remix, htmx, Tailwind CSS, Electron
-- **Mobile:** Flutter, React Native, iOS (native), Android (native)
+- **Mobile:** Flutter, React Native, iOS (native), Android (native), SwiftUI, UIKit, Jetpack Compose, Android views
 - **Databases:** Postgres, MySQL, SQLite, SQL Server, MongoDB, Redis, Firestore, DynamoDB, Convex
 - **Hosted data platforms:** Supabase, Firebase, PlanetScale, Neon, Vercel Postgres, Turso, Upstash, DynamoDB, Convex
 - **ORMs:** Prisma, Drizzle, TypeORM, Sequelize, Knex, MikroORM, Kysely, SQLAlchemy, Tortoise, Peewee
@@ -198,6 +198,10 @@ How some of these are decided:
 - **React Native** — the react-native or expo dependency
 - **iOS (native)** — Info.plist, Package.swift, a Podfile or an .xcodeproj in the tree
 - **Android (native)** — AndroidManifest.xml, or build.gradle in either dialect
+- **SwiftUI** — import SwiftUI
+- **UIKit** — import UIKit
+- **Jetpack Compose** — import androidx.compose
+- **Android views** — import androidx.appcompat, or android.app.Activity
 - **Supabase** — recorded alongside the engine it is — Postgres
 - **Firebase** — Firestore
 - **PlanetScale** — MySQL

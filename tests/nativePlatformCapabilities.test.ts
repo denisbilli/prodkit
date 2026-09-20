@@ -150,3 +150,34 @@ describe('the manifest that says what the project is built with', () => {
     expect(analysis.stack.packageManager).toBe('swift package manager');
   });
 });
+
+/**
+ * What a native application's front end is.
+ *
+ * Nothing here could name one, so the question fell through to the "a page is a front
+ * end" fallback and DuckDuckGo iOS — 1194 Swift files — was reported as
+ * `frontend: html`, from the error pages and onboarding documents it ships inside the
+ * app. A reader sees that line and thinks web application.
+ */
+describe('the interface a native application actually has', () => {
+  it('names the toolkit rather than the HTML the app happens to ship', async () => {
+    const analysis = await analyzeProject(fixture('ios-with-build-tooling'));
+
+    expect(analysis.stack.frontend).toContain('uikit');
+    expect(analysis.stack.frontend).not.toContain('html');
+  });
+
+  it('still calls a page a front end where there is no toolkit', async () => {
+    const analysis = await analyzeProject(fixture('vanilla-static'));
+
+    expect(analysis.stack.frontend).toContain('html');
+  });
+
+  it('reads SwiftUI and Jetpack Compose from the import the platform defines', async () => {
+    const swift = await analyzeProject(fixture('swift-app'));
+    const android = await analyzeProject(fixture('android-app'));
+
+    expect(swift.stack.frontend).toContain('swiftui');
+    expect(android.stack.frontend).toContain('android views');
+  });
+});
