@@ -3,6 +3,7 @@ import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Work that happens outside a request.
@@ -142,7 +143,7 @@ export async function detectJobs(ctx: DetectContext): Promise<DetectorResult> {
     // A file named `workers/` is only taken as proof alongside something declared in
     // the code: the name is a convention, and conventions are borrowed.
     present: declared,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'work that happens outside a request', ['bullmq', 'bull', 'agenda', 'bee-queue', 'celery', 'rq', 'sidekiq', 'resque', 'graphile-worker', 'a cron schedule', 'a worker entrypoint']),
     details: {
       nodeQueue: nodeDeps.length > 0,
       pythonQueue: pyDeps.length > 0,

@@ -22,6 +22,11 @@ const NO_EVIDENCE = 'no direct evidence captured';
  * the line it found or the search that came back empty. `unknown` and `passed` are not
  * held to it — "this question was not asked" is itself the answer, and a passing check
  * that found nothing to complain about is not asking anyone to do anything.
+ *
+ * It began at `high` and `critical`, where the damage was, and was raised to every
+ * severity once those were clear: a `low` that says nothing is the same sentence, and
+ * at 79 occurrences of `docker.presence` alone it was the most repeated line in the
+ * product.
  */
 describe('a finding somebody is asked to act on says what was looked for', () => {
   const fixtures = fs
@@ -33,7 +38,7 @@ describe('a finding somebody is asked to act on says what was looked for', () =>
     expect(fixtures.length).toBeGreaterThan(40);
   });
 
-  it('never reports a high or critical finding with nothing under it', async () => {
+  it('never reports a finding to act on with nothing under it', async () => {
     const offenders: string[] = [];
 
     for (const name of fixtures) {
@@ -45,8 +50,7 @@ describe('a finding somebody is asked to act on says what was looked for', () =>
       }
 
       for (const finding of report.findings) {
-        if (finding.status === 'passed' || finding.status === 'unknown') continue;
-        if (finding.severity !== 'high' && finding.severity !== 'critical') continue;
+        if (finding.status === 'unknown') continue;
         if (finding.evidence.some((item) => item.value === NO_EVIDENCE)) {
           offenders.push(`${name}: ${finding.id}`);
         }

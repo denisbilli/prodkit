@@ -408,7 +408,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     {
       key: 'auth.2fa',
       present: twoFaDeps.length > 0 || twoFaSignals.length > 0,
-      evidence: [...depEvidence(twoFaDeps), ...snippetEvidence(twoFaSignals)],
+      evidence: evidenceOrSearch([...depEvidence(twoFaDeps), ...snippetEvidence(twoFaSignals)], 'a second factor', ['otplib', 'speakeasy', 'notp', 'pyotp', 'django-otp', 'totp', 'authenticator app', 'webauthn', '@simplewebauthn']),
     },
     {
       key: 'auth.apiKeys',

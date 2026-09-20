@@ -425,17 +425,25 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     {
       key: 'mobile.forcedUpdate',
       present: forcedUpdate.length > 0,
-      evidence: forcedUpdate.map((match) => ({
-        type: 'snippet' as const,
-        value: match.snippet,
-        file: match.file,
-        line: match.line,
-      })),
+      evidence: evidenceOrSearch(
+        forcedUpdate.map((match) => ({
+          type: 'snippet' as const,
+          value: match.snippet,
+          file: match.file,
+          line: match.line,
+        })),
+        'a check that the installed version is still supported',
+        ['minimumVersion', 'minSupportedVersion', 'forceUpdate', 'upgrade_required', 'in_app_update', 'AppUpdateManager'],
+      ),
     },
     {
       key: 'mobile.privacyDeclaration',
       present: privacyFiles.length > 0,
-      evidence: privacyFiles.map((file) => ({ type: 'file' as const, value: file, file })),
+      evidence: evidenceOrSearch(
+        privacyFiles.map((file) => ({ type: 'file' as const, value: file, file })),
+        'the privacy declaration the stores require',
+        ['PrivacyInfo.xcprivacy', 'a data-safety declaration', 'privacy_policy', 'PRIVACY.md'],
+      ),
     },
   ];
 }

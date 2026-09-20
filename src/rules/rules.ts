@@ -292,7 +292,18 @@ export const rules: Rule[] = [
           ? `Hardcoded fallback secrets detected (${weakTypes || 'unknown'} key context).`
           : 'No weak fallback secret patterns detected.',
         recommendation: 'Require strong secrets through environment variables with strict startup validation.',
-        evidence: weakEvidence,
+        /**
+         * A check that passes because it found nothing has to say what it looked for.
+         *
+         * This was the most repeated line in the product: 175 reports said "no weak
+         * fallback secret patterns detected" with nothing underneath, which tells the
+         * reader neither how hard it looked nor whether their own placeholder would
+         * have been caught. A negative result is only worth something when the search
+         * behind it is visible.
+         */
+        evidence: weakEvidence.length > 0
+          ? weakEvidence
+          : searchedFor('hardcoded fallback secrets', ['changeme', 'your-secret', 'dev-secret', 'local-secret', 'change-in-production', 'test123', 'a secret assigned a literal beside jwt_secret, secret_key or session_secret']),
       });
     },
   },
@@ -471,7 +482,11 @@ export const rules: Rule[] = [
             ? 'Django settings contain DEBUG=True.'
             : 'No DEBUG=True signal found.',
         recommendation: 'Set DEBUG=False for non-local environments and enforce via environment variables.',
-        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : evidenceForClaim(sec?.evidence, 'django-debug'),
+        evidence: !isDjango
+          ? [{ type: 'note', value: 'Django stack not detected' }]
+          : evidenceForClaim(sec?.evidence, 'django-debug').length > 0
+            ? evidenceForClaim(sec?.evidence, 'django-debug')
+            : searchedFor('DEBUG left on', ['a line reading DEBUG = True in the settings Django actually loads, outside any if settings.DEBUG block']),
       });
     },
   },
@@ -497,7 +512,11 @@ export const rules: Rule[] = [
             ? 'Secure cookie settings appear configured.'
             : 'SESSION/CSRF secure cookie flags are weak.',
         recommendation: 'Enable SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE in production.',
-        evidence: !isDjango ? [{ type: 'note', value: 'Django stack not detected' }] : evidenceForClaim(sec?.evidence, 'django-cookies'),
+        evidence: !isDjango
+          ? [{ type: 'note', value: 'Django stack not detected' }]
+          : evidenceForClaim(sec?.evidence, 'django-cookies').length > 0
+            ? evidenceForClaim(sec?.evidence, 'django-cookies')
+            : searchedFor('cookies left insecure', ['SESSION_COOKIE_SECURE = False', 'CSRF_COOKIE_SECURE = False']),
       });
     },
   },

@@ -286,7 +286,11 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
       key: 'quality.ci',
       present: ciFiles.length > 0,
       complete: ciFiles.length > 0 && testFiles.length > 0,
-      evidence: ciFiles.map((file) => ({ type: 'file' as const, value: file, file })),
+      evidence: evidenceOrSearch(
+        ciFiles.map((file) => ({ type: 'file' as const, value: file, file })),
+        'anything that runs the tests without being asked',
+        ['.github/workflows/', '.gitlab-ci.yml', '.circleci/config.yml', 'azure-pipelines.yml', 'Jenkinsfile', '.travis.yml'],
+      ),
       details: { files: ciFiles.length },
     },
   ];

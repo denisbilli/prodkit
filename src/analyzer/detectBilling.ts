@@ -159,25 +159,29 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     {
       key: 'billing.webhook.route',
       present: webhookRouteHits.length > 0 || webhookPathHits.length > 0,
-      evidence: [
-        ...toEvidence(webhookRouteHits),
-        ...webhookPathHits.map((file) => ({ type: 'file' as const, value: file, file })),
-      ],
+      evidence: evidenceOrSearch(
+        [
+          ...toEvidence(webhookRouteHits),
+          ...webhookPathHits.map((file) => ({ type: 'file' as const, value: file, file })),
+        ],
+        'a route the payment provider calls back',
+        ['/webhook', '/webhooks/stripe', 'a file under a webhook directory'],
+      ),
     },
     {
       key: 'billing.webhook.rawBody',
       present: rawBodyHits.length > 0,
-      evidence: toEvidence(rawBodyHits),
+      evidence: evidenceOrSearch(toEvidence(rawBodyHits), 'the unparsed body a signature is computed over', ['express.raw', 'bodyParser.raw', 'request.text()', 'rawBody', 'await req.arrayBuffer()']),
     },
     {
       key: 'billing.webhook.secret',
       present: secretHits.length > 0,
-      evidence: toEvidence(secretHits),
+      evidence: evidenceOrSearch(toEvidence(secretHits), 'the signing secret, read from configuration', ['STRIPE_WEBHOOK_SECRET', 'WEBHOOK_SIGNING_SECRET', 'whsec_']),
     },
     {
       key: 'billing.webhook.signatureValidation',
       present: signatureHits.length > 0,
-      evidence: toEvidence(signatureHits),
+      evidence: evidenceOrSearch(toEvidence(signatureHits), 'the signature being checked', ['constructEvent(', 'verifyHeader(', 'Webhook.constructEvent', 'stripe-signature']),
     },
   ];
 }
