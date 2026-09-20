@@ -1,5 +1,6 @@
 import type { DetectorResult, PackageManager } from './types';
 import type { DetectContext } from './detectContext';
+import { MINIMUM_LANGUAGE_SHARE, languageShare } from './languageShare';
 
 interface PackageManagerResolution {
   manager: PackageManager;
@@ -27,6 +28,15 @@ const OTHER_MANIFESTS: Array<{ manager: PackageManager; pattern: RegExp }> = [
   { manager: 'gradle', pattern: /(^|\/)build\.gradle(\.kts)?$/ },
   { manager: 'maven', pattern: /(^|\/)pom\.xml$/ },
   { manager: 'nuget', pattern: /\.(csproj|fsproj|vbproj)$/i },
+  /**
+   * Both Apple ecosystems, added once their manifests were actually being parsed —
+   * `Package.swift` and the Podfile for a long while, `Package.resolved` since 0.75.0.
+   * Until then an iOS application could only ever come out as `npm` or `unknown`,
+   * which is how DuckDuckGo iOS — 1194 Swift files — reported "npm (lockfile)" from a
+   * package.json whose only job is running rollup over one content-blocking script.
+   */
+  { manager: 'swift package manager', pattern: /(^|\/)Package\.(swift|resolved)$/ },
+  { manager: 'cocoapods', pattern: /(^|\/)Podfile$/ },
 ];
 
 /**
@@ -41,24 +51,66 @@ const OTHER_MANIFESTS: Array<{ manager: PackageManager; pattern: RegExp }> = [
  * the project's; one buried under `sdk/go/` belongs to something the project ships
  * rather than something it is built with.
  */
-function resolveFromOtherManifests(files: string[]): PackageManagerResolution | null {
-  let best: { manager: PackageManager; file: string; depth: number; order: number } | null = null;
+/**
+ * The language each of these manifests builds, so a share can be asked about it.
+ *
+ * Depth alone decided before, and depth is the wrong question when the shallow
+ * manifest belongs to the build tooling: DuckDuckGo iOS keeps a fastlane `Gemfile` at
+ * its root and its real Swift manifest five directories down inside the `.xcodeproj`,
+ * so the report called a 1194-file iOS application a Ruby project — the same mistake
+ * WordPress-iOS produced one layer up, where the fastlane Gemfile was read as the
+ * backend.
+ */
+const MANIFEST_LANGUAGE: Partial<Record<PackageManager, RegExp>> = {
+  pub: /\.dart$/,
+  composer: /\.php$/,
+  'go modules': /\.go$/,
+  cargo: /\.rs$/,
+  bundler: /\.rb$/,
+  gradle: /\.(java|kt|kts|scala|groovy)$/,
+  maven: /\.(java|kt|kts|scala|groovy)$/,
+  nuget: /\.(cs|fs|vb)$/,
+  'swift package manager': /\.(swift|m|mm)$/,
+  cocoapods: /\.(swift|m|mm)$/,
+};
+
+function resolveFromOtherManifests(ctx: DetectContext): PackageManagerResolution | null {
+  const files = ctx.files.all;
+  const candidates: Array<{ manager: PackageManager; file: string; depth: number; order: number; share: number }> = [];
 
   OTHER_MANIFESTS.forEach(({ manager, pattern }, order) => {
     for (const file of files) {
       if (!pattern.test(file)) continue;
 
-      const depth = file.split('/').length;
-      if (!best || depth < best.depth || (depth === best.depth && order < best.order)) {
-        best = { manager, file, depth, order };
-      }
+      const extension = MANIFEST_LANGUAGE[manager];
+      candidates.push({
+        manager,
+        file,
+        depth: file.split('/').length,
+        order,
+        share: extension ? languageShare(ctx, extension) : 0,
+      });
     }
   });
 
-  if (!best) return null;
+  if (candidates.length === 0) return null;
 
-  const { manager, file } = best as { manager: PackageManager; file: string };
-  return { manager, confidence: 'manifest', warnings: [], evidence: [file] };
+  /**
+   * A manifest whose language is really here outranks one that is merely nearer the
+   * root. Where none of them clears the line — a repository of configuration, or one
+   * whose language this analyzer does not count — the old ordering stands, so nothing
+   * that used to resolve stops resolving.
+   */
+  const substantial = candidates.filter((candidate) => candidate.share >= MINIMUM_LANGUAGE_SHARE);
+  const pool = substantial.length > 0 ? substantial : candidates;
+
+  const best = pool.reduce((winner, candidate) =>
+    candidate.depth < winner.depth || (candidate.depth === winner.depth && candidate.order < winner.order)
+      ? candidate
+      : winner,
+  );
+
+  return { manager: best.manager, confidence: 'manifest', warnings: [], evidence: [best.file] };
 }
 
 function resolveWorkspaceManager(workspace: DetectContext['workspaces'][number]): PackageManagerResolution {
@@ -121,9 +173,31 @@ export async function detectPackageManager(ctx: DetectContext): Promise<{
 
   // Node and Python first, because the workspace record is built from their manifests and
   // knows which of several it found. Anything else is resolved from the file list.
-  const selected = fromWorkspaces && fromWorkspaces.manager !== 'unknown'
+  const otherManifest = resolveFromOtherManifests(ctx);
+
+  /**
+   * A package.json is not always what the project is built with.
+   *
+   * It wins over every other manifest here because the workspace record is richer, and
+   * that was right until it met a repository where Node is the build tooling rather
+   * than the product: DuckDuckGo iOS keeps one to run rollup over a single
+   * content-blocking script, eight JavaScript files against 1194 Swift ones, and the
+   * report said "Package manager: npm (lockfile)".
+   *
+   * The same share test the backend uses, and for the same reason — one file in twenty
+   * is the line below which a language is something the repository contains rather
+   * than something it is made of. Only applied when there is another manifest to
+   * prefer: a repository whose only manifest is a package.json is an npm repository
+   * however little JavaScript it has.
+   */
+  const nodeOrPythonIsTheProduct =
+    languageShare(ctx, /\.(ts|tsx|js|jsx|mjs|cjs|py)$/) >= MINIMUM_LANGUAGE_SHARE;
+
+  const selected = fromWorkspaces
+    && fromWorkspaces.manager !== 'unknown'
+    && (nodeOrPythonIsTheProduct || !otherManifest)
     ? fromWorkspaces
-    : resolveFromOtherManifests(ctx.files.all) ?? fromWorkspaces;
+    : otherManifest ?? fromWorkspaces;
 
   if (selected) {
     return {

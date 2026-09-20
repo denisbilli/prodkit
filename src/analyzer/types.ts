@@ -25,6 +25,8 @@ export type PackageManager =
   | 'gradle'
   | 'maven'
   | 'nuget'
+  | 'swift package manager'
+  | 'cocoapods'
   | 'unknown';
 
 export type PackageManagerConfidence = 'lockfile' | 'manifest' | 'inferred' | 'unknown';

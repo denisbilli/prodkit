@@ -1,0 +1,6 @@
+{
+  "name": "contentblocking",
+  "version": "1.0.0",
+  "scripts": { "rebuild-rules": "rollup -c" },
+  "devDependencies": { "rollup": "^2.61.0" }
+}

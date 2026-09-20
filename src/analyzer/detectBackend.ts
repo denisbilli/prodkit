@@ -2,6 +2,7 @@ import type { DetectorResult, DetectorEvidence } from './types';
 import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRuntimeRustDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
+import { MINIMUM_LANGUAGE_SHARE, languageShare } from './languageShare';
 import {
   GO_BACKEND_FRAMEWORKS,
   RUST_BACKEND_FRAMEWORKS,
@@ -11,32 +12,6 @@ import {
   PYTHON_BACKEND_FRAMEWORKS,
   RUBY_BACKEND_FRAMEWORKS,
 } from './catalogue';
-
-/**
- * How much of the source is written in one language.
- *
- * A manifest says a language is present; a share says it is what the product is made
- * of. The mobile detector has drawn this distinction since a single MAUI client
- * decided the profile of a nine-project .NET solution.
- */
-function languageShare(ctx: DetectContext, extension: RegExp): number {
-  const source = ctx.files.source;
-  if (source.length === 0) return 0;
-
-  return source.filter((file) => extension.test(file)).length / source.length;
-}
-
-/**
- * Below this a language is present in the repository without being what serves the
- * requests.
- *
- * windmill is the measurement: two Go files beside 547 Rust ones, 0.05% of its source,
- * and the report said "Backend: go". The line is not tuned to that case — anything
- * under one file in twenty is a client, a script or a sample, and every backend in the
- * verification corpus is far above it. A repository genuinely split between two server
- * languages reports both, which is the right answer for one.
- */
-const MINIMUM_BACKEND_SHARE = 0.05;
 
 export async function detectBackend(ctx: DetectContext): Promise<{
   result: DetectorResult;
@@ -116,7 +91,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
    */
   const goShare = languageShare(ctx, /\.go$/);
 
-  if (!namedGoFramework && goShare >= MINIMUM_BACKEND_SHARE && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
+  if (!namedGoFramework && goShare >= MINIMUM_LANGUAGE_SHARE && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
     frameworks.push('go');
     evidence.push({ type: 'note', value: 'a Go module with no web framework named in go.mod' });
   }
@@ -182,7 +157,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
    */
   if (
     !namedRubyFramework
-    && languageShare(ctx, /\.rb$/) >= MINIMUM_BACKEND_SHARE
+    && languageShare(ctx, /\.rb$/) >= MINIMUM_LANGUAGE_SHARE
     && ctx.files.all.some((f) => /(^|\/)Gemfile$/.test(f))
   ) {
     frameworks.push('ruby');

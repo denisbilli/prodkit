@@ -111,3 +111,42 @@ describe('capabilities the platform provides rather than a package', () => {
     expect(analysis.detectors['app.stateDurability']?.complete).toBe(false);
   });
 });
+
+/**
+ * Which manifest is the project's, when several are present and only one is the
+ * product's.
+ *
+ * Measured on DuckDuckGo iOS: 1194 Swift files, a `package.json` whose only job is
+ * running rollup over one content-blocking script, and a fastlane `Gemfile` at the
+ * root. The report said "Package manager: npm (lockfile)", and with npm ruled out it
+ * said "bundler" — because the Gemfile sits at depth 1 and the real Swift manifest
+ * five directories down inside the `.xcodeproj`. Depth was the only question being
+ * asked, and depth is the wrong one when the shallow manifest belongs to the build
+ * tooling. It is the same mistake WordPress-iOS produced a layer up, where the
+ * fastlane Gemfile was read as the backend.
+ */
+describe('the manifest that says what the project is built with', () => {
+  it('prefers the ecosystem the source is actually written in', async () => {
+    const analysis = await analyzeProject(fixture('ios-with-build-tooling'));
+
+    expect(analysis.stack.packageManager).toBe('swift package manager');
+  });
+
+  it('still calls a repository whose only manifest is a package.json an npm one', async () => {
+    const analysis = await analyzeProject(fixture('npm-library'));
+
+    expect(analysis.stack.packageManager).toBe('npm');
+  });
+
+  /**
+   * The Apple managers exist as answers at all only because their manifests are
+   * parsed: `Package.swift` and the Podfile for a long while, `Package.resolved` since
+   * 0.75.0. Before that an iOS application could come out as `npm` or as `unknown`,
+   * and nothing else.
+   */
+  it('names Swift Package Manager from a Package.resolved inside the xcodeproj', async () => {
+    const analysis = await analyzeProject(fixture('ios-app'));
+
+    expect(analysis.stack.packageManager).toBe('swift package manager');
+  });
+});
