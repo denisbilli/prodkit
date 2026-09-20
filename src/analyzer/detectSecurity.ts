@@ -4,6 +4,7 @@ import { hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
+import { readPackageValueUses } from './structural/valuesFromPackage';
 import { isDevelopmentOnlyFile } from './developmentOnly';
 
 /** Lines that decide which origins may call this server. */
@@ -123,6 +124,17 @@ async function findDjangoSettings(ctx: DetectContext): Promise<{ file: string; t
   return null;
 }
 
+const RATE_LIMIT_PACKAGES = [
+  'express-rate-limit',
+  '@upstash/ratelimit',
+  'rate-limiter-flexible',
+  'next-rate-limit',
+  'express-slow-down',
+  'koa-ratelimit',
+  'fastify-rate-limit',
+  '@fastify/rate-limit',
+];
+
 export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
   const source = ctx.files.source;
@@ -147,6 +159,10 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   );
   const helmet = helmetDep || headerSignals.length > 0;
 
+  /**
+   * The packages the ecosystem names, as distinct from the variables authors do.
+   * Shared between the dependency check below and the binding walk further down.
+   */
   const rateLimitDep =
     hasDep(ctx, 'express-rate-limit') ||
     hasDep(ctx, '@upstash/ratelimit') ||
@@ -168,25 +184,53 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * The rule is titled "Rate limit on auth surfaces" and its own passing sentence says
    * "detected on the authentication surface", and the flag behind both was rate
    * limiting *anywhere*: a limiter on a public feed cleared the check for a sign-in
-   * page that has none. Sign-in is the endpoint the limit exists for.
+   * page that has none.
    *
-   * The same file, which is as far as this reaches honestly. Where a project splits
-   * the limiter from the login the answer becomes "found, not shown to cover sign-in",
-   * which is true and which the reader can dismiss in two seconds if they know better.
+   * Finding the limiter by its name is the part that does not hold. `const limiter =
+   * rateLimit(...)` is found because somebody wrote "rateLimit"; the same protection
+   * written as `const thisIsFuckingTopUse = require('express-rate-limit')` is
+   * invisible, and a login that is in fact protected gets downgraded. The name is the
+   * one thing its author chose freely, and it is what every search here reads.
    *
-   * A prefix rule was written for this and removed. TranscribeAI protects its login
-   * with `app.use('/api/', limiter)` above `app.use('/api/auth', authRoutes)`, and
-   * matching the limiter's mount path against the auth router's looked like the right
-   * generalisation — but the mount line says `limiter`, not `rateLimit`, so no rate
-   * limit signal is ever on it and the rule never fired on the one case it was written
-   * for. Following the variable would work and is a third layer of guessing on top of
-   * two; TranscribeAI stays `partial`, which is what this can show.
+   * So the anchor is the package, which the author did not name, and the chain from
+   * there is mechanical: the binding the import is assigned to, the values that
+   * binding produces when called, and every place those values are used. Where the
+   * parser is installed that answers the question outright; where it is not, the text
+   * search below is still the floor, which is the same contract every other
+   * structural reader here keeps.
    */
+  const boundLimiterUses = await readPackageValueUses(ctx.root, source, RATE_LIMIT_PACKAGES);
+
   const authSurfaceFiles = new Set(
     (await searchInFiles(ctx.root, source, [/['"`]\/(login|signin|sign-in|auth|session)/i, /passport\./, /signIn\s*\(/, /authenticate\s*\(/], 40))
       .map((match) => match.file),
   );
-  const rateLimitNearAuth = rateLimitSignals.some((match) => authSurfaceFiles.has(match.file));
+  /**
+   * A limiter mounted on a prefix covers what is mounted under it.
+   *
+   * TranscribeAI writes `app.use('/api/', limiter)` and, seventy lines down,
+   * `app.use('/api/auth', authRoutes)`. Its login is protected and a same-file test
+   * called it unprotected, because the router lives in another file. Both mount paths
+   * are strings in this one, and `/api/auth` says what it carries — so the coverage
+   * is readable without following the router anywhere.
+   */
+  const mountedPaths = (boundLimiterUses ?? [])
+    .map((use) => use.mountPath)
+    .filter((path): path is string => Boolean(path))
+    .map((path) => path.replace(/\/+$/, ''));
+
+  const authMountPaths = (await searchInFiles(ctx.root, source, [/\buse\(\s*['"`]\/[^'"`]*(auth|login|signin|session|account)/i], 20))
+    .map((match) => /\buse\(\s*['"`](\/[^'"`]*)['"`]/.exec(match.snippet)?.[1])
+    .filter((path): path is string => Boolean(path));
+
+  const coversAnAuthMount = mountedPaths.some((prefix) =>
+    authMountPaths.some((mount) => mount === prefix || mount.startsWith(`${prefix}/`)),
+  );
+
+  const rateLimitNearAuth =
+    coversAnAuthMount
+    || (boundLimiterUses ?? []).some((use) => authSurfaceFiles.has(use.file))
+    || rateLimitSignals.some((match) => authSurfaceFiles.has(match.file));
 
   if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet', claim: 'headers' });
   if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package', claim: 'rate-limit' });

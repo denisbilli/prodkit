@@ -38,4 +38,32 @@ describe('a limit on the feed is not a limit on the login', () => {
 
     expect(finding?.status).toBe('missing');
   });
+
+  /**
+   * The name is the one part of the code its author chose freely, and it is what
+   * every search here reads. Denis put it plainly: "if I wanted to call it
+   * `thisIsFuckingTopUse` you would never catch it."
+   *
+   * He was right, and the answer is not a longer word list. The anchor is the package
+   * specifier — `express-rate-limit` is what the ecosystem calls it, not what this
+   * author called it — and from that import the chain is mechanical: the binding it
+   * is assigned to, the values that binding produces when called, and every place
+   * those values are used. Following a binding is not a heuristic; it is what the
+   * language already means.
+   */
+  it('finds a limiter whose author gave it any name at all', async () => {
+    const finding = await rateLimitFinding('express-limits-with-a-silly-name');
+
+    expect(finding?.status).toBe('passed');
+  });
+
+  it('reads a limiter mounted on a prefix as covering what is mounted under it', async () => {
+    // `app.use('/api/', gate)` above `app.use('/api/auth', authRoutes)`: the router is
+    // in another file and the coverage is still readable, because both mount paths are
+    // strings in this one. A same-file test alone called this unprotected, and a real
+    // project in the corpus is shaped exactly like it.
+    const finding = await rateLimitFinding('express-limits-a-prefix');
+
+    expect(finding?.status).toBe('passed');
+  });
 })

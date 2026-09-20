@@ -1,0 +1,5 @@
+{
+  "name": "express-limits-a-prefix",
+  "version": "1.0.0",
+  "dependencies": { "express": "^4.19.0", "express-rate-limit": "^7.0.0", "jsonwebtoken": "^9.0.0", "bcrypt": "^5.1.0" }
+}
