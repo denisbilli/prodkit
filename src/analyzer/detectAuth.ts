@@ -5,6 +5,7 @@ import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readRoleChecks } from './structural/roleChecks';
 import { evidenceOrSearch, searchedFor } from './absenceEvidence';
 import { fileNameEvidence, searchFileNames } from './fileNames';
+import { readPackageValueUses } from './structural/valuesFromPackage';
 
 /**
  * In a product that talks to a model, `role` usually means who is speaking.
@@ -78,8 +79,38 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     'passport',
   ]);
   const managedAuthPyDeps = hasAnyPyDep(ctx, ['django-allauth', 'authlib', 'python-jose', 'fastapi-users', 'flask-login']);
+  /**
+   * The packages that do the authenticating, as distinct from the words people use
+   * around them.
+   *
+   * An Italian business application hashing with argon2 and holding sessions with
+   * iron-session came back `auth.core: missing` — a complete, working sign-in
+   * reported as absent, and eight findings wrong behind it, because its routes are
+   * `/accedi` and `/registrati` and neither package was on the list.
+   *
+   * Nothing about that application is unusual. It is what this product's own thesis
+   * says out loud: the analyzer was reading a language rather than a program.
+   */
+  const AUTH_PACKAGES = [
+    'jsonwebtoken',
+    'jose',
+    'bcrypt',
+    'bcryptjs',
+    'bcrypt-ts',
+    'argon2',
+    '@node-rs/argon2',
+    'scrypt-kdf',
+    '@phc/format',
+    'express-session',
+    'cookie-session',
+    'iron-session',
+    'cookie-parser',
+    'oslo',
+    '@oslojs/crypto',
+    '@auth/core',
+  ];
   const authDeps = [
-    ...hasAnyDep(ctx, ['jsonwebtoken', 'bcrypt', 'bcryptjs', 'express-session', 'cookie-parser']),
+    ...hasAnyDep(ctx, AUTH_PACKAGES),
     ...managedAuthDeps,
     ...managedAuthPyDeps,
   ];
@@ -386,6 +417,22 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     20
   );
 
+  /**
+   * Where a value from one of those packages is actually used.
+   *
+   * The dependency says the project installed something that authenticates; this says
+   * where it does it, on a line the reader can open. It is also what makes the route
+   * names irrelevant: `argon2.verify(...)` inside `/accedi` is the same evidence as
+   * inside `/login`, and the binding is what finds it either way.
+   */
+  const boundAuthUses = await readPackageValueUses(ctx.root, sourceFiles, AUTH_PACKAGES);
+  const authUseEvidence: DetectorEvidence[] = (boundAuthUses ?? []).slice(0, 6).map((use) => ({
+    type: 'file' as const,
+    value: 'an authentication package is used here',
+    file: use.file,
+    line: use.line,
+  }));
+
   const hasAuth = authDeps.length > 0 || routeSignals.length > 0;
   const hasAuthz = permissionSignals.length > 0 || roleSignals.length > 0;
   const b2bHint = b2bSignals.length > 0;
@@ -396,7 +443,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       key: 'auth.core',
       present: hasAuth,
       complete: hasAuth && hasAuthz,
-      evidence: evidenceOrSearch([...depEvidence(authDeps), ...snippetEvidence(routeSignals)], 'a way for somebody to sign in', ['next-auth', 'passport', 'lucia', '@clerk/', '@supabase/auth', 'django.contrib.auth', 'devise', 'jsonwebtoken', 'a /login or /signin route', 'signIn(', 'authenticate(']),
+      evidence: evidenceOrSearch([...depEvidence(authDeps), ...authUseEvidence, ...snippetEvidence(routeSignals)], 'a way for somebody to sign in', ['next-auth', 'passport', 'lucia', '@clerk/', '@supabase/auth', 'django.contrib.auth', 'devise', 'jsonwebtoken', 'a /login or /signin route', 'signIn(', 'authenticate(']),
       details: {
         hasAuth,
         hasAuthz,

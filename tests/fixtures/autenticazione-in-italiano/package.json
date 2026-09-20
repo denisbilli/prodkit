@@ -1,0 +1,10 @@
+{
+  "name": "gestionale",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.19.0",
+    "argon2": "^0.41.0",
+    "iron-session": "^8.0.0",
+    "pg": "^8.11.0"
+  }
+}
