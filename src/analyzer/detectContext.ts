@@ -28,6 +28,8 @@ export interface DetectContext {
   phpDeps: string[];
   /** Module paths from go.mod, lowercase. */
   goDeps: string[];
+  /** Crate names from Cargo.toml, lowercase. */
+  rustDeps: string[];
   /** Gem names from the Gemfile, lowercase. */
   rubyDeps: string[];
   /** PackageReference and FrameworkReference names from .csproj, lowercase. */
@@ -87,6 +89,10 @@ export function hasAnyDep(ctx: DetectContext, names: string[]): string[] {
 
 export function hasPyDep(ctx: DetectContext, name: string): boolean {
   return ctx.pythonDeps.includes(name.toLowerCase());
+}
+
+export function hasAnyRustDep(ctx: DetectContext, names: string[]): string[] {
+  return names.filter((name) => ctx.rustDeps.includes(name.toLowerCase()));
 }
 
 export function hasAnyPyDep(ctx: DetectContext, names: string[]): string[] {

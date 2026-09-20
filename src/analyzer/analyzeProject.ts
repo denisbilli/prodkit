@@ -404,6 +404,45 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   }
 
   /**
+   * Cargo.toml, read for the crates a Rust project depends on.
+   *
+   * windmill's backend is 547 Rust files and the report said "Backend: go", on the
+   * strength of one `go.mod` belonging to a client SDK. Rust was not being read at
+   * all — a whole ecosystem invisible, so a Rust web service could only ever be
+   * reported as whatever else happened to be lying around.
+   *
+   * The same hand-written reader as the others: `[dependencies]` and its variants open
+   * a block, and each entry is a crate name before `=`. A version table written as
+   * `[dependencies.axum]` names the crate in the heading instead, so both shapes are
+   * read.
+   */
+  const rustDeps: string[] = [];
+
+  for (const file of allFiles.filter((f) => /(^|\/)Cargo\.toml$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+    let inDeps = false;
+
+    for (const line of raw.split('\n')) {
+      const heading = /^\s*\[([^\]]+)\]/.exec(line);
+      if (heading) {
+        const section = heading[1].trim();
+        const nested = /^(?:[a-z-]+\.)?(?:dependencies|dev-dependencies|build-dependencies)\.(.+)$/.exec(section);
+        if (nested) {
+          rustDeps.push(nested[1].trim().toLowerCase());
+          inDeps = false;
+          continue;
+        }
+        inDeps = /(^|\.)(dependencies|dev-dependencies|build-dependencies)$/.test(section);
+        continue;
+      }
+      if (!inDeps) continue;
+
+      const entry = /^\s*([A-Za-z0-9_-]+)\s*=/.exec(line);
+      if (entry) rustDeps.push(entry[1].toLowerCase());
+    }
+  }
+
+  /**
    * pubspec.yaml, read for its two dependency blocks.
    *
    * YAML with a hand-written reader again, and the shape here is forgiving: the blocks
@@ -660,6 +699,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     pythonDeps,
     phpDeps: unique(phpDeps),
     goDeps: unique(goDeps),
+    rustDeps: unique(rustDeps),
     rubyDeps: unique(rubyDeps),
     dotnetDeps: unique(dotnetDeps),
     dotnetWebSdk,

@@ -1,14 +1,41 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
+import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRustDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import {
   GO_BACKEND_FRAMEWORKS,
+  RUST_BACKEND_FRAMEWORKS,
   NODE_BACKEND_FRAMEWORKS,
   PHP_BACKEND_FRAMEWORKS,
   PYTHON_BACKEND_FRAMEWORKS,
   RUBY_BACKEND_FRAMEWORKS,
 } from './catalogue';
+
+/**
+ * How much of the source is written in one language.
+ *
+ * A manifest says a language is present; a share says it is what the product is made
+ * of. The mobile detector has drawn this distinction since a single MAUI client
+ * decided the profile of a nine-project .NET solution.
+ */
+function languageShare(ctx: DetectContext, extension: RegExp): number {
+  const source = ctx.files.source;
+  if (source.length === 0) return 0;
+
+  return source.filter((file) => extension.test(file)).length / source.length;
+}
+
+/**
+ * Below this a language is present in the repository without being what serves the
+ * requests.
+ *
+ * windmill is the measurement: two Go files beside 547 Rust ones, 0.05% of its source,
+ * and the report said "Backend: go". The line is not tuned to that case — anything
+ * under one file in twenty is a client, a script or a sample, and every backend in the
+ * verification corpus is far above it. A repository genuinely split between two server
+ * languages reports both, which is the right answer for one.
+ */
+const MINIMUM_BACKEND_SHARE = 0.05;
 
 export async function detectBackend(ctx: DetectContext): Promise<{
   result: DetectorResult;
@@ -79,9 +106,41 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
   }
 
-  if (!namedGoFramework && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
+  /**
+   * A go.mod is not a Go backend on its own.
+   *
+   * windmill carries one for a client SDK beside 547 Rust files, and the report said
+   * "Backend: go". The same share test the mobile detector already uses: a language
+   * has to be a real part of what is written here before it names the backend.
+   */
+  const goShare = languageShare(ctx, /\.go$/);
+
+  if (!namedGoFramework && goShare >= MINIMUM_BACKEND_SHARE && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
     frameworks.push('go');
     evidence.push({ type: 'note', value: 'a Go module with no web framework named in go.mod' });
+  }
+
+  /** Rust, read from Cargo.toml. */
+  let namedRustFramework = false;
+
+  for (const [framework, deps] of RUST_BACKEND_FRAMEWORKS) {
+    const hits = hasAnyRustDep(ctx, deps);
+    if (!hits.length) continue;
+
+    namedRustFramework = true;
+    frameworks.push(framework);
+    for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
+  }
+
+  // Same reasoning as Go: a crate that serves requests from the standard library and a
+  // hand-rolled loop is still a backend, and a Cargo.toml alone is not.
+  if (
+    !namedRustFramework
+    && languageShare(ctx, /\.rs$/) >= MINIMUM_BACKEND_SHARE
+    && ctx.files.all.some((f) => /(^|\/)Cargo\.toml$/.test(f))
+  ) {
+    frameworks.push('rust');
+    evidence.push({ type: 'note', value: 'a Cargo manifest with no web framework named in it' });
   }
 
   /** Ruby, read from the Gemfile. */

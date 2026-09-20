@@ -40,6 +40,24 @@ export const GO_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['beego', ['beego/beego']],
 ];
 
+/**
+ * Rust frameworks, read from Cargo.toml.
+ *
+ * windmill serves its requests from 547 Rust files and was reported as a Go backend,
+ * because a client SDK in the same repository carries a go.mod and Rust was not read
+ * at all.
+ */
+export const RUST_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
+  ['axum', ['axum']],
+  ['actix-web', ['actix-web']],
+  ['rocket', ['rocket']],
+  ['warp', ['warp']],
+  ['tide', ['tide']],
+  ['poem', ['poem']],
+  ['salvo', ['salvo']],
+  ['tower-http', ['tower-http']],
+];
+
 /** Ruby frameworks, read from the Gemfile. */
 export const RUBY_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['rails', ['rails']],
@@ -159,6 +177,15 @@ const LABELS: Record<string, string> = {
   chi: 'chi',
   gorilla: 'Gorilla',
   beego: 'Beego',
+  axum: 'Axum',
+  'actix-web': 'Actix Web',
+  rocket: 'Rocket',
+  warp: 'Warp',
+  tide: 'Tide',
+  poem: 'Poem',
+  salvo: 'Salvo',
+  'tower-http': 'Tower HTTP',
+  rust: 'Rust',
   rails: 'Rails',
   sinatra: 'Sinatra',
   hanami: 'Hanami',
@@ -286,6 +313,7 @@ export function supportedStacks(): StackCatalogue {
       ...entries(PYTHON_BACKEND_FRAMEWORKS.map(([id]) => id)),
       ...entries(GO_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'go', label: 'Go', detectedFrom: 'a go.mod with no framework in it — net/http is a real answer' },
+      ...entries(RUST_BACKEND_FRAMEWORKS.map(([id]) => id)),
       ...entries(RUBY_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'ruby', label: 'Ruby', detectedFrom: 'a Gemfile with no web framework in it' },
       ...entries(PHP_BACKEND_FRAMEWORKS.map(([id]) => id)),
