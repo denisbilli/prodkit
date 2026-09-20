@@ -223,6 +223,15 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       if (matches.length === 0) return 'unknown';
       if (matches.some((m) => m.present && m.complete !== false)) return 'present';
       if (matches.some((m) => m.present)) return 'partial';
+      /**
+       * Nothing found, and at least one detector says it could not look.
+       *
+       * The specific rules in `rules.ts` grew this in 0.74.0 one claim at a time; this
+       * is the same rule for every capability that reaches the generic path. A finding
+       * is only ever weakened by it: `present` and `partial` are decided above, so
+       * blindness can turn `missing` into `unknown` and nothing else.
+       */
+      if (matches.some((m) => m.unanswered)) return 'unknown';
       return 'missing';
     }
   }

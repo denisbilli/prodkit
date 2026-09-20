@@ -75,6 +75,30 @@ describe('capabilities the platform provides rather than a package', () => {
   });
 
   /**
+   * Apple requires `PrivacyInfo.xcprivacy` in the bundle; Play's data-safety form is
+   * filled in the console and leaves nothing in the tree. thunderbird-android was told
+   * it was missing a file it has no way to have.
+   */
+  it('does not ask an Android-only repository for a file that lives in the Play console', async () => {
+    const analysis = await analyzeProject(fixture('android-sqlite-and-crashes'));
+    const declaration = analysis.detectors['mobile.privacyDeclaration'];
+
+    expect(declaration?.present).toBe(false);
+    expect(declaration?.unanswered).toBe(true);
+
+    const report = buildReport(analysis, { profile: 'auto' });
+    expect(statusOf(report, 'expectation.mobile.privacy-declaration.recommended')).toBeUndefined();
+  });
+
+  it('still asks an iOS repository, where the file is required in the bundle', async () => {
+    const analysis = await analyzeProject(fixture('android-sqlite-and-crashes'));
+    const iosAnalysis = await analyzeProject(fixture('ios-app'));
+
+    expect(analysis.detectors['mobile.privacyDeclaration']?.unanswered).toBe(true);
+    expect(iosAnalysis.detectors['mobile.privacyDeclaration']?.unanswered).toBe(false);
+  });
+
+  /**
    * The direction this must not drift in: the point is not that mobile applications
    * pass, it is that the question is asked of them. A repository with neither a local
    * store nor a crash handler still says so.

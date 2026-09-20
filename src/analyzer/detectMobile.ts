@@ -415,6 +415,17 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     {
       key: 'mobile.privacyDeclaration',
       present: privacyFiles.length > 0,
+      /**
+       * On Android the declaration is not in the repository, and never was.
+       *
+       * Apple has required `PrivacyInfo.xcprivacy` in the bundle since 2024, so an iOS
+       * project either has the file or has not made the declaration. Play's data-safety
+       * form is filled in the console: there is no committed artifact to find, and no
+       * convention that puts one in the tree. thunderbird-android was told it was
+       * missing a file it has no way to have — a question this analyzer cannot ask
+       * rather than an answer of no.
+       */
+      unanswered: privacyFiles.length === 0 && !platforms.includes('ios'),
       evidence: evidenceOrSearch(
         privacyFiles.map((file) => ({ type: 'file' as const, value: file, file })),
         'the privacy declaration the stores require',
