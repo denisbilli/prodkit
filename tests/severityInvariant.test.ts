@@ -22,14 +22,42 @@ describe('severity and status agree', () => {
    * status. But that pair has to be written out at each call site, and a third party
    * reading the JSON through the MCP server or the Action has no way to know it must.
    */
+  /**
+   * Both readings, because the report has two halves and this walked one of them.
+   *
+   * `buildReport(analysis)` with no options is the observed-only reading: no profile is
+   * inferred, so none of the `expectation.*` findings exist. Measured on the fixture
+   * corpus, 45 of 145 repositories carry a high-severity GDPR demand under `auto` and
+   * none of them under the default — so every expectation this invariant is supposed to
+   * cover was outside it.
+   */
   it.each(fixtures)('%s reports no severe finding that does not apply', async (fixture) => {
-    const report = buildReport(await analyzeProject(path.join(fixturesDir, fixture)));
+    const analysis = await analyzeProject(path.join(fixturesDir, fixture));
 
-    const contradictions = report.findings
-      .filter((finding) => finding.status === 'unknown' && finding.severity !== 'info')
-      .map((finding) => `${finding.id} is ${finding.severity} while unknown`);
+    for (const report of [buildReport(analysis), buildReport(analysis, { profile: 'auto' })]) {
+      const contradictions = report.findings
+        .filter((finding) => finding.status === 'unknown' && finding.severity !== 'info')
+        .map((finding) => `${finding.id} is ${finding.severity} while unknown`);
 
-    expect(contradictions).toEqual([]);
+      expect(contradictions, `${fixture} as ${report.diagnostics.selectedProfile}`).toEqual([]);
+    }
+  });
+
+  /**
+   * That the second reading is not the first one again.
+   *
+   * The invariant above says nothing when both reports are identical, and identical is
+   * exactly what they were until this file passed a profile: `buildReport(analysis)`
+   * infers nothing, so every `expectation.*` finding was outside the walk. This holds
+   * the difference open so the coverage cannot quietly close again.
+   */
+  it('reads more under a profile than it does without one', async () => {
+    const analysis = await analyzeProject(path.join(fixturesDir, 'express-basic'));
+    const observed = buildReport(analysis).findings.filter((f) => f.id.startsWith('expectation.'));
+    const auto = buildReport(analysis, { profile: 'auto' }).findings.filter((f) => f.id.startsWith('expectation.'));
+
+    expect(observed).toHaveLength(0);
+    expect(auto.length).toBeGreaterThan(5);
   });
 
   it('still rates a finding that does apply', async () => {
