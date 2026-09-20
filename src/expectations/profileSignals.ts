@@ -296,7 +296,24 @@ const RULES: ProfileRule[] = [
      * Half is the line, and it sits in the gap between those two rather than in the
      * middle of a distribution.
      */
-    admissible: (f) => f.mobilePlatforms.length > 0 && f.mobileShare >= 0.5 && !f.tenancy,
+    /**
+     * A tenant word in a client model is not a tenant boundary.
+     *
+     * WordPress-iOS carries `organizationID` in `RemoteBlog.swift` and
+     * `RemoteReaderSiteInfo.swift` — data classes deserialised from WordPress.com's
+     * JSON. The application consumes an organization; it does not host one, and it
+     * could not: enforcing a boundary between tenants takes a server, and this is
+     * 2649 Swift files with none.
+     *
+     * It was excluded from the mobile profile on that word and judged as a B2B SaaS,
+     * which asked it for a health endpoint, security headers and a GDPR export
+     * route. Tenancy still disqualifies a phone application that ships a server
+     * alongside it, because then the boundary is the repository's to keep.
+     */
+    admissible: (f) =>
+      f.mobilePlatforms.length > 0
+      && f.mobileShare >= 0.5
+      && !(f.tenancy && f.productBackend),
     signals: [
       { identifies: true, label: 'a mobile project in the repository', weight: 5, holds: (f) => f.mobilePlatforms.length > 0 },
       {

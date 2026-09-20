@@ -166,7 +166,25 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
   }
 
-  if (!namedRubyFramework && ctx.files.all.some((f) => /(^|\/)Gemfile$/.test(f))) {
+  /**
+   * A Gemfile is not a Ruby backend on its own.
+   *
+   * WordPress-iOS and BlueWallet both reported `backend: ruby`. Neither ships a Ruby
+   * server: both keep a Gemfile for fastlane and CocoaPods, which is how the iOS
+   * world runs its build. WordPress-iOS has 23 Ruby files among 2675 — under one per
+   * cent — and the backend it did not have then excluded it from the mobile profile,
+   * so an iOS application with 2649 Swift files was judged as a B2B SaaS and told it
+   * needed a health endpoint.
+   *
+   * The same share test Go already uses, and the reason Rust's fallback was removed
+   * outright a release ago: a language has to be a real part of what is written here
+   * before it names the backend.
+   */
+  if (
+    !namedRubyFramework
+    && languageShare(ctx, /\.rb$/) >= MINIMUM_BACKEND_SHARE
+    && ctx.files.all.some((f) => /(^|\/)Gemfile$/.test(f))
+  ) {
     frameworks.push('ruby');
     evidence.push({ type: 'note', value: 'a Gemfile with no web framework in it' });
   }
