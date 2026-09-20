@@ -9,7 +9,8 @@ export interface ExecutiveSummary {
   /** One sentence a non-technical reader can act on. */
   verdict: string;
   /** Whether the product can plausibly be launched as the selected profile. */
-  launchReady: boolean;
+  /** `null` where the report could not judge the project at all. */
+  launchReady: boolean | null;
   /** The blocking themes, in plain language, worst first. */
   topRisks: string[];
   /** What the repository already does well, so the report is not only negative. */
@@ -137,7 +138,7 @@ function buildVerdict(args: {
   maturity: MaturityLevel;
   inconclusive: boolean;
   inconclusiveReasons: string[];
-}): { verdict: string; launchReady: boolean } {
+}): { verdict: string; launchReady: boolean | null } {
   if (args.inconclusive) {
     /**
      * The reason, where there is one worth giving.
@@ -153,7 +154,15 @@ function buildVerdict(args: {
       verdict: reason
         ? `ProdKit could not judge this project. ${reason}`
         : 'ProdKit could not recognise this project well enough to judge it. Check that the path points at application source.',
-      launchReady: false,
+      /**
+       * `null`, not `false`.
+       *
+       * The verdict directly above says the project could not be judged, and the flag
+       * beside it said "not launch ready" — which the interface rendered as an amber
+       * badge reading exactly that. One of the two is a verdict about the product and
+       * the other is the absence of one; they cannot both be shown.
+       */
+      launchReady: null,
     };
   }
 
@@ -260,7 +269,15 @@ export function buildExecutiveSummary(args: {
     verdict,
     launchReady,
     topRisks,
-    strengths: buildStrengths(args.categoryScores, args.findings),
+    /**
+     * A report that refuses to judge does not hand out compliments.
+     *
+     * A Python transcription script whose verdict read "ProdKit could not judge this
+     * project" listed three strengths underneath it, each of them a single check in a
+     * category nothing else had touched. The third place the same refusal sat next to
+     * the same praise.
+     */
+    strengths: args.inconclusive ? [] : buildStrengths(args.categoryScores, args.findings),
     estimatedEffort: estimateEffort(args.findings, args.profile),
     scoreExplanation,
   };

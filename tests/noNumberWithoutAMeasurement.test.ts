@@ -82,3 +82,39 @@ describe('a report that refuses to score does not score anything else either', (
     expect(markdown).toMatch(/Observed score: \d+\/100/);
   });
 });
+
+/**
+ * The third place the refusal sat beside the praise.
+ *
+ * A Python transcription script whose verdict read "ProdKit could not judge this
+ * project" listed three strengths underneath it, and the interface drew an amber
+ * "Not launch ready" badge above them — a verdict about a product nobody had judged.
+ */
+describe('a report that refuses to judge hands out no verdicts either', () => {
+  it('lists no strengths where it could not judge', async () => {
+    const offenders: string[] = [];
+
+    for (const name of fs.readdirSync(FIXTURES, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)) {
+      let report;
+      try {
+        report = buildReport(await analyzeProject(path.join(FIXTURES, name)), { profile: 'auto' });
+      } catch {
+        continue;
+      }
+      if (!report.inconclusive) continue;
+      if (report.executiveSummary.strengths.length > 0) offenders.push(`${name}: strengths`);
+      if (report.executiveSummary.launchReady !== null) offenders.push(`${name}: launchReady`);
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('still says yes or no where it could judge', async () => {
+    const report = buildReport(await analyzeProject(path.join(FIXTURES, 'express-basic')), {
+      profile: 'b2b-saas',
+    });
+
+    expect(report.inconclusive).toBe(false);
+    expect(typeof report.executiveSummary.launchReady).toBe('boolean');
+  });
+})

@@ -120,7 +120,7 @@ function executiveSummarySection(report: ProductionReadinessReport): string[] {
     '',
     summary.verdict,
     '',
-    `- Launch ready: ${summary.launchReady ? 'yes' : 'no'}`,
+    `- Launch ready: ${summary.launchReady === null ? 'not judged' : summary.launchReady ? 'yes' : 'no'}`,
     `- Score: ${summary.scoreExplanation}`,
     `- Estimated effort: ${summary.estimatedEffort}`,
     '',

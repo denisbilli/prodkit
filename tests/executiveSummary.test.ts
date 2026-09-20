@@ -39,7 +39,11 @@ describe('executive summary', () => {
 
     if (report.inconclusive) {
       expect(report.executiveSummary.verdict).toMatch(/could not judge this project/i);
-      expect(report.executiveSummary.launchReady).toBe(false);
+      // This asserted `false`, which the interface rendered as an amber "Not launch
+      // ready" badge directly under a verdict saying the project could not be judged.
+      // One of the two is a verdict about the product; the other is the absence of one.
+      expect(report.executiveSummary.launchReady).toBeNull();
+      expect(report.executiveSummary.strengths).toEqual([]);
     }
   });
 
