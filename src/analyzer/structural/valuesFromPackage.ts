@@ -120,6 +120,14 @@ export interface PackageValueUse {
   file: string;
   line: number;
   /**
+   * The identifier the value is reached through.
+   *
+   * A caller that needs to reason about the call — is this `cors()` bare or
+   * `cors({ origin })`? — needs the name the author gave it, not to guess the name
+   * but to recognise it once the import has already proved what it is.
+   */
+  name: string;
+  /**
    * The path it was mounted on, where the use is an argument to `use(path, value)`.
    *
    * `app.use('/api/', limiter)` covers everything mounted under `/api/`, including an
@@ -192,6 +200,7 @@ export async function readPackageValueUses(
           uses.push({
             file,
             line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+            name: node.text,
             mountPath: mountPathOf(ts, node),
           });
         }

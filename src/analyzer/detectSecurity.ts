@@ -54,19 +54,36 @@ interface CorsHit {
   snippet: string;
 }
 
-function detectCorsConfig(text: string, file: string): { loose: CorsHit[]; strict: CorsHit[] } {
+/**
+ * The middleware, under whatever name it was given.
+ *
+ * `cors(` is the name of the export, and an author is free not to use it:
+ * `const apriTutto = require('cors'); app.use(apriTutto());` is a wide-open policy
+ * that came back as "CORS configuration not detected" — a real hole reported as the
+ * absence of a question. The package is the anchor; the names come from the binding
+ * and are recognised here rather than guessed.
+ */
+function detectCorsConfig(
+  text: string,
+  file: string,
+  boundNames: ReadonlySet<string>,
+): { loose: CorsHit[]; strict: CorsHit[] } {
   const loose: CorsHit[] = [];
   const strict: CorsHit[] = [];
   const lines = text.split(/\r?\n/);
-  const corsVarRegex = /\bcors\(\s*([A-Za-z_$][\w$]*)\s*\)/;
+  const names = [...new Set(['cors', ...boundNames])].map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const anyName = names.join('|');
+  const callRegex = new RegExp(`\\b(?:${anyName})\\s*\\(`);
+  const bareCallRegex = new RegExp(`\\b(?:${anyName})\\(\\s*\\)`);
+  const corsVarRegex = new RegExp(`\\b(?:${anyName})\\(\\s*([A-Za-z_$][\\w$]*)\\s*\\)`);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!isCitableLine(line)) continue;
-    if (!/\bcors\s*\(/.test(withoutStringLiterals(line))) continue;
+    if (!callRegex.test(withoutStringLiterals(line))) continue;
 
     const snippet = line.trim().slice(0, 200);
-    if (/\bcors\(\s*\)/.test(line)) {
+    if (bareCallRegex.test(line)) {
       loose.push({ file, line: i + 1, snippet });
       continue;
     }
@@ -237,6 +254,15 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
   for (const m of rateLimitSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'rate-limit' });
 
+  /**
+   * Every identifier the `cors` package reaches, per file.
+   *
+   * `const apriTutto = require('cors')` binds the middleware to a name no word list
+   * will ever hold, and `app.use(apriTutto())` is a wide-open policy that read as no
+   * policy at all. The import is the fact; the name is whatever this author typed.
+   */
+  const corsBindings = await readPackageValueUses(ctx.root, source, ['cors']);
+
   const corsLoose: CorsHit[] = [];
   const corsStrict: CorsHit[] = [];
   for (const file of source) {
@@ -274,8 +300,10 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     }
 
     if (!IMPORTS_CORS.test(text)) continue;
-    if (!/\bcors\s*\(/.test(text)) continue;
-    const detected = detectCorsConfig(text, file);
+    const boundNames = new Set((corsBindings ?? []).filter((use) => use.file === file).map((use) => use.name));
+    // `cors(` under its own name, or under the one the binding gave it.
+    if (boundNames.size === 0 && !/\bcors\s*\(/.test(text)) continue;
+    const detected = detectCorsConfig(text, file, boundNames);
     corsLoose.push(...detected.loose);
     corsStrict.push(...detected.strict);
   }
