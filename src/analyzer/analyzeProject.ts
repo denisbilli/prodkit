@@ -159,6 +159,22 @@ function isTestOrExamplePath(file: string): boolean {
      * band — against a line written to be fake.
      */
     || /[-_]tests?\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
+    /**
+     * And the third spelling of it.
+     *
+     * netbox keeps `netbox/netbox/configuration_testing.py`, whose first three lines
+     * say it is a base configuration for testing and not intended for production. Its
+     * `SECRET_KEY = 'abcdefg...'` was the single `critical` in netbox's report — the
+     * severity that bars a report from the top band — raised against a line written to
+     * be thrown away.
+     *
+     * A directory called `testing/` has counted as tests here for a while, so the
+     * suffix is the same decision in the same ecosystem. It does cost a product file
+     * genuinely named `ab_testing.py`, which would go unread rather than be read
+     * wrongly — the cheaper of the two errors, and the same trade the `testing/`
+     * directory rule already makes.
+     */
+    || /[-_]testing\.py$/i.test(file)
     || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     /**
      * Sample code, which is what a documentation repository is made of.

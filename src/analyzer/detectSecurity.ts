@@ -31,6 +31,22 @@ const IMPORTS_FLASK_CORS = /from\s+flask_cors\s+import|import\s+flask_cors/;
 const FLASK_CORS_CALL = /\bCORS\s*\(/;
 
 /**
+ * Starlette's, which is how every FastAPI application does it.
+ *
+ * The full-stack FastAPI template — the one the framework's own organisation
+ * publishes — was told at `high` to add cross-origin handling, above
+ * `app.add_middleware(CORSMiddleware, allow_origins=[settings.FRONTEND_HOST])`. The
+ * class comes from the framework and `add_middleware` is its contract; neither is a
+ * word the author picked.
+ *
+ * The allowlist decides which case it is, read from the same call: `allow_origins`
+ * holding a bare `"*"` is the wide-open one, and anything else is a list somebody
+ * chose.
+ */
+const IMPORTS_STARLETTE_CORS = /from\s+(?:starlette|fastapi)\.middleware(?:\.cors)?\s+import[^\n]*CORSMiddleware/;
+const STARLETTE_CORS_CALL = /add_middleware\s*\(\s*\n?\s*CORSMiddleware/;
+
+/**
  * The line with its quoted text removed.
  *
  * `cors(` inside a string literal is never the middleware being applied — it is prose
@@ -335,6 +351,22 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       }
     }
 
+    if (IMPORTS_STARLETTE_CORS.test(text)) {
+      const lines = text.split(/\r?\n/);
+      const at = lines.findIndex((line) => /add_middleware\s*\(/.test(line) && isCitableLine(line));
+
+      if (at !== -1) {
+        const window = lines.slice(at, Math.min(lines.length, at + 12)).join('\n');
+        if (STARLETTE_CORS_CALL.test(window)) {
+          const allowList = /allow_origins\s*=\s*\[([^\]]*)\]/.exec(window);
+          const hit: CorsHit = { file, line: at + 1, snippet: lines[at].trim().slice(0, 200) };
+
+          if (!allowList || /^\s*["']\*["']\s*,?\s*$/.test(allowList[1])) corsLoose.push(hit);
+          else corsStrict.push(hit);
+        }
+      }
+    }
+
     if (!IMPORTS_CORS.test(text)) continue;
     const boundNames = new Set((corsBindings ?? []).filter((use) => use.file === file).map((use) => use.name));
     // `cors(` under its own name, or under the one the binding gave it.
@@ -343,6 +375,42 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     corsLoose.push(...detected.loose);
     corsStrict.push(...detected.strict);
   }
+  /**
+   * Django's answer, which is a string in a list.
+   *
+   * netbox installs `corsheaders.middleware.CorsMiddleware` and was reported as having
+   * no cross-origin configuration at all — then told, at `high`, to add the handling it
+   * has. Nothing here looked for it: the reading was built around a call expression,
+   * and django-cors-headers is applied by naming it in `MIDDLEWARE` and configured by
+   * setting names the package itself defines.
+   *
+   * The package name and its setting names are the anchor, and neither is the author's
+   * to choose. Installed with no allowlist the package denies every cross-origin
+   * request, so the middleware alone is the strict case; `CORS_ALLOW_ALL_ORIGINS` — and
+   * `CORS_ORIGIN_ALLOW_ALL`, which is what it was called before version 3.5 — is the
+   * one line that opens it.
+   */
+  const django = await findDjangoSettings(ctx);
+  if (django) {
+    const middlewareLine = django.text
+      .split(/\r?\n/)
+      .findIndex((line) => /corsheaders\.middleware\.CorsMiddleware/.test(line));
+
+    if (middlewareLine !== -1) {
+      const openedUp = /CORS_(?:ALLOW_ALL_ORIGINS|ORIGIN_ALLOW_ALL)\s*=\s*True/.exec(django.text);
+      const hit: CorsHit = {
+        file: django.file,
+        line: middlewareLine + 1,
+        snippet: openedUp
+          ? openedUp[0]
+          : django.text.split(/\r?\n/)[middlewareLine].trim().slice(0, 200),
+      };
+
+      if (openedUp) corsLoose.push(hit);
+      else corsStrict.push(hit);
+    }
+  }
+
   for (const m of corsLoose) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'cors' });
   for (const m of corsStrict) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'cors' });
 
