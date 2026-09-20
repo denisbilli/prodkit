@@ -257,9 +257,20 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ctx.root,
     sourceFiles,
     [
-      /requirePermission/i,
-      /permission_classes/i,
-      /authorize\(/i,
+      /**
+       * Per-record, which is what this capability claims.
+       *
+       * `requirePermission` and `permission_classes` were in this list, and they are
+       * checks on a route: the capability's own description is "per-record checks that
+       * a caller may act on the specific resource, **not just the route**". Three
+       * projects were credited with protection against reading another user's rows —
+       * one of them on the strength of `permission_classes = [AllowAny]`, a line that
+       * says the opposite. They belong to `authz.permissions`, where they already are.
+       *
+       * `authorize(` keeps its place but needs an argument. `google_calendar.authorize()`
+       * is an OAuth handshake, and it was standing in for an ownership check.
+       */
+      /\bauthorize\(\s*[^)\s]/i,
       /\bcanAccess\(/i,
       /\bhasAccessTo\(/i,
       /ownerId/i,
@@ -449,7 +460,9 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'authz.resourceLevel',
-      present: resourceLevelSignals.length > 0 || permissionSignals.length > 0,
+      // Route-level permission checks no longer stand in for per-record ones: with the
+      // needles above narrowed, this clause could only reintroduce what they removed.
+      present: resourceLevelSignals.length > 0,
       evidence: evidenceOrSearch(snippetEvidence(resourceLevelSignals), 'a check that the row belongs to the caller', ['requirePermission', 'permission_classes', 'authorize(', 'canAccess(', 'hasAccessTo(', 'ownerId', 'createdBy', 'req.user.id', 'userId ===']),
     },
     {

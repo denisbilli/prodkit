@@ -53,11 +53,15 @@ describe('a strength says how much of the area was checked', () => {
   });
 
   it('says only what it verified where nothing went unassessed', async () => {
+    // Was `permissions: 1 check verified`. This fixture has `requirePermission` on a
+    // route and no per-record ownership check, and route-level checks stopped standing
+    // in for per-record ones — so the authz category now carries a finding and is no
+    // longer a strength. Configuration is, on one check, with nothing unassessed.
     const report = buildReport(await analyzeProject(path.join(FIXTURES, 'express-secure')), {
       profile: 'auto',
     });
 
-    expect(report.executiveSummary.strengths).toContain('permissions: 1 check verified');
+    expect(report.executiveSummary.strengths).toContain('configuration and secrets: 1 check verified');
   });
 
   it('counts the checks that reached no verdict', async () => {
