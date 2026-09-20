@@ -1,0 +1,5 @@
+{
+  "name": "rate-limit-is-a-form-field",
+  "version": "1.0.0",
+  "dependencies": { "express": "^4.19.0", "zod": "^3.23.0", "bcrypt": "^5.1.0" }
+}

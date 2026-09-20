@@ -187,10 +187,22 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     hasDep(ctx, 'next-rate-limit') ||
     hasDep(ctx, 'django-ratelimit') ||
     hasDep(ctx, 'slowapi');
+  /**
+   * Throttling by what the protocol says, not by what the variable is called.
+   *
+   * `/rate_?limit/i` matched `rateLimitEnabled: z.boolean().optional()` — a field in
+   * a zod schema for a form where dokploy's *users* configure limits on their own API
+   * keys. The application has no limiter and no 429 anywhere in its source, and the
+   * report said it was throttled. The word was there; the thing was not.
+   *
+   * `429`, `Retry-After` and `TooManyRequests` stay because nobody chose them: they
+   * are what HTTP calls this, and a hand-rolled limiter that writes one of them is
+   * really limiting something. The package and its binding cover the rest.
+   */
   const rateLimitSignals = await searchInFiles(
     ctx.root,
     source,
-    [/rateLimit\s*\(/, /rate_?limit/i, /Retry-After/i, /\b429\b/, /TooManyRequests/i],
+    [/Retry-After/i, /\b429\b/, /TooManyRequests/i],
     20,
   );
   const rateLimit = rateLimitDep || rateLimitSignals.length > 0;

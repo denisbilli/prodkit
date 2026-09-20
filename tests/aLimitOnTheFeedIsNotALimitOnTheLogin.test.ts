@@ -57,6 +57,24 @@ describe('a limit on the feed is not a limit on the login', () => {
     expect(finding?.status).toBe('passed');
   });
 
+  /**
+   * The same defect in the other direction, found on a real repository.
+   *
+   * dokploy has a settings form where its *users* configure limits on the API keys
+   * they issue: `rateLimitEnabled: z.boolean().optional()` in a zod schema. The
+   * application itself throttles nothing — no package, no 429 anywhere in its source
+   * — and the report said it was throttled, because `/rate_?limit/i` matched a field
+   * name.
+   *
+   * `429`, `Retry-After` and `TooManyRequests` stay, because nobody chose them: they
+   * are what HTTP calls this. The word "rateLimit" is what somebody called a checkbox.
+   */
+  it('does not read a form field named rateLimitEnabled as throttling', async () => {
+    const finding = await rateLimitFinding('rate-limit-is-a-form-field');
+
+    expect(finding?.status).toBe('missing');
+  });
+
   it('reads a limiter mounted on a prefix as covering what is mounted under it', async () => {
     // `app.use('/api/', gate)` above `app.use('/api/auth', authRoutes)`: the router is
     // in another file and the coverage is still readable, because both mount paths are
