@@ -338,9 +338,20 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     (f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown',
   ).length;
 
+  /**
+   * A required capability the profile cannot find is the third bar.
+   *
+   * Not counted for a profile that requires nothing, and not counted where no profile
+   * was applied: both of those are the absence of a question rather than a failed
+   * answer, which is the distinction the rest of this report now draws everywhere.
+   */
+  const blockingRequired = productProfile && productProfile.selectedProfile !== 'auto'
+    ? productProfile.gap.requiredMissing + productProfile.gap.requiredPartial
+    : 0;
+
   const overallScore = inconclusive
     ? null
-    : mayClaimTopBand(coverage, openCriticals)
+    : mayClaimTopBand(coverage, openCriticals, blockingRequired)
       ? scoreAfterInconclusive
       : Math.min(scoreAfterInconclusive, TOP_BAND_CEILING);
 

@@ -77,8 +77,12 @@ export function coverageSupportsTopBand(coverage: ScoreCoverage): boolean {
  * apart again: they did, and the number went on reading 98 above every real product in
  * the corpus while the label said `partial`.
  */
-export function mayClaimTopBand(coverage: ScoreCoverage, openCriticals: number): boolean {
-  return coverageSupportsTopBand(coverage) && openCriticals === 0;
+export function mayClaimTopBand(
+  coverage: ScoreCoverage,
+  openCriticals: number,
+  blockingRequired = 0,
+): boolean {
+  return coverageSupportsTopBand(coverage) && openCriticals === 0 && blockingRequired === 0;
 }
 
 /**
@@ -90,6 +94,20 @@ export function mayClaimTopBand(coverage: ScoreCoverage, openCriticals: number):
  * category scores have refused to let a critical hide behind passing checks since the
  * severity ceiling was added — "a category with one critical and nine passing checks is
  * not 90% healthy" — and the report's own headline had not learned it.
+ */
+/**
+ * A capability the profile calls essential, missing or half-built.
+ *
+ * The third bar on the top band, and the one a reader could see for themselves.
+ * firefly-iii was labelled "Production ready" directly above the sentence "This
+ * project is not ready to launch as B2C App: 3 essential capabilities are missing or
+ * incomplete" — two labels on one page contradicting each other. Five of the
+ * eighty-two repositories measured read that way, this product's own web application
+ * among them.
+ *
+ * The two answer different questions and the words do not care: "production ready" is
+ * a claim about readiness, and something the profile calls essential and cannot find
+ * is by definition blocking. The band is the thing that has to give.
  */
 export function computeMaturity(
   score: number,
