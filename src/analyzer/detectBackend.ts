@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRustDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
+import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRuntimeRustDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import {
@@ -134,7 +134,7 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   let namedRustFramework = false;
 
   for (const [framework, deps] of RUST_BACKEND_FRAMEWORKS) {
-    const hits = hasAnyRustDep(ctx, deps);
+    const hits = hasAnyRuntimeRustDep(ctx, deps);
     if (!hits.length) continue;
 
     namedRustFramework = true;

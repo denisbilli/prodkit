@@ -1,0 +1,9 @@
+[package]
+name = "sse-client"
+version = "0.1.0"
+
+[dependencies]
+reqwest = "0.12"
+
+[dev-dependencies]
+rocket = "0.5.1"

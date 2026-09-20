@@ -1,0 +1,11 @@
+[package]
+name = "search-engine"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+axum = "0.7"

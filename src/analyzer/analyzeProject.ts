@@ -158,7 +158,30 @@ function isTestOrExamplePath(file: string): boolean {
      * band — against a line written to be fake.
      */
     || /[-_]tests?\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
-    || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file);
+    || /\.(test|spec)\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
+    /**
+     * Sample code, which is what a documentation repository is made of.
+     *
+     * Every one of ktor-documentation's 435 Kotlin files sits under
+     * `codeSnippets/snippets/`, and the report judged them as a product: nine essential
+     * capabilities missing at `high`, including email verification and GDPR consent,
+     * for a repository that is documentation.
+     *
+     * `examples` was already here in the sense that mattered to Node; `samples` and
+     * `snippets` are the same idea spelled the way the JVM and the Rust ecosystems
+     * spell it. A repository whose every source file is a sample now has no source
+     * files, and says so — which is the honest answer for one.
+     */
+    || /(^|\/)(samples?|snippets?|codesnippets)(\/|$)/i.test(file)
+    /**
+     * Somebody else's code, vendored in.
+     *
+     * meilisearch was reported as using Rocket. Rocket appears once in the repository,
+     * as a dev-dependency of `external-crates/reqwest-eventsource` — a third-party
+     * crate copied in whole. A manifest under a vendor directory is a statement about
+     * that library, not about this product.
+     */
+    || /(^|\/)(vendor|vendored|third[-_]?party|external[-_]crates)(\/|$)/i.test(file);
 }
 
 /**
@@ -328,6 +351,19 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   const packageJsonRaw = await readJsonSafe<PackageJson>(root, 'package.json');
   const packageJson = packageJsonRaw ? packageJsonSchema.parse(packageJsonRaw) : null;
 
+  /**
+   * The manifests this project owns, without the ones it merely contains.
+   *
+   * A vendored crate, a sample application and a test harness each carry a manifest,
+   * and each says something about itself rather than about the product. meilisearch
+   * was reported as using Rocket on the strength of a dev-dependency inside
+   * `external-crates/reqwest-eventsource` — a third-party library copied in whole.
+   *
+   * The same rule the source list has always used, applied to the file list the
+   * manifest readers walk.
+   */
+  const ownManifests = allFiles.filter((f) => !isTestOrExamplePath(f));
+
   const packageJsonFiles = allFiles.filter((f) => f.endsWith('package.json'));
   const requirementsFiles = allFiles.filter((f) => /(^|\/)requirements\.txt$/i.test(f));
   const pyprojectFiles = allFiles.filter((f) => /(^|\/)pyproject\.toml$/i.test(f));
@@ -394,7 +430,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    */
   const goDeps: string[] = [];
 
-  for (const file of allFiles.filter((f) => /(^|\/)go\.mod$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)go\.mod$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     for (const line of raw.split('\n')) {
@@ -417,10 +453,20 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    * read.
    */
   const rustDeps: string[] = [];
+  /**
+   * The crates the product ships with, without the ones it only builds and tests with.
+   *
+   * meilisearch was reported as using Rocket, from a `[dev-dependencies]` block. The
+   * same distinction `runtimeNpmDeps` draws for the reason axios taught: a web
+   * framework in dev-dependencies is a test server, and the question "what serves the
+   * requests" is answered by what ships.
+   */
+  const runtimeRustDeps: string[] = [];
 
-  for (const file of allFiles.filter((f) => /(^|\/)Cargo\.toml$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)Cargo\.toml$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
     let inDeps = false;
+    let runtimeSection = false;
 
     for (const line of raw.split('\n')) {
       const heading = /^\s*\[([^\]]+)\]/.exec(line);
@@ -428,17 +474,23 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
         const section = heading[1].trim();
         const nested = /^(?:[a-z-]+\.)?(?:dependencies|dev-dependencies|build-dependencies)\.(.+)$/.exec(section);
         if (nested) {
-          rustDeps.push(nested[1].trim().toLowerCase());
+          const crate = nested[1].trim().toLowerCase();
+          rustDeps.push(crate);
+          if (/(^|\.)dependencies\./.test(section)) runtimeRustDeps.push(crate);
           inDeps = false;
           continue;
         }
         inDeps = /(^|\.)(dependencies|dev-dependencies|build-dependencies)$/.test(section);
+        runtimeSection = /(^|\.)dependencies$/.test(section);
         continue;
       }
       if (!inDeps) continue;
 
       const entry = /^\s*([A-Za-z0-9_-]+)\s*=/.exec(line);
-      if (entry) rustDeps.push(entry[1].toLowerCase());
+      if (entry) {
+        rustDeps.push(entry[1].toLowerCase());
+        if (runtimeSection) runtimeRustDeps.push(entry[1].toLowerCase());
+      }
     }
   }
 
@@ -453,7 +505,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    */
   const dartDeps: string[] = [];
 
-  for (const file of allFiles.filter((f) => /(^|\/)pubspec\.yaml$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)pubspec\.yaml$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
     let inDeps = false;
 
@@ -518,7 +570,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    */
   const gradleDeps: string[] = [];
 
-  for (const file of allFiles.filter((f) => /(^|\/)pom\.xml$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)pom\.xml$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     for (const match of raw.matchAll(
@@ -528,7 +580,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     }
   }
 
-  for (const file of allFiles.filter((f) => /(^|\/)build\.gradle(\.kts)?$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)build\.gradle(\.kts)?$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     for (const match of raw.matchAll(
@@ -539,7 +591,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     }
   }
 
-  for (const file of allFiles.filter((f) => /(^|\/)libs\.versions\.toml$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)libs\.versions\.toml$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     // Two spellings, both common: group and name as separate keys, or one `module`
@@ -571,7 +623,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    */
   const swiftDeps: string[] = [];
 
-  for (const file of allFiles.filter((f) => /(^|\/)Package\.swift$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)Package\.swift$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     for (const match of raw.matchAll(/\.package\s*\(\s*url:\s*["']https?:\/\/[^"']*?\/([^/"']+?)\/([^/"']+?)(?:\.git)?["']/g)) {
@@ -579,7 +631,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     }
   }
 
-  for (const file of allFiles.filter((f) => /(^|\/)Podfile$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)Podfile$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     for (const match of raw.matchAll(/^\s*pod\s+["']([^"'/]+)/gm)) {
@@ -603,7 +655,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   const dotnetDeps: string[] = [];
   let dotnetWebSdk = false;
 
-  for (const file of allFiles.filter((f) => /\.(csproj|fsproj|vbproj)$/i.test(f))) {
+  for (const file of ownManifests.filter((f) => /\.(csproj|fsproj|vbproj)$/i.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     if (/Sdk\s*=\s*["']Microsoft\.NET\.Sdk\.Web["']/i.test(raw)) dotnetWebSdk = true;
@@ -619,7 +671,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
 
   const rubyDeps: string[] = [];
 
-  for (const file of allFiles.filter((f) => /(^|\/)Gemfile$/.test(f))) {
+  for (const file of ownManifests.filter((f) => /(^|\/)Gemfile$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';
 
     for (const line of raw.split('\n')) {
@@ -727,6 +779,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     phpDeps: unique(phpDeps),
     goDeps: unique(goDeps),
     rustDeps: unique(rustDeps),
+    runtimeRustDeps: unique(runtimeRustDeps),
     rubyDeps: unique(rubyDeps),
     dotnetDeps: unique(dotnetDeps),
     dotnetWebSdk,

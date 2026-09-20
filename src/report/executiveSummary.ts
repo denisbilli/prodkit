@@ -166,10 +166,23 @@ function buildVerdict(args: {
     };
   }
 
-  if (!args.profile) {
+  /**
+   * No profile applied is not a profile satisfied.
+   *
+   * An inconclusive inference produces a profile record with an empty gap — nothing
+   * required, so nothing missing — and the verdict read "This project covers
+   * everything expected of Auto (inconclusive). What remains is refinement, not
+   * blockers." meilisearch, a search engine somebody self-hosts, was told it was ready
+   * to launch because no expectations had been applied to it.
+   *
+   * It is the same mistake as every other one this run has found, in the strongest
+   * possible direction: absence read as satisfaction.
+   */
+  if (!args.profile || args.profile.selectedProfile === 'auto') {
     return {
       verdict: `Judged on its code alone, this project looks like ${MATURITY_LABEL[args.maturity]}. Choose a product profile to see what it would still need to launch.`,
-      launchReady: args.maturity === 'production_ready',
+      // Launch readiness is a question about a profile. Without one it was not asked.
+      launchReady: args.profile ? null : args.maturity === 'production_ready',
     };
   }
 

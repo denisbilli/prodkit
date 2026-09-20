@@ -30,6 +30,8 @@ export interface DetectContext {
   goDeps: string[];
   /** Crate names from Cargo.toml, lowercase. */
   rustDeps: string[];
+  /** Of those, the ones the product ships with rather than only builds and tests with. */
+  runtimeRustDeps: string[];
   /** Gem names from the Gemfile, lowercase. */
   rubyDeps: string[];
   /** PackageReference and FrameworkReference names from .csproj, lowercase. */
@@ -93,6 +95,11 @@ export function hasPyDep(ctx: DetectContext, name: string): boolean {
 
 export function hasAnyRustDep(ctx: DetectContext, names: string[]): string[] {
   return names.filter((name) => ctx.rustDeps.includes(name.toLowerCase()));
+}
+
+/** The Rust counterpart of `hasRuntimeDep`: shipped, not merely present. */
+export function hasAnyRuntimeRustDep(ctx: DetectContext, names: string[]): string[] {
+  return names.filter((name) => ctx.runtimeRustDeps.includes(name.toLowerCase()));
 }
 
 export function hasAnyPyDep(ctx: DetectContext, names: string[]): string[] {
