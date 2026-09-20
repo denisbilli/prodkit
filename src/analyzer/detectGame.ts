@@ -121,6 +121,15 @@ async function detectEngine(ctx: DetectContext): Promise<DetectorResult> {
   const conclusive = engineDeps.length > 0 || engineFiles.length > 0;
 
   /**
+   * Whether the game ships as a binary rather than as a page.
+   *
+   * `ENGINE_FILES` are the project files of engines that build an executable — Godot,
+   * Unreal, Unity, LÖVE — and `ENGINE_DEPS` are the ones that run in a browser. The
+   * difference decides whether questions about HTTP caching mean anything here at all.
+   */
+  const nativeEngine = engineFiles.length > 0 && engineDeps.length === 0;
+
+  /**
    * How much a project looks like a game without proving it.
    *
    * Counted rather than decided. No single one of these is a game — a renderer is a
@@ -143,6 +152,7 @@ async function detectEngine(ctx: DetectContext): Promise<DetectorResult> {
     details: {
       engines: engineDeps,
       engineFiles,
+      nativeEngine,
       supporting,
       frameLoop: loops.length > 0,
       realtime,
@@ -205,7 +215,32 @@ async function detectStatePersistence(ctx: DetectContext): Promise<DetectorResul
    * memory, written nowhere, gone when the operating system reclaims the process.
    */
   const deviceStore = await readLocalStores(ctx, 3);
-  const onDevice = deviceStore.dependencies.length > 0 || deviceStore.uses.length > 0;
+
+  /**
+   * Where a game that is not in a browser writes a save.
+   *
+   * `localStorage` is the browser's, and the engines each have their own: `PlayerPrefs`
+   * and `Application.persistentDataPath` are Unity's, `love.filesystem` is LÖVE's,
+   * `FileAccess` and `ConfigFile` are Godot's. Every one is the name its engine
+   * defines, so a call to it is the capability rather than a word that tends to
+   * accompany it.
+   */
+  const engineSaves = await searchInFiles(
+    ctx.root,
+    ctx.files.source,
+    [
+      /PlayerPrefs\s*\.\s*(Set|Get)/,
+      /Application\s*\.\s*persistentDataPath/,
+      /love\s*\.\s*filesystem\s*\.\s*(write|read|newFile)/,
+      /\bConfigFile\s*\.\s*new\s*\(|\bFileAccess\s*\.\s*open\s*\(/,
+    ],
+    3,
+  );
+  for (const hit of engineSaves) {
+    evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
+  }
+
+  const onDevice = deviceStore.dependencies.length > 0 || deviceStore.uses.length > 0 || engineSaves.length > 0;
 
   const durable = serverStore || onDevice;
 

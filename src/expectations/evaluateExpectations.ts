@@ -213,6 +213,24 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
 
       return 'missing';
     }
+    /**
+     * A question about HTTP caching, asked of a game that ships as a binary.
+     *
+     * `Cache-Control`, `_headers` and `vercel.json` are how a browser is told to keep
+     * the assets, and every one of the five game fixtures — Unity, LÖVE and three web
+     * ones alike — was told at `high` that it has none. For the native two there is no
+     * browser to tell: the assets are inside the executable the player downloaded
+     * once. The capability is written for one delivery medium and was required of
+     * both.
+     *
+     * `not_applicable` rather than `unknown`: this is not a question that went
+     * unasked, it is one that does not arise.
+     */
+    case 'app.asset-delivery': {
+      if (detector(analysis, 'game.engine')?.details?.nativeEngine === true) return 'not_applicable';
+
+      return detector(analysis, 'app.assetDelivery')?.present ? 'present' : 'missing';
+    }
     case 'jobs.background': {
       return detector(analysis, 'jobs.background')?.present ? 'present' : 'missing';
     }
