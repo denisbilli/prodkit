@@ -3,7 +3,14 @@ import type { Category, Finding, Severity } from './types';
 export interface CategoryScore {
   category: Category;
   /** 0-100. 100 means nothing actionable was found in this category. */
-  score: number;
+  /**
+   * `null` where nothing in the analysis touched this category.
+   *
+   * `notAssessed` has been beside it for a while and the number went on saying 100.
+   * On a report with no overall score at all, twelve categories still read 100 of 100
+   * — a repository the analyzer could not read, presented as perfect in twelve areas.
+   */
+  score: number | null;
   findingCount: number;
   /** Checks that ran and found what they were looking for. */
   verifiedCount: number;
@@ -127,10 +134,11 @@ export function buildCategoryScores(findings: Finding[]): CategoryScore[] {
       'info',
     );
     const ceiling = SEVERITY_CEILING[worstOpen];
+    const notAssessed = categoryFindings.every((finding) => finding.status === 'unknown');
 
     return {
       category,
-      score: Math.max(0, Math.min(100, proportional, ceiling)),
+      score: notAssessed ? null : Math.max(0, Math.min(100, proportional, ceiling)),
       findingCount: actionable.length,
       /** Checks in this category that ran and found what they were looking for. */
       verifiedCount: assessed.filter((finding) => finding.status === 'passed').length,
@@ -147,7 +155,7 @@ export function buildCategoryScores(findings: Finding[]): CategoryScore[] {
        * A Django school platform with no payments anywhere was reported as having
        * "no issues found in taking payments", as a strength.
        */
-      notAssessed: categoryFindings.every((finding) => finding.status === 'unknown'),
+      notAssessed,
     };
   });
 }
@@ -156,6 +164,6 @@ export function buildCategoryScores(findings: Finding[]): CategoryScore[] {
 export function weakestCategories(scores: CategoryScore[], limit = 3): CategoryScore[] {
   return [...scores]
     .filter((entry) => !entry.notAssessed && entry.findingCount > 0)
-    .sort((left, right) => left.score - right.score || right.criticalCount - left.criticalCount)
+    .sort((left, right) => (left.score ?? 100) - (right.score ?? 100) || right.criticalCount - left.criticalCount)
     .slice(0, limit);
 }

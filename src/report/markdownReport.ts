@@ -44,8 +44,10 @@ function profileSummary(report: ProductionReadinessReport): string[] {
     `- Selected profile: ${profile.selectedProfile}`,
     `- Profile: ${profile.profileTitle}`,
     `- Description: ${profile.profileDescription}`,
-    `- Observed score: ${report.observedScore}/100`,
-    `- Expected capability score: ${report.expectedCapabilityScore}/100`,
+    report.observedScore === null ? '- Observed score: not scored' : `- Observed score: ${report.observedScore}/100`,
+    report.expectedCapabilityScore === undefined
+      ? '- Expected capability score: not measured'
+      : `- Expected capability score: ${report.expectedCapabilityScore}/100`,
     report.overallScore === null ? '- Final score: not scored' : `- Final score: ${report.overallScore}/100`,
     '- Capability summary:',
     `- Required: ${requiredPresent} present / ${requiredMissing} missing / ${requiredPartial} partial`,
@@ -147,7 +149,8 @@ function categoryScoreSection(report: ProductionReadinessReport): string[] {
     '| Area | Score | Verified | Open findings | Critical |',
     '| --- | --- | --- | --- | --- |',
     ...assessed.map(
-      (entry) => `| ${entry.category} | ${entry.score}/100 | ${entry.verifiedCount} of ${entry.assessedCount} | ${entry.findingCount} | ${entry.criticalCount} |`,
+      (entry) =>
+        `| ${entry.category} | ${entry.score === null ? 'not scored' : `${entry.score}/100`} | ${entry.verifiedCount} of ${entry.assessedCount} | ${entry.findingCount} | ${entry.criticalCount} |`,
     ),
     '',
   ];
@@ -244,7 +247,7 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '## Score',
     '',
     report.overallScore === null ? '- Overall score: not scored' : `- Overall score: ${report.overallScore}/100`,
-    `- Observed score: ${report.observedScore}/100`,
+    report.observedScore === null ? '- Observed score: not scored' : `- Observed score: ${report.observedScore}/100`,
     ...(report.expectedCapabilityScore !== undefined ? [`- Expected capability score: ${report.expectedCapabilityScore}/100`] : []),
     `- Maturity level: ${report.maturityLevel}${report.inconclusive ? ' (inconclusive)' : ''}`,
     /**
@@ -260,7 +263,7 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
       : []),
     ...(report.inconclusive
       ? [
-        '- Assessment: INCONCLUSIVE — the score is capped because the project could not be recognized:',
+        '- Assessment: INCONCLUSIVE — this report has no score, for these reasons:',
         ...report.inconclusiveReasons.map((r) => `  - ${r}`),
       ]
       : []),

@@ -197,7 +197,7 @@ function buildStrengths(categoryScores: CategoryScore[], findings: Finding[]): s
     .filter(
       (entry) =>
         !entry.notAssessed
-        && entry.score >= 80
+        && (entry.score ?? 0) >= 80
         && entry.findingCount === 0
         && passedCategories.has(entry.category),
     );
@@ -229,7 +229,7 @@ export function buildExecutiveSummary(args: {
   categoryScores: CategoryScore[];
   profile: ProductExpectationResult | undefined;
   maturity: MaturityLevel;
-  observedScore: number;
+  observedScore: number | null;
   overallScore: number | null;
   inconclusive: boolean;
   /** Why, when the report could not form a reading. Named in the verdict. */

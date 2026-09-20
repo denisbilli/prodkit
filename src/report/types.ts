@@ -119,7 +119,8 @@ export interface ReportDiagnostics {
 export interface ProductionReadinessReport {
   projectPath: string;
   generatedAt: string;
-  observedScore: number;
+  /** `null` where the reading is inconclusive, for the same reason `overallScore` is. */
+  observedScore: number | null;
   expectedCapabilityScore?: number;
   /**
    * `null` where the reading is inconclusive, which is the same rule this product

@@ -348,6 +348,16 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     ? 'inconclusive'
     : computeMaturity(overallScore, coverage, openCriticals);
 
+  /**
+   * The observed half goes with it.
+   *
+   * "Overall score: not scored" printed directly above "Observed score: 100/100" —
+   * the report refusing to characterise a repository and then praising it in the next
+   * line. The observed number is the same arithmetic over the same three checks: if
+   * it cannot support a reading it cannot support half of one either.
+   */
+  const reportedObservedScore = inconclusive ? null : observedScore;
+
   const findingsByCategory = Object.fromEntries(CATEGORIES.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
   for (const f of findings) findingsByCategory[f.category].push(f);
 
@@ -400,7 +410,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     categoryScores,
     profile: productProfile,
     maturity: maturityLevel,
-    observedScore,
+    observedScore: reportedObservedScore,
     overallScore,
     inconclusive,
     inconclusiveReasons,
@@ -432,7 +442,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   return {
     projectPath: analysis.projectPath,
     generatedAt: new Date().toISOString(),
-    observedScore,
+    observedScore: reportedObservedScore,
     expectedCapabilityScore: expectationScore,
     overallScore,
     maturityLevel,
