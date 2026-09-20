@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readLookupTableLines } from './structural/lookupTables';
+import { readHardcodedSecretArguments } from './structural/secretArguments';
 
 const WEAK_SECRET_VALUE_RE =
   /(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)/i;
@@ -147,6 +148,21 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
   const lookupTables = await readLookupTableLines(ctx.root, sourceFiles);
   const isTableEntry = (match: { file: string; line: number }): boolean =>
     lookupTables?.get(match.file)?.has(match.line) === true;
+
+  /**
+   * The other end of the value, where the library says what it is.
+   *
+   * Everything above starts from the name being assigned, and the name is the
+   * author's: an Italian application signing with `const chiave =
+   * process.env.CHIAVE_FIRMA || 'cambiami'` came back `passed`. `jwt.sign(payload,
+   * secret)` defines its second argument, and arriving there is what makes a literal
+   * a secret whatever it was called on the way.
+   */
+  const secretArguments = await readHardcodedSecretArguments(ctx.root, sourceFiles);
+  for (const hit of secretArguments ?? []) {
+    weakSecretEvidence.push({ type: 'snippet', value: `${hit.snippet}  — reaches ${hit.sink}`, file: hit.file, line: hit.line });
+    weakSecretByType.unknown.push({ type: 'snippet', value: `${hit.snippet}  — reaches ${hit.sink}`, file: hit.file, line: hit.line });
+  }
 
   const weakHits = fallbackHits.filter(
     (m) => WEAK_SECRET_VALUE_RE.test(m.snippet)
