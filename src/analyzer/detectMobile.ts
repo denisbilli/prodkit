@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import { hasAnyDartDep, hasAnyDep, hasAnyGradleDep, hasAnySwiftDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { searchInFiles } from '../utils/textSearch';
+import { readLocalStores } from './localStores';
 import { evidenceOrSearch } from './absenceEvidence';
 
 /**
@@ -74,39 +75,6 @@ const SECURE_STORAGE_SWIFT = [
   'valet',
 ];
 
-/** Local databases, by platform, that let an app open without a network. */
-const OFFLINE_GRADLE = ['androidx.room', 'io.realm', 'io.objectbox', 'com.squareup.sqldelight', 'app.cash.sqldelight'];
-const OFFLINE_SWIFT = [
-  'groue/grdb.swift',
-  'grdb.swift',
-  'stephencelis/sqlite.swift',
-  'sqlite.swift',
-  'realm/realm-swift',
-  'realm/realm-cocoa',
-  'realmswift',
-];
-
-/**
- * Local storage the platform itself provides, which no dependency list will hold.
- *
- * Every entry in the lists above is a third-party database, and the two most widely
- * used stores on these platforms ship with the operating system: Core Data on Apple's,
- * `SQLiteDatabase` on Android's. Measured on two real applications whose whole purpose
- * is working without a network — WordPress-iOS keeps its posts in Core Data,
- * thunderbird-android keeps its mail in SQLite — and both were told at `high` that they
- * store nothing locally.
- *
- * These are types the platform defines, not names an author picked: `NSManagedObjectContext`
- * belongs to Core Data and appears nowhere else, and `getWritableDatabase()` is the one
- * way an Android application opens its own database.
- */
-const PLATFORM_LOCAL_STORES = [
-  /NSPersistentContainer|NSManagedObjectContext|NSPersistentStoreCoordinator/,
-  /ModelContainer\s*\(|@Model\b/,
-  /SQLiteOpenHelper|getWritableDatabase\s*\(|getReadableDatabase\s*\(/,
-  /android\.database\.sqlite\.SQLiteDatabase/,
-];
-
 /** Dependencies that put a secret somewhere the operating system protects. */
 const SECURE_STORAGE_DEPS = [
   'flutter_secure_storage',
@@ -115,23 +83,6 @@ const SECURE_STORAGE_DEPS = [
   'react-native-encrypted-storage',
   '@capacitor/preferences',
   'capacitor-secure-storage-plugin',
-];
-
-/** Dependencies whose whole purpose is that the app works with no network. */
-const OFFLINE_DEPS = [
-  'sqflite',
-  'drift',
-  'hive',
-  'isar',
-  'objectbox',
-  'realm',
-  'watermelondb',
-  '@nozbe/watermelondb',
-  'react-native-mmkv',
-  '@react-native-async-storage/async-storage',
-  'redux-persist',
-  '@tanstack/query-persist-client-core',
-  'powersync',
 ];
 
 /**
@@ -365,12 +316,8 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     })),
   ];
 
-  const offlineDeps = [
-    ...hasAnyDep(ctx, OFFLINE_DEPS),
-    ...hasAnyDartDep(ctx, OFFLINE_DEPS),
-    ...hasAnyGradleDep(ctx, OFFLINE_GRADLE),
-    ...hasAnySwiftDep(ctx, OFFLINE_SWIFT),
-  ];
+  const localStores = await readLocalStores(ctx);
+  const offlineDeps = localStores.dependencies;
 
   /**
    * A local database is the strong signal; knowing the network dropped is the weak
@@ -384,7 +331,7 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     3,
   );
 
-  const platformStores = await searchInFiles(ctx.root, ctx.files.source, PLATFORM_LOCAL_STORES, 3);
+  const platformStores = localStores.uses;
 
   const offlineEvidence: DetectorEvidence[] = [
     ...offlineDeps.map<DetectorEvidence>((dep) => ({ type: 'dependency', value: dep })),

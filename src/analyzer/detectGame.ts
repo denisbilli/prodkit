@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { readLocalStores } from './localStores';
 import { evidenceOrSearch } from './absenceEvidence';
 
 /**
@@ -184,12 +185,35 @@ async function detectStatePersistence(ctx: DetectContext): Promise<DetectorResul
 
   // A database is the durable half. Read from the stack rather than re-detected, so
   // this agrees with what the report says the data layer is.
-  const durable = ctx.files.all.some((file) => /(^|\/)(schema\.prisma|.*\.sql)$/i.test(file))
+  const serverStore = ctx.files.all.some((file) => /(^|\/)(schema\.prisma|.*\.sql)$/i.test(file))
     || Boolean(ctx.packageJson?.dependencies?.pg)
     || Boolean(ctx.packageJson?.dependencies?.mongoose)
     || Boolean(ctx.packageJson?.dependencies?.['better-sqlite3']);
 
-  if (durable) evidence.push({ type: 'note', value: 'a durable store is present' });
+  /**
+   * On a device, the local store is the durable one.
+   *
+   * This whole check was written for a game in a browser, where `localStorage` is the
+   * partial case because a cleared cache takes the save with it. That reasoning does
+   * not carry to a phone: Core Data and SQLite survive the application being killed,
+   * the device restarting and the person coming back a week later — they are the
+   * durable half there, not the fragile one.
+   *
+   * It is required of the mobile-app profile, and all four real applications measured
+   * came back `partial` on it while keeping everything they own on disk. The failure
+   * this should catch on a phone is different and still caught: state held only in
+   * memory, written nowhere, gone when the operating system reclaims the process.
+   */
+  const deviceStore = await readLocalStores(ctx, 3);
+  const onDevice = deviceStore.dependencies.length > 0 || deviceStore.uses.length > 0;
+
+  const durable = serverStore || onDevice;
+
+  if (serverStore) evidence.push({ type: 'note', value: 'a durable store is present' });
+  for (const dep of deviceStore.dependencies) evidence.push({ type: 'dependency', value: dep });
+  for (const use of deviceStore.uses) {
+    evidence.push({ type: 'snippet', value: use.snippet, file: use.file, line: use.line });
+  }
 
   const saves = clientOnly.length > 0 || saveRoutes.length > 0;
 
@@ -198,8 +222,8 @@ async function detectStatePersistence(ctx: DetectContext): Promise<DetectorResul
     present: saves || durable,
     // Client storage alone is the partial case: it saves, until it does not.
     complete: durable,
-    evidence: evidenceOrSearch(evidence, 'anywhere progress is written down', ['localStorage', 'sessionStorage', 'IndexedDB', 'a save route', 'schema.prisma', 'a .sql file', 'pg', 'mongoose', 'better-sqlite3']),
-    details: { durable, clientStorage: clientOnly.length > 0, saveRoutines: saveRoutes.length },
+    evidence: evidenceOrSearch(evidence, 'anywhere progress is written down', ['localStorage', 'sessionStorage', 'IndexedDB', 'a save route', 'schema.prisma', 'a .sql file', 'pg', 'mongoose', 'better-sqlite3', 'Core Data', 'SQLiteOpenHelper', 'Room', 'sqflite']),
+    details: { durable, serverStore, onDevice, clientStorage: clientOnly.length > 0, saveRoutines: saveRoutes.length },
   };
 }
 

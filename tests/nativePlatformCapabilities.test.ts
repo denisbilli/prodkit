@@ -57,6 +57,24 @@ describe('capabilities the platform provides rather than a package', () => {
   });
 
   /**
+   * `app.state-durability` asks the same question from the other side, and answered it
+   * with the browser's vocabulary: `localStorage` as the fragile case, Prisma or `pg`
+   * as the durable one. On a phone that reasoning inverts — Core Data and SQLite
+   * survive the process being killed, the device restarting and the person coming back
+   * a week later. All four real applications measured came back `partial` while
+   * keeping everything they own on disk.
+   */
+  it('counts an on-device store as durable, not as the fragile case', async () => {
+    const analysis = await analyzeProject(fixture('ios-core-data-and-crashes'));
+    const durability = analysis.detectors['app.stateDurability'];
+
+    expect(durability?.present).toBe(true);
+    expect(durability?.complete).toBe(true);
+    expect(durability?.details?.onDevice).toBe(true);
+    expect(durability?.details?.serverStore).toBe(false);
+  });
+
+  /**
    * The direction this must not drift in: the point is not that mobile applications
    * pass, it is that the question is asked of them. A repository with neither a local
    * store nor a crash handler still says so.
@@ -66,5 +84,6 @@ describe('capabilities the platform provides rather than a package', () => {
 
     expect(analysis.detectors['mobile.offline']?.present).toBe(false);
     expect(analysis.detectors['observability.errorReporting']?.present).toBe(false);
+    expect(analysis.detectors['app.stateDurability']?.complete).toBe(false);
   });
 });
