@@ -315,18 +315,37 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     }
   }
 
-  // Django
+  /**
+   * Django, which four filenames were enough to declare.
+   *
+   * Any two of `manage.py`, a file ending in `settings.py`, a file ending in `urls.py`
+   * and the dependency named Django, and three of those four are names other projects
+   * use. redash is a Flask application: it keeps a `manage.py`, and
+   * `redash/handlers/settings.py` is the HTTP handler for a user's settings page. Its
+   * report said "Backend: flask, django".
+   *
+   * The dependency is the fact — nobody runs Django without installing it — and the
+   * filenames only corroborate it.
+   *
+   * A fallback for the unreadable-manifest case was written and deleted: a settings
+   * file declaring `INSTALLED_APPS` would have stood on its own, and no repository
+   * measured reaches it, because every Django project declares Django. The mutation
+   * run said so — removing it failed nothing. A rule nothing measures is a rule to
+   * delete.
+   */
   const djangoSignals: DetectorEvidence[] = [];
+  const djangoDep = hasRuntimePyDep(ctx, 'django');
+  if (djangoDep) djangoSignals.push({ type: 'dependency', value: 'django' });
   if (ctx.files.all.some((f) => f.endsWith('manage.py') || f === 'manage.py')) {
     djangoSignals.push({ type: 'file', value: 'manage.py' });
   }
   const settingsFile = ctx.files.all.find((f) => f.endsWith('settings.py'));
   if (settingsFile) djangoSignals.push({ type: 'file', value: settingsFile });
-  if (hasRuntimePyDep(ctx, 'django')) djangoSignals.push({ type: 'dependency', value: 'django' });
   if (ctx.files.all.some((f) => f.endsWith('urls.py'))) {
     djangoSignals.push({ type: 'file', value: ctx.files.all.find((f) => f.endsWith('urls.py'))! });
   }
-  if (djangoSignals.length >= 2) {
+
+  if (djangoDep && djangoSignals.length >= 2) {
     frameworks.push('django');
     evidence.push(...djangoSignals);
   }

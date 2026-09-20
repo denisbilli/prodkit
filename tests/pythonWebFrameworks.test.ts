@@ -117,3 +117,33 @@ describe('security headers in Django', () => {
     expect(statusOf(report, 'security.helmet')).toBe('missing');
   });
 });
+
+/**
+ * Django, which four filenames were enough to declare.
+ *
+ * Any two of `manage.py`, a file ending in `settings.py`, a file ending in `urls.py`
+ * and the dependency, and three of those four are names other projects use. redash is
+ * a Flask application: it keeps a `manage.py`, and `redash/handlers/settings.py` is
+ * the HTTP handler for a user's settings page. Its report said
+ * "Backend: flask, django".
+ */
+describe('naming Django', () => {
+  it('does not name it from filenames another framework also uses', async () => {
+    const analysis = await analyzeProject(fixture('flask-with-a-settings-handler'));
+
+    expect(analysis.stack.backend).toContain('flask');
+    expect(analysis.stack.backend).not.toContain('django');
+  });
+
+  it('still names it where the manifest does', async () => {
+    const analysis = await analyzeProject(fixture('django-basic'));
+
+    expect(analysis.stack.backend).toContain('django');
+  });
+
+  it('names it where the settings live in a package rather than a module', async () => {
+    const analysis = await analyzeProject(fixture('django-settings-package'));
+
+    expect(analysis.stack.backend).toContain('django');
+  });
+});
