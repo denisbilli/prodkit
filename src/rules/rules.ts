@@ -390,7 +390,18 @@ export const rules: Rule[] = [
       const sec = analysis.detectors['security.core'];
       const hasAuth = Boolean(auth?.present);
       const hasRate = Boolean(sec?.details?.rateLimit);
-      const status: FindingStatus = !isExpress || !hasAuth ? 'unknown' : hasRate ? 'passed' : 'missing';
+      /**
+       * Near the login, not merely somewhere.
+       *
+       * This passed on `rateLimit` alone, which is throttling anywhere in the
+       * repository — a limiter on a public feed cleared the check for a sign-in page
+       * that has none. The rule's own passing sentence says "on the authentication
+       * surface", and now it only says that when something shows it.
+       */
+      const nearAuth = Boolean(sec?.details?.rateLimitNearAuth);
+      const status: FindingStatus = !isExpress || !hasAuth
+        ? 'unknown'
+        : nearAuth ? 'passed' : hasRate ? 'partial' : 'missing';
       return mkFinding({
         id: 'security.rate-limit-auth',
         title: 'Authentication rate limiting',
@@ -405,6 +416,8 @@ export const rules: Rule[] = [
          */
         description: status === 'passed'
           ? 'Rate limiting signals detected on the authentication surface.'
+          : status === 'partial'
+          ? 'Rate limiting is in place somewhere, but nothing here shows it covering sign-in.'
           : status === 'missing'
           ? 'No auth-focused rate limiting detected.'
           : !hasAuth

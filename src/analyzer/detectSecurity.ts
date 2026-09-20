@@ -162,6 +162,32 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   );
   const rateLimit = rateLimitDep || rateLimitSignals.length > 0;
 
+  /**
+   * Rate limiting where the brute force happens.
+   *
+   * The rule is titled "Rate limit on auth surfaces" and its own passing sentence says
+   * "detected on the authentication surface", and the flag behind both was rate
+   * limiting *anywhere*: a limiter on a public feed cleared the check for a sign-in
+   * page that has none. Sign-in is the endpoint the limit exists for.
+   *
+   * The same file, which is as far as this reaches honestly. Where a project splits
+   * the limiter from the login the answer becomes "found, not shown to cover sign-in",
+   * which is true and which the reader can dismiss in two seconds if they know better.
+   *
+   * A prefix rule was written for this and removed. TranscribeAI protects its login
+   * with `app.use('/api/', limiter)` above `app.use('/api/auth', authRoutes)`, and
+   * matching the limiter's mount path against the auth router's looked like the right
+   * generalisation — but the mount line says `limiter`, not `rateLimit`, so no rate
+   * limit signal is ever on it and the rule never fired on the one case it was written
+   * for. Following the variable would work and is a third layer of guessing on top of
+   * two; TranscribeAI stays `partial`, which is what this can show.
+   */
+  const authSurfaceFiles = new Set(
+    (await searchInFiles(ctx.root, source, [/['"`]\/(login|signin|sign-in|auth|session)/i, /passport\./, /signIn\s*\(/, /authenticate\s*\(/], 40))
+      .map((match) => match.file),
+  );
+  const rateLimitNearAuth = rateLimitSignals.some((match) => authSurfaceFiles.has(match.file));
+
   if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet', claim: 'headers' });
   if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package', claim: 'rate-limit' });
   for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
@@ -274,6 +300,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     details: {
       helmet,
       rateLimit,
+      rateLimitNearAuth,
       corsLoose: corsLoose.length > 0,
       corsStrict: corsStrict.length > 0,
       webhookSignature: webhookSig.length > 0,
