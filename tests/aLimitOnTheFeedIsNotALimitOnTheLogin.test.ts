@@ -75,6 +75,20 @@ describe('a limit on the feed is not a limit on the login', () => {
     expect(finding?.status).toBe('missing');
   });
 
+  /**
+   * Being throttled is not throttling.
+   *
+   * `\b429\b` matched both directions. nocodb's webhook invoker handles a 429 coming
+   * back from somebody else's server — this project being refused, the opposite of
+   * this project refusing — and it was among the lines behind "rate limiting is in
+   * place somewhere". HTTP names the number; the direction is in the shape around it.
+   */
+  it('does not read handling a 429 from somebody else as throttling', async () => {
+    const finding = await rateLimitFinding('receives-a-429');
+
+    expect(finding?.status).toBe('missing');
+  });
+
   it('reads a limiter mounted on a prefix as covering what is mounted under it', async () => {
     // `app.use('/api/', gate)` above `app.use('/api/auth', authRoutes)`: the router is
     // in another file and the coverage is still readable, because both mount paths are

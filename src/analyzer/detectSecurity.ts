@@ -199,10 +199,33 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * are what HTTP calls this, and a hand-rolled limiter that writes one of them is
    * really limiting something. The package and its binding cover the rest.
    */
+  /**
+   * Issuing the refusal, not receiving one.
+   *
+   * `\b429\b` matched both directions. nocodb's webhook invoker handles a 429 coming
+   * back from somebody else's server — that is this project being throttled, the
+   * opposite of this project throttling — and it was one of the lines behind "rate
+   * limiting is in place somewhere". Its login has no throttle at all: the global
+   * guard is an id extractor, and the rest of the matches are migrations, a SQL
+   * client and mock fixtures.
+   *
+   * `res.status(429)` and `throw new TooManyRequestsError` are a server refusing a
+   * caller. `if (response.status === 429)` is a client being refused. HTTP names the
+   * number; the direction is in the shape around it.
+   */
   const rateLimitSignals = await searchInFiles(
     ctx.root,
     source,
-    [/Retry-After/i, /\b429\b/, /TooManyRequests/i],
+    [
+      /\.status\(\s*429/,
+      /status(?:Code)?\s*[:=]\s*429/,
+      /sendStatus\(\s*429/,
+      /throw new \w*TooManyRequests/,
+      /abort\(\s*429/,
+      /HTTPException\(\s*429/,
+      /['"`]Retry-After['"`]\s*[,:]/i,
+      /setHeader\(\s*['"`]Retry-After/i,
+    ],
     20,
   );
   const rateLimit = rateLimitDep || rateLimitSignals.length > 0;
