@@ -145,6 +145,19 @@ export interface ProductionReadinessReport {
   findingsByCategory: Record<Category, Finding[]>;
   criticalIssues: Finding[];
   warnings: Finding[];
+  /**
+   * The observed rules that passed. Not the capabilities a profile asked for and found.
+   *
+   * Those live in `productProfile.capabilities`, every one of them, with its own
+   * status — and they are deliberately not repeated here. A met expectation and the
+   * observed rule underneath it are the same verification stated twice: counting both
+   * made "basic web security: 4 checks verified" read as 7.
+   *
+   * Written down because the shape misleads on the way in. Reading `findings` and
+   * `passedChecks` and finding no capability in either looks exactly like a capability
+   * no project ever satisfies, and it is not: it is the wrong array. That reading was
+   * made twice while surveying this analyzer's own corpus.
+   */
   passedChecks: Finding[];
   suggestedNextSteps: string[];
   technicalEvidence: Array<{ findingId: string; evidence: DetectorEvidence[] }>;
