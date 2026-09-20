@@ -4,6 +4,7 @@ import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readRoleChecks } from './structural/roleChecks';
 import { searchedFor } from './absenceEvidence';
+import { fileNameEvidence, searchFileNames } from './fileNames';
 
 /**
  * In a product that talks to a model, `role` usually means who is speaking.
@@ -156,6 +157,11 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ],
     20
   );
+  const passwordResetFiles = searchFileNames(sourceFiles, [
+    /(password|pwd)[_-]?(reset|recovery)/i,
+    /(reset|recover)[_-]?password/i,
+    /forgot[_-]?password/i,
+  ]);
   const passwordResetSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
@@ -176,6 +182,17 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       // The same shape in other frameworks that hand you the flow rather than the words.
       /Devise|devise_for/,
       /Auth::routes\(/,
+      /**
+       * The same flow, called recovery.
+       *
+       * supabase/auth is a product whose entire purpose is authentication, and it was
+       * reported as having no password reset. Its file says "Password recovery
+       * requires an email" and names the type `Recovery`: the words "reset" and
+       * "forgot" appear nowhere, because it says the thing differently.
+       */
+      /password\s*recover(y|ing)?/i,
+      /recover(y)?[_-]?password/i,
+      /passwordRecovery/,
     ],
     20
   );
@@ -383,7 +400,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       present:
         managedAuthDeps.length > 0 &&
         hasAnyDep(ctx, ['bcrypt', 'bcryptjs', 'argon2', 'scrypt-kdf', 'passport-local']).length === 0 &&
-        passwordResetSignals.length === 0,
+        passwordResetSignals.length === 0 &&
+        passwordResetFiles.length === 0,
       evidence: depEvidence(managedAuthDeps),
       details: { managedProviders: managedAuthDeps.length },
     },
@@ -399,13 +417,13 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'auth.passwordReset',
-      present: passwordResetSignals.length > 0,
+      present: passwordResetSignals.length > 0 || passwordResetFiles.length > 0,
       // The terms, where nothing matched. "No direct evidence captured" reads like
       // "we did not look"; this lets a reader whose flow is called `recoverAccess`
       // see in one line why it was missed.
-      evidence: passwordResetSignals.length > 0
-        ? snippetEvidence(passwordResetSignals)
-        : searchedFor('a password reset flow', ['"forgot password"', 'password_reset', 'password-reset', '"reset token"', 'django.contrib.auth.urls', 'PasswordResetView', 'devise_for', 'Auth::routes(']),
+      evidence: passwordResetSignals.length > 0 || passwordResetFiles.length > 0
+        ? [...snippetEvidence(passwordResetSignals), ...fileNameEvidence(passwordResetFiles)]
+        : searchedFor('a password reset flow', ['"forgot password"', 'password_reset', 'password-reset', '"reset token"', '"password recovery"', 'django.contrib.auth.urls', 'PasswordResetView', 'devise_for', 'Auth::routes(', 'a file named for password reset or recovery']),
     },
     {
       key: 'auth.emailVerification',

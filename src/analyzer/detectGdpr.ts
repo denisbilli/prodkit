@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
+import { fileNameEvidence, searchFileNames } from './fileNames';
 
 function toEvidence(matches: Array<{ snippet: string; file: string; line: number }>): DetectorEvidence[] {
   return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
@@ -14,6 +15,14 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     [/cookie[-_ ]?consent/i, /consentGiven/i, /privacyConsent/i, /gdprConsent/i],
     20
   );
+  /**
+   * The same duty, in the words each ecosystem actually uses.
+   *
+   * The list was written in one dialect. Article 20 is `exportUserData` in a Node
+   * application and `UserExport` in a Rails one; article 17 is `deleteAccount` here
+   * and `UserAnonymizer` there. Discourse ships both and was told it had neither,
+   * at `high` — which is the severity a reader acts on.
+   */
   const exportRoute = await searchInFiles(
     ctx.root,
     ctx.files.source,
@@ -25,15 +34,47 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       /rightToAccess/i,
       /data portability/i,
       /export personal data/i,
+      /user[_-]?export/i,
+      /export[_-]?(user|account|profile)\b/i,
+      /download (your|my) data/i,
     ],
     20
   );
+  const exportFiles = searchFileNames(ctx.files.source, [
+    /user[_-]?export/i,
+    /(data|account|profile)[_-]?export/i,
+    /export[_-]?(user|account|personal)/i,
+  ]);
   const erasure = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/erasure/i, /delete account/i, /right to be forgotten/i, /delete user data/i, /delete personal data/i],
+    [
+      /erasure/i,
+      /delete account/i,
+      /right to be forgotten/i,
+      /delete user data/i,
+      /delete personal data/i,
+      /**
+       * Anonymisation, which is how a forum satisfies article 17 without losing the
+       * thread. Discourse's is `UserAnonymizer` and it was told it had no erasure.
+       */
+      /anonymi[sz]e[_-]?(user|account)/i,
+      /user[_-]?anonymi[sz]/i,
+    ],
     20
   );
+  /**
+   * `deleteUser(id)` is not article 17 — it is every admin screen ever written, and
+   * as a line it matched a teaching exercise about `git log -S "deleteUser"` and a
+   * function that removes a cloud provider account. A file *named* for deleting
+   * accounts is a different thing: somebody built a feature and called it that.
+   */
+  const erasureFiles = searchFileNames(ctx.files.source, [
+    /user[_-]?anonymi[sz]/i,
+    /anonymi[sz]er/i,
+    /(account|user)[_-]?deletion/i,
+    /(delete|erase)[_-]?(account|my[_-]?data)/i,
+  ]);
   const retention = await searchInFiles(
     ctx.root,
     ctx.files.source,
@@ -76,13 +117,19 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'gdpr.export.route',
-      present: exportRoute.length > 0,
-      evidence: evidenceOr(exportRoute, 'export'),
+      present: exportRoute.length > 0 || exportFiles.length > 0,
+      evidence:
+        exportRoute.length > 0 || exportFiles.length > 0
+          ? [...toEvidence(exportRoute), ...fileNameEvidence(exportFiles)]
+          : evidenceOr(exportRoute, 'export'),
     },
     {
       key: 'gdpr.erasure.route',
-      present: erasure.length > 0,
-      evidence: evidenceOr(erasure, 'erasure'),
+      present: erasure.length > 0 || erasureFiles.length > 0,
+      evidence:
+        erasure.length > 0 || erasureFiles.length > 0
+          ? [...toEvidence(erasure), ...fileNameEvidence(erasureFiles)]
+          : evidenceOr(erasure, 'erasure'),
     },
     {
       key: 'gdpr.retention.job',
