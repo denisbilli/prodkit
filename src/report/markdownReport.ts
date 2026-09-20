@@ -159,21 +159,45 @@ function categoryScoreSection(report: ProductionReadinessReport): string[] {
 function complianceSection(report: ProductionReadinessReport): string[] {
   if (report.compliance.length === 0) return [];
 
-  const unmet = report.compliance.filter((obligation) => !obligation.met);
-  if (unmet.length === 0) return [];
+  /**
+   * Exposure and silence, listed apart.
+   *
+   * This filtered on `!met`, which was two different things wearing one label: an
+   * obligation with findings against it, and an obligation whose every check came
+   * back unknown. The second was printed under "Compliance Exposure" with a findings
+   * count of zero — a reader would quote that to an auditor as a gap when it is the
+   * absence of an answer.
+   */
+  const unmet = report.compliance.filter((obligation) => obligation.status === 'unmet');
+  const unassessed = report.compliance.filter((obligation) => obligation.status === 'unknown');
+  if (unmet.length === 0 && unassessed.length === 0) return [];
 
   return [
     '## Compliance Exposure',
     '',
     '_Advisory mapping, not a compliance certification. Obligations nothing mapped to are omitted rather than reported as met._',
     '',
-    '| Framework | Reference | Obligation | Findings |',
-    '| --- | --- | --- | --- |',
-    ...unmet.map(
-      (obligation) =>
-        `| ${obligation.framework} | ${obligation.reference} | ${obligation.title} | ${obligation.findingIds.length} |`,
-    ),
-    '',
+    ...(unmet.length > 0
+      ? [
+          '| Framework | Reference | Obligation | Findings |',
+          '| --- | --- | --- | --- |',
+          ...unmet.map(
+            (obligation) =>
+              `| ${obligation.framework} | ${obligation.reference} | ${obligation.title} | ${obligation.findingIds.length} |`,
+          ),
+          '',
+        ]
+      : ['No obligation in this mapping has a finding against it.', '']),
+    ...(unassessed.length > 0
+      ? [
+          `Not assessed — every check behind these came back unknown, so this report says nothing either way about ${unassessed.length === 1 ? 'it' : 'them'}:`,
+          '',
+          ...unassessed.map(
+            (obligation) => `- ${obligation.framework} ${obligation.reference}: ${obligation.title}`,
+          ),
+          '',
+        ]
+      : []),
   ];
 }
 

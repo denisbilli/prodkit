@@ -12,6 +12,21 @@ export interface ComplianceReference {
 export interface ComplianceObligation extends ComplianceReference {
   /** Findings that leave this obligation unmet. */
   findingIds: string[];
+  /**
+   * `unknown` where every check behind this obligation came back `unknown`.
+   *
+   * This was a boolean, and `met` was the default: an obligation whose only supporting
+   * check could not reach a verdict was reported as satisfied. Measured across
+   * seventy-eight repositories, 84 of 163 obligations marked met rested on not one
+   * passing check — most of them OWASP A01, broken access control, declared met
+   * because a single check said it did not know.
+   *
+   * The comment on the builder already stated the principle and the code applied it
+   * only halfway: it omitted obligations that nothing mapped to, and marked met the
+   * ones that mapped to silence.
+   */
+  status: 'met' | 'unmet' | 'unknown';
+  /** @deprecated Read `status`. True only where `status` is `met`. */
   met: boolean;
 }
 
@@ -97,7 +112,11 @@ const RULES: ReadonlyArray<{ prefix: string; references: ComplianceReference[] }
   },
 ];
 
-function referencesFor(finding: Finding): ComplianceReference[] {
+/**
+ * Exported so a test can ask the same question the builder asks, rather than keeping
+ * a second copy of the prefix table that would drift from this one.
+ */
+export function referencesFor(finding: Finding): ComplianceReference[] {
   for (const rule of RULES) {
     if (finding.id.startsWith(rule.prefix)) return rule.references;
   }
@@ -114,7 +133,7 @@ function keyOf(reference: ComplianceReference): string {
  * rather than reported as met, because silence is not evidence of compliance.
  */
 export function buildComplianceMapping(findings: Finding[]): ComplianceObligation[] {
-  const obligations = new Map<string, ComplianceObligation>();
+  const obligations = new Map<string, ComplianceObligation & { verified: boolean }>();
 
   for (const finding of findings) {
     const actionable = finding.status !== 'passed' && finding.severity !== 'info';
@@ -127,19 +146,42 @@ export function buildComplianceMapping(findings: Finding[]): ComplianceObligatio
         obligations.set(key, {
           ...reference,
           findingIds: actionable ? [finding.id] : [],
-          met: !actionable,
+          status: 'unknown',
+          met: false,
+          verified: finding.status === 'passed',
         });
         continue;
       }
 
-      if (actionable) {
-        existing.findingIds.push(finding.id);
-        existing.met = false;
-      }
+      if (actionable) existing.findingIds.push(finding.id);
+      if (finding.status === 'passed') existing.verified = true;
     }
   }
 
-  return [...obligations.values()].sort(
+  /**
+   * An obligation is met when something was checked and found right.
+   *
+   * Three outcomes, because the reader needs to tell them apart before quoting any of
+   * this to an auditor: something is wrong here, something was verified here, and
+   * nothing here reached a verdict.
+   */
+  for (const obligation of obligations.values()) {
+    obligation.status = obligation.findingIds.length > 0
+      ? 'unmet'
+      : obligation.verified ? 'met' : 'unknown';
+    obligation.met = obligation.status === 'met';
+  }
+
+  return [...obligations.values()]
+    .map((obligation): ComplianceObligation => ({
+      framework: obligation.framework,
+      reference: obligation.reference,
+      title: obligation.title,
+      findingIds: obligation.findingIds,
+      status: obligation.status,
+      met: obligation.met,
+    }))
+    .sort(
     (left, right) => left.framework.localeCompare(right.framework) || left.reference.localeCompare(right.reference),
   );
 }
