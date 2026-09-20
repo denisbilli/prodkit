@@ -499,7 +499,34 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
    * reported, which is the direction to err in — the catalog is the project's own
    * statement about what it builds with.
    */
+  /**
+   * pom.xml, read for the coordinates a Maven project declares.
+   *
+   * A Spring Boot REST API with Spring Security and PostgreSQL reported no backend and
+   * no database. The manifest was recognised well enough to name the package manager
+   * "maven" and then never opened — the same shape of gap Rust had, in the larger
+   * ecosystem.
+   *
+   * `<parent>` is read alongside `<dependencies>` because that is where Spring Boot
+   * declares itself: `spring-boot-starter-parent` is the single line that makes a
+   * project a Spring Boot project, and a starter listed below it inherits its version
+   * from there rather than stating one.
+   *
+   * Regular expressions rather than an XML parser, for the reason the others give: the
+   * shape being read is two adjacent elements, and a manifest this cannot read yields
+   * no dependencies rather than a wrong answer.
+   */
   const gradleDeps: string[] = [];
+
+  for (const file of allFiles.filter((f) => /(^|\/)pom\.xml$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+
+    for (const match of raw.matchAll(
+      /<groupId>\s*([^<\s]+)\s*<\/groupId>\s*<artifactId>\s*([^<\s]+)\s*<\/artifactId>/g,
+    )) {
+      gradleDeps.push(`${match[1]}:${match[2]}`.toLowerCase());
+    }
+  }
 
   for (const file of allFiles.filter((f) => /(^|\/)build\.gradle(\.kts)?$/.test(f))) {
     const raw = (await readTextFileSafe(root, file)) ?? '';

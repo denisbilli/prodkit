@@ -1,6 +1,6 @@
 {
   "name": "@produtype/core",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "description": "Deterministic CLI and library that analyzes a web application repository and reports how far it is from production-ready for the kind of product it is meant to be.",
   "license": "MIT",
   "bin": {

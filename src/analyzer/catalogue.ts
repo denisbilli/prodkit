@@ -58,6 +58,48 @@ export const RUST_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['tower-http', ['tower-http']],
 ];
 
+/**
+ * JVM frameworks, read from pom.xml and build.gradle alike.
+ *
+ * A Spring Boot REST API with Spring Security and PostgreSQL reported no backend at
+ * all: the coordinates were never read, and no JVM server framework was ever named.
+ * Coordinates are `group:artifact` in both build systems, so one table serves both.
+ *
+ * `spring-boot-starter-parent` earns its place beside the starters: it is how a Maven
+ * project declares itself a Spring Boot project, and the starters under it inherit
+ * their version from it rather than stating one.
+ */
+export const JVM_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
+  ['spring-boot', [
+    'org.springframework.boot:spring-boot-starter-web',
+    'org.springframework.boot:spring-boot-starter-webflux',
+    'org.springframework.boot:spring-boot-starter-parent',
+    'org.springframework.boot:spring-boot-starter',
+  ]],
+  ['quarkus', ['io.quarkus:quarkus-resteasy', 'io.quarkus:quarkus-resteasy-reactive', 'io.quarkus:quarkus-bom']],
+  ['micronaut', ['io.micronaut:micronaut-http-server-netty', 'io.micronaut:micronaut-inject']],
+  ['ktor', ['io.ktor:ktor-server-core', 'io.ktor:ktor-server-netty', 'io.ktor:ktor-server-cio']],
+  ['javalin', ['io.javalin:javalin']],
+  ['vertx', ['io.vertx:vertx-web', 'io.vertx:vertx-core']],
+  ['dropwizard', ['io.dropwizard:dropwizard-core']],
+  ['helidon', ['io.helidon.webserver:helidon-webserver']],
+];
+
+/**
+ * Databases a JVM project declares by driver.
+ *
+ * The same manifest that names the framework names the database, and a Spring Boot
+ * project with `org.postgresql:postgresql` was reported as having no data layer.
+ */
+export const JVM_DATABASES: Array<[string, string[]]> = [
+  ['postgres', ['org.postgresql:postgresql', 'io.r2dbc:r2dbc-postgresql']],
+  ['mysql', ['mysql:mysql-connector-java', 'com.mysql:mysql-connector-j']],
+  ['mariadb', ['org.mariadb.jdbc:mariadb-java-client']],
+  ['sqlite', ['org.xerial:sqlite-jdbc']],
+  ['mongodb', ['org.mongodb:mongodb-driver-sync', 'org.mongodb:mongo-java-driver']],
+  ['redis', ['redis.clients:jedis', 'io.lettuce:lettuce-core']],
+];
+
 /** Ruby frameworks, read from the Gemfile. */
 export const RUBY_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['rails', ['rails']],
@@ -177,6 +219,14 @@ const LABELS: Record<string, string> = {
   chi: 'chi',
   gorilla: 'Gorilla',
   beego: 'Beego',
+  'spring-boot': 'Spring Boot',
+  quarkus: 'Quarkus',
+  micronaut: 'Micronaut',
+  ktor: 'Ktor',
+  javalin: 'Javalin',
+  vertx: 'Vert.x',
+  dropwizard: 'Dropwizard',
+  helidon: 'Helidon',
   axum: 'Axum',
   'actix-web': 'Actix Web',
   rocket: 'Rocket',
@@ -314,6 +364,7 @@ export function supportedStacks(): StackCatalogue {
       ...entries(GO_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'go', label: 'Go', detectedFrom: 'a go.mod with no framework in it — net/http is a real answer' },
       ...entries(RUST_BACKEND_FRAMEWORKS.map(([id]) => id)),
+      ...entries(JVM_BACKEND_FRAMEWORKS.map(([id]) => id)),
       ...entries(RUBY_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'ruby', label: 'Ruby', detectedFrom: 'a Gemfile with no web framework in it' },
       ...entries(PHP_BACKEND_FRAMEWORKS.map(([id]) => id)),

@@ -1,6 +1,7 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyRubyDep, hasAnyDotnetDep, hasAnyDartDep, type DetectContext } from './detectContext';
+import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRubyDep, hasAnyDotnetDep, hasAnyDartDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
+import { JVM_DATABASES } from './catalogue';
 
 /**
  * Managed data platforms, and the engine each one actually is.
@@ -100,6 +101,20 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
   ];
   for (const [db, names] of pyHits) {
     const hits = hasAnyPyDep(ctx, names);
+    if (hits.length) {
+      databases.add(db);
+      for (const h of hits) evidence.push({ type: 'dependency', value: h });
+    }
+  }
+
+  /**
+   * The JVM, by driver coordinate.
+   *
+   * The same manifest that names Spring Boot names PostgreSQL, and a Spring Boot API
+   * with `org.postgresql:postgresql` in its pom was reported as having no data layer.
+   */
+  for (const [db, names] of JVM_DATABASES) {
+    const hits = hasAnyGradleDep(ctx, names);
     if (hits.length) {
       databases.add(db);
       for (const h of hits) evidence.push({ type: 'dependency', value: h });

@@ -1,10 +1,11 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyRustDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
+import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRustDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import {
   GO_BACKEND_FRAMEWORKS,
   RUST_BACKEND_FRAMEWORKS,
+  JVM_BACKEND_FRAMEWORKS,
   NODE_BACKEND_FRAMEWORKS,
   PHP_BACKEND_FRAMEWORKS,
   PYTHON_BACKEND_FRAMEWORKS,
@@ -118,6 +119,15 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   if (!namedGoFramework && goShare >= MINIMUM_BACKEND_SHARE && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
     frameworks.push('go');
     evidence.push({ type: 'note', value: 'a Go module with no web framework named in go.mod' });
+  }
+
+  /** The JVM, read from pom.xml and build.gradle alike: coordinates are the same shape. */
+  for (const [framework, deps] of JVM_BACKEND_FRAMEWORKS) {
+    const hits = hasAnyGradleDep(ctx, deps);
+    if (!hits.length) continue;
+
+    frameworks.push(framework);
+    for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
   }
 
   /** Rust, read from Cargo.toml. */
