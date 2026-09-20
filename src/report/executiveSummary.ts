@@ -256,7 +256,22 @@ function buildStrengths(categoryScores: CategoryScore[], findings: Finding[]): s
     const label = CATEGORY_LABEL[entry.category];
     const checks = entry.verifiedCount === 1 ? '1 check' : `${entry.verifiedCount} checks`;
 
-    return `${label}: ${checks} verified, nothing outstanding`;
+    /**
+     * The coverage, not a claim of completeness.
+     *
+     * "Taking payments: 1 check verified, nothing outstanding" told a reader their
+     * billing was in good shape on the strength of one check. Forty-nine of ninety
+     * strengths across the verification corpus read that way. "Nothing outstanding"
+     * means "no finding among the checks that ran", and in a category where one check
+     * ran and ten did not, that is a sentence about this analyzer rather than about
+     * the product.
+     *
+     * Saying how many did not run is what stops the misreading, and it costs four
+     * words.
+     */
+    return entry.unknownCount > 0
+      ? `${label}: ${checks} verified, ${entry.unknownCount} not assessed`
+      : `${label}: ${checks} verified`;
   });
 
   if (strengths.length === 0 && passed.length > 0) {

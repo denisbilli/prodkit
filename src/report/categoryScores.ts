@@ -18,6 +18,8 @@ export interface CategoryScore {
   assessedCount: number;
   criticalCount: number;
   highCount: number;
+  /** Checks in this category that reached no verdict. */
+  unknownCount: number;
   /** True when nothing in the analysis touched this category, so the score is not evidence of health. */
   notAssessed: boolean;
 }
@@ -144,6 +146,14 @@ export function buildCategoryScores(findings: Finding[]): CategoryScore[] {
       verifiedCount: assessed.filter((finding) => finding.status === 'passed').length,
       /** Checks in this category that reached a verdict either way. */
       assessedCount: assessed.length,
+      /**
+       * Checks in this category that did not.
+       *
+       * "Taking payments: 1 check verified, nothing outstanding" appeared under "what
+       * already works" on the strength of one check out of eleven in that category.
+       * The count that stops the misreading is the one that was missing.
+       */
+      unknownCount: categoryFindings.filter((finding) => finding.status === 'unknown').length,
       criticalCount: actionable.filter((finding) => finding.severity === 'critical').length,
       highCount: actionable.filter((finding) => finding.severity === 'high').length,
       /**
