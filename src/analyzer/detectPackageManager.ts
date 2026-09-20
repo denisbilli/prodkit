@@ -22,19 +22,43 @@ const OTHER_MANIFESTS: Array<{ manager: PackageManager; pattern: RegExp }> = [
   { manager: 'pub', pattern: /(^|\/)pubspec\.yaml$/ },
   { manager: 'composer', pattern: /(^|\/)composer\.json$/ },
   { manager: 'go modules', pattern: /(^|\/)go\.mod$/ },
+  { manager: 'cargo', pattern: /(^|\/)Cargo\.toml$/ },
   { manager: 'bundler', pattern: /(^|\/)Gemfile$/ },
   { manager: 'gradle', pattern: /(^|\/)build\.gradle(\.kts)?$/ },
   { manager: 'maven', pattern: /(^|\/)pom\.xml$/ },
   { manager: 'nuget', pattern: /\.(csproj|fsproj|vbproj)$/i },
 ];
 
+/**
+ * The shallowest manifest wins, and list order only breaks a tie.
+ *
+ * The list was scanned in order, so the first pattern with any match anywhere decided.
+ * A Rust service with a small Go client SDK beside it reported its package manager as
+ * "go modules" while the line above it said the backend was axum — two lines of the
+ * same report disagreeing about what the project is.
+ *
+ * Depth is the signal that was already there. A manifest at the root, or nearer it, is
+ * the project's; one buried under `sdk/go/` belongs to something the project ships
+ * rather than something it is built with.
+ */
 function resolveFromOtherManifests(files: string[]): PackageManagerResolution | null {
-  for (const { manager, pattern } of OTHER_MANIFESTS) {
-    const match = files.find((file) => pattern.test(file));
-    if (match) return { manager, confidence: 'manifest', warnings: [], evidence: [match] };
-  }
+  let best: { manager: PackageManager; file: string; depth: number; order: number } | null = null;
 
-  return null;
+  OTHER_MANIFESTS.forEach(({ manager, pattern }, order) => {
+    for (const file of files) {
+      if (!pattern.test(file)) continue;
+
+      const depth = file.split('/').length;
+      if (!best || depth < best.depth || (depth === best.depth && order < best.order)) {
+        best = { manager, file, depth, order };
+      }
+    }
+  });
+
+  if (!best) return null;
+
+  const { manager, file } = best as { manager: PackageManager; file: string };
+  return { manager, confidence: 'manifest', warnings: [], evidence: [file] };
 }
 
 function resolveWorkspaceManager(workspace: DetectContext['workspaces'][number]): PackageManagerResolution {

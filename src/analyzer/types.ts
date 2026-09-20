@@ -20,6 +20,7 @@ export type PackageManager =
   | 'pub'
   | 'composer'
   | 'go modules'
+  | 'cargo'
   | 'bundler'
   | 'gradle'
   | 'maven'
