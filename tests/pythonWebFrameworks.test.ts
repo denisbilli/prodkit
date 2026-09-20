@@ -147,3 +147,32 @@ describe('naming Django', () => {
     expect(analysis.stack.backend).toContain('django');
   });
 });
+
+/**
+ * Article 17, named by the article rather than by the verb.
+ *
+ * `deleteUser(id)` was measured and withdrawn: delete is every admin screen ever
+ * written, and as a needle it matched a teaching exercise about `git log -S
+ * "deleteUser"` and a function removing a cloud provider account. GDPR is not an
+ * ordinary word — an identifier carrying it beside a deletion is somebody naming the
+ * article they are answering.
+ *
+ * forem runs its erasure through `Users::DeleteWorker` and records a
+ * `GDPRDeleteRequest`, and was told at `high` that it has no erasure flow. The
+ * pattern was already in the file one capability down, where the retention needle
+ * reads `(gdpr|privacy).*(retention|purge|delete)`: the line was being found and
+ * filed under the wrong question.
+ */
+describe('the right to erasure', () => {
+  it('reads a record that names the regulation beside the deletion', async () => {
+    const analysis = await analyzeProject(fixture('rails-gdpr-delete-request'));
+
+    expect(analysis.detectors['gdpr.erasure.route']?.present).toBe(true);
+  });
+
+  it('still does not call an ordinary delete an erasure flow', async () => {
+    const analysis = await analyzeProject(fixture('admin-deletes-records'));
+
+    expect(analysis.detectors['gdpr.erasure.route']?.present).toBe(false);
+  });
+});

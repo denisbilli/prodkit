@@ -60,6 +60,21 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
        */
       /anonymi[sz]e[_-]?(user|account)/i,
       /user[_-]?anonymi[sz]/i,
+      /**
+       * The regulation's own name, next to the act.
+       *
+       * `deleteUser(id)` was measured and withdrawn because delete is every admin
+       * screen ever written. GDPR is not an ordinary word: an identifier that carries
+       * it beside a deletion is somebody naming the article they are answering. forem
+       * runs its erasure through `Users::DeleteWorker` and records a
+       * `GDPRDeleteRequest`, and was told at `high` that it has no erasure flow.
+       *
+       * The pattern was already in this file, one capability down — the retention
+       * needle reads `(gdpr|privacy).*(retention|purge|delete)`, so the line was being
+       * found and filed under the wrong question.
+       */
+      /gdpr[_\- ]?(delete|deletion|eras|removal|forget)/i,
+      /(delete|deletion|eras|removal)[_\- ]?gdpr/i,
     ],
     20
   );
