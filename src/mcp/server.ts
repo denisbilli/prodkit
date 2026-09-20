@@ -240,7 +240,7 @@ export async function createProdkitMcpServer(): Promise<McpServer> {
             requiredTotal: report.productProfile?.gap.requiredTotal ?? 0,
             verdict: report.executiveSummary.verdict,
           };
-        }).sort((left, right) => right.overallScore - left.overallScore);
+        }).sort((left, right) => (right.overallScore ?? -1) - (left.overallScore ?? -1));
 
         return textResult({
           observedOnlyScore: observed.observedScore,

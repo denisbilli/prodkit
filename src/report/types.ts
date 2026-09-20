@@ -72,7 +72,16 @@ export interface Finding {
   businessImpact?: string;
 }
 
-export type MaturityLevel = 'prototype' | 'early' | 'partial' | 'production_ready';
+/**
+ * `inconclusive` is a band of its own, not the bottom of the scale.
+ *
+ * A repository this analyzer could not read is not a prototype. It used to be called
+ * one, with a score of 39 beside it — the cap applied so that absence of findings
+ * could not be rewarded — and eleven repositories in the corpus came out at exactly
+ * 39: a wake-word engine, a database manager, an Advent of Code repository. One of
+ * them had no findings at all. The number was not measuring them; it was the cap.
+ */
+export type MaturityLevel = 'inconclusive' | 'prototype' | 'early' | 'partial' | 'production_ready';
 
 export type ExpectationMode = 'observed-only' | 'explicit-profile' | 'auto-applied' | 'auto-inconclusive';
 
@@ -112,7 +121,12 @@ export interface ProductionReadinessReport {
   generatedAt: string;
   observedScore: number;
   expectedCapabilityScore?: number;
-  overallScore: number;
+  /**
+   * `null` where the reading is inconclusive, which is the same rule this product
+   * applies everywhere else: a number that was not measured is not reported. The
+   * reasons in `inconclusiveReasons` are the answer in its place.
+   */
+  overallScore: number | null;
   maturityLevel: MaturityLevel;
   inconclusive: boolean;
   inconclusiveReasons: string[];

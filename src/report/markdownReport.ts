@@ -46,7 +46,7 @@ function profileSummary(report: ProductionReadinessReport): string[] {
     `- Description: ${profile.profileDescription}`,
     `- Observed score: ${report.observedScore}/100`,
     `- Expected capability score: ${report.expectedCapabilityScore}/100`,
-    `- Final score: ${report.overallScore}/100`,
+    report.overallScore === null ? '- Final score: not scored' : `- Final score: ${report.overallScore}/100`,
     '- Capability summary:',
     `- Required: ${requiredPresent} present / ${requiredMissing} missing / ${requiredPartial} partial`,
     `- Recommended: ${recommendedPresent} present / ${recommendedMissing} missing / ${recommendedPartial} partial`,
@@ -243,7 +243,7 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '',
     '## Score',
     '',
-    `- Overall score: ${report.overallScore}/100`,
+    report.overallScore === null ? '- Overall score: not scored' : `- Overall score: ${report.overallScore}/100`,
     `- Observed score: ${report.observedScore}/100`,
     ...(report.expectedCapabilityScore !== undefined ? [`- Expected capability score: ${report.expectedCapabilityScore}/100`] : []),
     `- Maturity level: ${report.maturityLevel}${report.inconclusive ? ' (inconclusive)' : ''}`,
@@ -255,7 +255,7 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
      * one of them rested on two verified checks while the other rested on twelve.
      */
     `- Verified: ${report.diagnostics.verifiedChecks} of ${report.diagnostics.assessedChecks} checks that reached a verdict`,
-    ...(report.overallScore > 84 && report.maturityLevel !== 'production_ready'
+    ...(report.overallScore !== null && report.overallScore > 84 && report.maturityLevel !== 'production_ready'
       ? ['- Note: the score is high because little was found, not because much was verified. Too few checks apply to this repository to call it production ready.']
       : []),
     ...(report.inconclusive

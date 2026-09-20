@@ -9,7 +9,7 @@ import {
   TOP_BAND_CEILING,
 } from './score';
 import { CATEGORIES } from './types';
-import type { Category, ExpectationMode, Finding, ProductionReadinessReport } from './types';
+import type { Category, ExpectationMode, Finding, MaturityLevel, ProductionReadinessReport } from './types';
 import { evaluateExpectedCapabilities } from '../expectations/evaluateExpectations';
 import { inferProductProfile } from '../expectations/inferProductProfile';
 import type { DeclaredIntent, ProductExpectationResult, ProductProfile } from '../expectations/types';
@@ -301,9 +301,19 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     );
   }
 
-  // An unrecognized project has almost no applicable detectors, so the absence
-  // of findings must not be rewarded with a high score: cap it at prototype.
-  const scoreAfterInconclusive = inconclusive ? Math.min(combinedScore, 39) : combinedScore;
+  /**
+   * An inconclusive reading has no score.
+   *
+   * This was a cap at 39, so that an unrecognised project could not be rewarded for
+   * the absence of findings. The intent was right and the output was not: eleven
+   * repositories in the corpus came out at exactly 39, and one of them — a Python
+   * transcription script — had no findings at all. A reader saw "39/100, prototype"
+   * about a repository whose own report said it could not be read.
+   *
+   * `null` is the rule this product applies everywhere else. The reasons already
+   * collected above are the answer in its place.
+   */
+  const scoreAfterInconclusive = combinedScore;
 
   /**
    * The number obeys the same rule as the label.
@@ -328,11 +338,15 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     (f) => f.severity === 'critical' && f.status !== 'passed' && f.status !== 'unknown',
   ).length;
 
-  const overallScore = mayClaimTopBand(coverage, openCriticals)
-    ? scoreAfterInconclusive
-    : Math.min(scoreAfterInconclusive, TOP_BAND_CEILING);
+  const overallScore = inconclusive
+    ? null
+    : mayClaimTopBand(coverage, openCriticals)
+      ? scoreAfterInconclusive
+      : Math.min(scoreAfterInconclusive, TOP_BAND_CEILING);
 
-  const maturityLevel = computeMaturity(overallScore, coverage, openCriticals);
+  const maturityLevel: MaturityLevel = overallScore === null
+    ? 'inconclusive'
+    : computeMaturity(overallScore, coverage, openCriticals);
 
   const findingsByCategory = Object.fromEntries(CATEGORIES.map((c) => [c, [] as Finding[]])) as Record<Category, Finding[]>;
   for (const f of findings) findingsByCategory[f.category].push(f);

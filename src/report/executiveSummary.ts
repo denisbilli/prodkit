@@ -48,6 +48,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
 };
 
 const MATURITY_LABEL: Record<MaturityLevel, string> = {
+  inconclusive: 'not characterised, because too little of it could be read',
   prototype: 'a prototype',
   early: 'an early build',
   partial: 'partly ready',
@@ -229,7 +230,7 @@ export function buildExecutiveSummary(args: {
   profile: ProductExpectationResult | undefined;
   maturity: MaturityLevel;
   observedScore: number;
-  overallScore: number;
+  overallScore: number | null;
   inconclusive: boolean;
   /** Why, when the report could not form a reading. Named in the verdict. */
   inconclusiveReasons?: string[];
@@ -249,9 +250,11 @@ export function buildExecutiveSummary(args: {
     return `${label}: ${entry.findingCount} ${entry.findingCount === 1 ? 'issue' : 'issues'} to address`;
   });
 
-  const scoreExplanation = args.profile
-    ? `${args.observedScore} of 100 on what the code does today, ${args.overallScore} of 100 once measured against what ${args.profile.profileTitle} normally requires.`
-    : `${args.observedScore} of 100 on what the code does today, with no product expectations applied.`;
+  const scoreExplanation = args.overallScore === null
+    ? `Not scored. ${args.inconclusiveReasons?.[0] ?? 'Too little of this repository could be read to characterise it.'}`
+    : args.profile
+      ? `${args.observedScore} of 100 on what the code does today, ${args.overallScore} of 100 once measured against what ${args.profile.profileTitle} normally requires.`
+      : `${args.observedScore} of 100 on what the code does today, with no product expectations applied.`;
 
   return {
     verdict,

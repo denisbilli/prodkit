@@ -91,7 +91,7 @@ describe('a score carries how much was verified', () => {
     expect(report.diagnostics.assessedChecks).toBeLessThan(5);
     expect(report.inconclusive).toBe(true);
     expect(report.inconclusiveReasons.join(' ')).toMatch(/too few to characterise/);
-    expect(report.overallScore).toBeLessThanOrEqual(39);
+    expect(report.overallScore).toBeNull();
   });
 
   it('reads a project that reached a real body of verdicts', async () => {

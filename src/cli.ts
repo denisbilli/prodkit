@@ -73,7 +73,14 @@ function enforceThresholds(
   failUnder: number | undefined,
   minMaturity: MaturityLevel | undefined,
 ): void {
-  if (failUnder !== undefined && report.overallScore < failUnder) {
+  if (failUnder !== undefined && report.overallScore === null) {
+    // A gate asked for a number and there is none. Passing would say the project
+    // cleared a bar nobody measured it against.
+    throw new Error(
+      `Score gate failed: this report has no score. ${report.inconclusiveReasons?.[0] ?? 'The reading was inconclusive.'}`,
+    );
+  }
+  if (failUnder !== undefined && report.overallScore !== null && report.overallScore < failUnder) {
     throw new Error(`Score gate failed: overall score ${report.overallScore} is below --fail-under ${failUnder}.`);
   }
   if (minMaturity !== undefined && maturityOrder.indexOf(report.maturityLevel) < maturityOrder.indexOf(minMaturity)) {
@@ -116,7 +123,7 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     `Package manager: ${report.detectedStack.packageManager} (${report.detectedStack.packageManagerConfidence})`,
     report.detectedStack.warnings.length > 0 ? `Warnings: ${report.detectedStack.warnings.join('; ')}` : 'Warnings: none',
     `Workspaces: ${workspaceSummary}`,
-    `Score: ${report.overallScore}/100`,
+    report.overallScore === null ? 'Score: not scored' : `Score: ${report.overallScore}/100`,
     /**
      * The reasons, not a verdict about the project.
      *
@@ -124,8 +131,10 @@ function summarize(report: ReturnType<typeof buildReport>): string {
      * "Detected frontend: flutter" — the same summary naming the stack it had just
      * failed to recognise. The report has carried the reasons since the flag existed.
      */
-    `Maturity: ${report.maturityLevel}${report.inconclusive ? ' (INCONCLUSIVE, score capped)' : ''}`,
-    ...(report.inconclusive ? report.inconclusiveReasons.map((reason) => `  - ${reason}`) : []),
+    `Maturity: ${report.maturityLevel}`,
+    ...(report.inconclusive
+      ? ['INCONCLUSIVE — this report has no score, for these reasons:', ...report.inconclusiveReasons.map((reason) => `  - ${reason}`)]
+      : []),
     // Printed next to the score it is not allowed to change, so a reader who knows what
     // their project is can act on it in one step.
     ...(report.productProfile?.profileSuggestion

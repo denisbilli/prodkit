@@ -33,7 +33,8 @@ export interface RemediationPhase {
 export interface RemediationPlan {
   projectPath: string;
   generatedAt: string;
-  score: number;
+  /** `null` where the report could not form a reading. */
+  score: number | null;
   maturityLevel: string;
   summary: string;
   phases: RemediationPhase[];

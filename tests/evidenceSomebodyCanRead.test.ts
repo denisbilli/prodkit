@@ -170,7 +170,8 @@ describe('a reading that covers a minority of the repository', () => {
     const report = buildReport(await analyzeProject(fixture('phoenix-app')), { profile: 'auto' });
 
     expect(report.inconclusive).toBe(true);
-    expect(report.overallScore).toBeLessThanOrEqual(39);
+    expect(report.overallScore).toBeNull();
+    expect(report.maturityLevel).toBe('inconclusive');
   });
 
   it('says which language, rather than telling the author to check their path', async () => {
