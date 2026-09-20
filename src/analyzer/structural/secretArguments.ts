@@ -212,3 +212,27 @@ export async function readHardcodedSecretArguments(
 
   return found;
 }
+
+/**
+ * Whether this reader would have had anything to read.
+ *
+ * `unanswered` has to mean "the answer depends on the reader that did not run", not
+ * "a reader did not run". The first version marked every JavaScript repository in the
+ * corpus — 79 of 133 — as not assessed for weak secrets, including the ones where a
+ * plain `const JWT_SECRET = 'changeme'` is found by name and the sink-following reader
+ * would have added nothing.
+ *
+ * The reader's own first act is this test: a file that never mentions a signing or
+ * ciphering package has no sink to follow. Where no file does, the missing compiler
+ * costs nothing and the text answer stands on its own.
+ */
+export async function anyFileReachesASecretSink(root: string, files: string[]): Promise<boolean> {
+  for (const file of files) {
+    if (!READABLE.test(file)) continue;
+    const text = await readTextFileSafe(root, file);
+    if (!text) continue;
+    if (SECRET_SINKS.some((sink) => text.includes(sink.package.replace('node:', '')))) return true;
+  }
+
+  return false;
+}

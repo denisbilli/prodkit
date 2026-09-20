@@ -186,3 +186,21 @@ export async function readOwnershipChecks(
 
   return checks;
 }
+
+/**
+ * Whether this reader would have had routes to walk.
+ *
+ * Same reasoning as the secret sinks: a repository that never imports Express has no
+ * route handler whose shape this reader could have read, so its absence changes no
+ * answer there and the report should not call the question unasked.
+ */
+export async function anyFileImportsExpress(root: string, files: string[]): Promise<boolean> {
+  for (const file of files) {
+    if (!READABLE.test(file)) continue;
+    const text = await readTextFileSafe(root, file);
+    if (!text) continue;
+    if (/(from\s+['"]express['"]|require\(\s*['"]express['"]\s*\))/.test(text)) return true;
+  }
+
+  return false;
+}

@@ -2,7 +2,8 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readLookupTableLines } from './structural/lookupTables';
-import { readHardcodedSecretArguments } from './structural/secretArguments';
+import { anyFileReachesASecretSink, readHardcodedSecretArguments } from './structural/secretArguments';
+import { wentUnasked } from './readingDepth';
 
 const WEAK_SECRET_VALUE_RE =
   /(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)/i;
@@ -164,6 +165,16 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
     weakSecretByType.unknown.push({ type: 'snippet', value: `${hit.snippet}  — reaches ${hit.sink}`, file: hit.file, line: hit.line });
   }
 
+  /**
+   * Whether the sink side of the question went unasked.
+   *
+   * Only the reader that *finds* secrets counts here. `lookupTables` going missing makes
+   * this detector noisier, not blinder, and a noisy finding is one a reader can see and
+   * argue with — silence is not.
+   */
+  const secretSinksUnasked =
+    wentUnasked(secretArguments, sourceFiles) && (await anyFileReachesASecretSink(ctx.root, sourceFiles));
+
   const weakHits = fallbackHits.filter(
     (m) => WEAK_SECRET_VALUE_RE.test(m.snippet)
       && SECRET_ASSIGNMENT_CONTEXT_RE.test(m.snippet)
@@ -195,26 +206,31 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
     {
       key: 'env.secretFallback.jwt',
       present: weakSecretByType.jwt.length > 0,
+      unanswered: secretSinksUnasked && weakSecretByType.jwt.length === 0,
       evidence: weakSecretByType.jwt,
     },
     {
       key: 'env.secretFallback.session',
       present: weakSecretByType.session.length > 0,
+      unanswered: secretSinksUnasked && weakSecretByType.session.length === 0,
       evidence: weakSecretByType.session,
     },
     {
       key: 'env.secretFallback.app',
       present: weakSecretByType.app.length > 0,
+      unanswered: secretSinksUnasked && weakSecretByType.app.length === 0,
       evidence: weakSecretByType.app,
     },
     {
       key: 'env.secretFallback.apiKey',
       present: weakSecretByType.apiKey.length > 0,
+      unanswered: secretSinksUnasked && weakSecretByType.apiKey.length === 0,
       evidence: weakSecretByType.apiKey,
     },
     {
       key: 'env.secretFallback.unknown',
       present: weakSecretByType.unknown.length > 0,
+      unanswered: secretSinksUnasked && weakSecretByType.unknown.length === 0,
       evidence: weakSecretByType.unknown,
       details: { weakSecretEvidence },
     },

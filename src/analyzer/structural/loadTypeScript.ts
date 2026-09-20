@@ -45,6 +45,21 @@ export function resetTypeScriptCache(): void {
 }
 
 /**
+ * Pretend the compiler is not installed, for tests of what this analyzer says when it
+ * cannot read structure.
+ *
+ * That path is the ordinary one for anybody running `npx prodkit` against their own
+ * repository, and it went untested for as long as it existed because the test machine
+ * always has the compiler. Mocking the module specifier does not work here: the import
+ * is dynamic and resolves before the mock registry answers, so the first analysis in a
+ * file quietly reads the real compiler. Seeding the same cache the loader reads is the
+ * one seam that behaves identically to the real absence.
+ */
+export function pretendTypeScriptIsMissing(): void {
+  cached = null;
+}
+
+/**
  * Whether the parser is there, for the report rather than for a reader.
  *
  * `readingDepths` printed `parsed` for every `.ts` and `.js` file on the strength of the

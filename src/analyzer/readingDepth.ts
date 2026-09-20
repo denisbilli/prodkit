@@ -135,3 +135,27 @@ export function describeReadingDepth(readings: LanguageReading[], parserAvailabl
       : []),
   ].join(' ');
 }
+
+/**
+ * Whether a parser would have had anything to say about this repository.
+ *
+ * A detector that loses its structural reader has lost nothing on a Go or Python
+ * project — no parser here was ever going to read those — so the missing compiler is
+ * only worth reporting where it would have changed the answer. Same list as the depths
+ * above, for the same reason: adding a language to the structural layer must move both
+ * claims in one commit.
+ */
+export function parserCouldHaveRead(sourceFiles: string[]): boolean {
+  return sourceFiles.some((file) => PARSED_EXTENSIONS.test(file));
+}
+
+/**
+ * The question was asked and answered, or it was never asked.
+ *
+ * The structural readers already distinguish the two — `null` for "no parser", `[]` for
+ * "parsed, found nothing" — and every consumer flattened it with `?? []`. This puts the
+ * distinction back where a detector can act on it.
+ */
+export function wentUnasked(readerResult: unknown | null, sourceFiles: string[]): boolean {
+  return readerResult === null && parserCouldHaveRead(sourceFiles);
+}

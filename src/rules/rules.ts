@@ -281,7 +281,20 @@ export const rules: Rule[] = [
         app?.present ? 'app' : null,
         apiKey?.present ? 'apiKey' : null,
       ].filter(Boolean).join(', ');
-      const status: FindingStatus = weak ? 'missing' : 'passed';
+      /**
+       * A pass this reading did not earn.
+       *
+       * `jwt.sign(payload, 'cambiami')` is found by following the literal into the
+       * signing call, which needs the optional TypeScript compiler. Without it the
+       * search comes back empty and this rule said "No weak fallback secret patterns
+       * detected" — the analyzer's most confident sentence, produced by not looking.
+       * Measured on `segreto-in-italiano`: `missing` becomes `passed`, 47 becomes 62.
+       *
+       * Finding one is still finding one, so `weak` wins: blindness can only ever turn
+       * a clean verdict into no verdict.
+       */
+      const unanswered = [jwt, session, app, apiKey, unknown].some((d) => d?.unanswered);
+      const status: FindingStatus = weak ? 'missing' : unanswered ? 'unknown' : 'passed';
       return mkFinding({
         id: 'security.weak-secret',
         title: 'Weak/fallback secret values',
@@ -290,6 +303,8 @@ export const rules: Rule[] = [
         severity: weak ? 'critical' : 'info',
         description: weak
           ? `Hardcoded fallback secrets detected (${weakTypes || 'unknown'} key context).`
+          : unanswered
+          ? 'Not assessed: finding a literal secret where the name gives nothing away means following it into the call that signs with it, and the optional `typescript` peer dependency is not installed. Install it and re-run.'
           : 'No weak fallback secret patterns detected.',
         recommendation: 'Require strong secrets through environment variables with strict startup validation.',
         /**
@@ -399,9 +414,18 @@ export const rules: Rule[] = [
        * surface", and now it only says that when something shows it.
        */
       const nearAuth = Boolean(sec?.details?.rateLimitNearAuth);
+      /**
+       * `partial` is a verdict, and blindness has not earned one.
+       *
+       * Coverage is read from the value the limiter package produces and the prefixes
+       * it is mounted on, so without the optional compiler the answer is empty rather
+       * than negative. Three fixtures that do throttle their login were told nothing
+       * showed it.
+       */
+      const coverageUnasked = Boolean(sec?.details?.rateLimitCoverageUnasked);
       const status: FindingStatus = !isExpress || !hasAuth
         ? 'unknown'
-        : nearAuth ? 'passed' : hasRate ? 'partial' : 'missing';
+        : nearAuth ? 'passed' : coverageUnasked && hasRate ? 'unknown' : hasRate ? 'partial' : 'missing';
       return mkFinding({
         id: 'security.rate-limit-auth',
         title: 'Authentication rate limiting',
@@ -420,6 +444,8 @@ export const rules: Rule[] = [
           ? 'Rate limiting is in place somewhere, but nothing here shows it covering sign-in.'
           : status === 'missing'
           ? 'No auth-focused rate limiting detected.'
+          : coverageUnasked && hasRate
+          ? 'Not assessed: this project throttles something, and whether it reaches the login is read from where the limiter is mounted — which needs the optional `typescript` peer dependency. Install it and re-run.'
           : !hasAuth
           ? 'Nothing here authenticates anybody, so there is no login surface to throttle.'
           : 'This check reads Express middleware, and this project does not use it — any throttling it has is somewhere this cannot see.',
@@ -620,13 +646,22 @@ export const rules: Rule[] = [
       // A question about who may act on which record needs a system that has records
       // and callers. The auth detector alone was not enough of a gate: it answers from
       // strings, and a package that searches for `requireAuth` contains it.
+      /**
+       * Per-record authorization is read from the shape of a route handler, so the
+       * optional compiler is the whole reading. Without it `proprieta-in-italiano`
+       * turns from `passed` into a false `missing`, and the report recommends adding
+       * a check the code already makes.
+       */
+      const ownershipUnasked = Boolean(resourceLevel?.unanswered) && !hasPermissions && !hasRoles;
       const status: FindingStatus = !hasAuth || !hasUserFacingSurface(analysis)
         ? 'unknown'
         : hasPermissions || hasResourceLevel
           ? 'passed'
           : hasRoles
             ? 'partial'
-            : 'missing';
+            : ownershipUnasked
+              ? 'unknown'
+              : 'missing';
       return mkFinding({
         id: 'authz.resource-level',
         title: 'Authorization depth',
@@ -642,7 +677,9 @@ export const rules: Rule[] = [
                 ? 'No resource-level authorization signals detected.'
                 : !hasAuth
                   ? 'Nothing here authenticates anybody, so there are no callers to authorize.'
-                  : 'Nothing in this repository serves requests, so there are no records to guard.',
+                  : ownershipUnasked
+                    ? 'Not assessed: a check that compares the record to the caller is recognised by the shape of the route handler, and the optional `typescript` peer dependency is not installed. Install it and re-run.'
+                    : 'Nothing in this repository serves requests, so there are no records to guard.',
         recommendation: 'Add policy/resource-level checks beyond coarse role gates.',
         evidence: [...(roles?.evidence ?? []), ...(permissions?.evidence ?? []), ...(resourceLevel?.evidence ?? [])],
       });

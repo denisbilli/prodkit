@@ -6,7 +6,8 @@ import { readRoleChecks } from './structural/roleChecks';
 import { evidenceOrSearch, searchedFor } from './absenceEvidence';
 import { fileNameEvidence, searchFileNames } from './fileNames';
 import { readPackageValueUses } from './structural/valuesFromPackage';
-import { readOwnershipChecks } from './structural/ownershipChecks';
+import { anyFileImportsExpress, readOwnershipChecks } from './structural/ownershipChecks';
+import { wentUnasked } from './readingDepth';
 
 /**
  * In a product that talks to a model, `role` usually means who is speaking.
@@ -449,6 +450,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * structure and needs no vocabulary at all.
    */
   const structuralOwnership = await readOwnershipChecks(ctx.root, sourceFiles);
+  const ownershipUnasked =
+    wentUnasked(structuralOwnership, sourceFiles) && (await anyFileImportsExpress(ctx.root, sourceFiles));
 
   const hasAuth = authDeps.length > 0 || routeSignals.length > 0;
   const hasAuthz = permissionSignals.length > 0 || roleSignals.length > 0;
@@ -527,6 +530,15 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       // Route-level permission checks no longer stand in for per-record ones: with the
       // needles above narrowed, this clause could only reintroduce what they removed.
       present: resourceLevelSignals.length > 0 || (structuralOwnership ?? []).length > 0,
+      /**
+       * The capability with no package to anchor on, read entirely from structure.
+       *
+       * Without the optional compiler the Express route walk does not happen, and the
+       * only thing left is the vocabulary this detector was written to stop relying on.
+       * `proprieta-in-italiano` turns from `passed` into a false `missing` — a
+       * recommendation to add a check the code already has.
+       */
+      unanswered: ownershipUnasked && resourceLevelSignals.length === 0,
       evidence: evidenceOrSearch(
         [
           ...snippetEvidence(resourceLevelSignals),

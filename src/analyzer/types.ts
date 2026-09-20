@@ -94,6 +94,25 @@ export interface DetectorResult {
   /** Stable feature key, e.g. 'security.helmet' */
   key: string;
   present: boolean;
+  /**
+   * The question behind this signal could not be asked.
+   *
+   * `present: false` has carried two meanings that a reader would never confuse: "I
+   * looked and it is not there", and "I could not look". The second happens whenever a
+   * signal rests on the optional TypeScript compiler and the compiler is absent — the
+   * ordinary case for `npx prodkit` against somebody else's repository.
+   *
+   * Measured by hiding `node_modules/typescript` and re-running the fixture corpus: 7
+   * of 133 repositories answer differently, and `segreto-in-italiano` reports a
+   * hardcoded signing secret as `passed` rather than `missing`. A verdict of "fine" is
+   * the one direction blindness must never produce.
+   *
+   * Set it only where the missing reader can change the answer, and only alongside
+   * `present: false`: a signal that found the thing found it, whatever else went
+   * unasked. Consumers turn it into `unknown`, which already means "not assessed"
+   * everywhere downstream — the plan skips it and the score leaves it out.
+   */
+  unanswered?: boolean;
   /** When present is true: was the implementation complete? */
   complete?: boolean;
   evidence: DetectorEvidence[];

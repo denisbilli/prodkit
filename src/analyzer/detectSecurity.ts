@@ -5,6 +5,7 @@ import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
 import { readPackageValueUses } from './structural/valuesFromPackage';
+import { wentUnasked } from './readingDepth';
 import { isDevelopmentOnlyFile } from './developmentOnly';
 
 /** Lines that decide which origins may call this server. */
@@ -408,6 +409,16 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       helmet,
       rateLimit,
       rateLimitNearAuth,
+      /**
+       * Whether coverage could be established at all.
+       *
+       * Whether a limiter reaches the login is read from the value the package
+       * produces and the paths it is mounted on — a structural question. Without the
+       * optional compiler `mountedPaths` is empty and three fixtures that do throttle
+       * their sign-in drop from `passed` to `partial`, told that nothing shows the
+       * coverage they have.
+       */
+      rateLimitCoverageUnasked: wentUnasked(boundLimiterUses, source) && !rateLimitNearAuth,
       corsLoose: corsLoose.length > 0,
       corsStrict: corsStrict.length > 0,
       webhookSignature: webhookSig.length > 0,
