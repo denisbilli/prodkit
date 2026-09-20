@@ -6,6 +6,7 @@ import { readRoleChecks } from './structural/roleChecks';
 import { evidenceOrSearch, searchedFor } from './absenceEvidence';
 import { fileNameEvidence, searchFileNames } from './fileNames';
 import { readPackageValueUses } from './structural/valuesFromPackage';
+import { readOwnershipChecks } from './structural/ownershipChecks';
 
 /**
  * In a product that talks to a model, `role` usually means who is speaking.
@@ -433,6 +434,22 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     line: use.line,
   }));
 
+  /**
+   * The same question asked of the shape rather than of the vocabulary.
+   *
+   * This capability is the one with no package to anchor on — there is no
+   * `npm install authorization` — so every reading of it was a list of the words
+   * people happen to use. An Italian application guarding every route with
+   * `if (nota.proprietario !== richiesta.utente.id)` was told it had no per-record
+   * checks, under a recommendation to add what it already had.
+   *
+   * Express supplies the anchor it lacks: a router comes from the package, `.get(path,
+   * handler)` is the framework saying "this is a request handler", and the handler's
+   * first parameter is the request whatever its author called it. The rest is
+   * structure and needs no vocabulary at all.
+   */
+  const structuralOwnership = await readOwnershipChecks(ctx.root, sourceFiles);
+
   const hasAuth = authDeps.length > 0 || routeSignals.length > 0;
   const hasAuthz = permissionSignals.length > 0 || roleSignals.length > 0;
   const b2bHint = b2bSignals.length > 0;
@@ -509,8 +526,18 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       key: 'authz.resourceLevel',
       // Route-level permission checks no longer stand in for per-record ones: with the
       // needles above narrowed, this clause could only reintroduce what they removed.
-      present: resourceLevelSignals.length > 0,
-      evidence: evidenceOrSearch(snippetEvidence(resourceLevelSignals), 'a check that the row belongs to the caller', ['requirePermission', 'permission_classes', 'authorize(', 'canAccess(', 'hasAccessTo(', 'ownerId', 'createdBy', 'req.user.id', 'userId ===']),
+      present: resourceLevelSignals.length > 0 || (structuralOwnership ?? []).length > 0,
+      evidence: evidenceOrSearch(
+        [
+          ...snippetEvidence(resourceLevelSignals),
+          ...(structuralOwnership ?? []).slice(0, 6).map((check) => ({
+            type: 'snippet' as const,
+            value: check.snippet,
+            file: check.file,
+            line: check.line,
+          })),
+        ],
+        'a check that the row belongs to the caller', ['requirePermission', 'permission_classes', 'authorize(', 'canAccess(', 'hasAccessTo(', 'ownerId', 'createdBy', 'req.user.id', 'userId ===']),
     },
     {
       key: 'tenancy.organization',
