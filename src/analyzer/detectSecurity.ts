@@ -18,6 +18,9 @@ const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /ALLOWED_ORIGINS/, /all
  * `ALLOWED_ORIGINS = ["*"]` are the same decision written in two frameworks, and only
  * the first was being caught.
  */
+/** `== StatusCode::TOO_MANY_REQUESTS` and its spellings: a status being read. */
+const COMPARES_A_STATUS = /[=!]==?\s*(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests|Status429TooManyRequests)|(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests)\s*[=!]==?/;
+
 const WILDCARD_ORIGIN = /(Access-Control-Allow-Origin["'\s:,]+\*)|(["']\*["'])/i;
 
 /**
@@ -285,10 +288,39 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       /HTTPException\(\s*429/,
       /['"`]Retry-After['"`]\s*[,:]/i,
       /setHeader\(\s*['"`]Retry-After/i,
+      /**
+       * The same refusal, spelled the way each platform spells it.
+       *
+       * Every shape above is JavaScript or Python, so a service that throttles in any
+       * other language had to declare a package to be seen at all. crates.io writes
+       * its own limiter — `src/rate_limiter.rs`, no crate — and refuses with
+       * `StatusCode::TOO_MANY_REQUESTS`; it was told at `high` that it does not
+       * throttle.
+       *
+       * These are constants the standard library or the framework defines for one
+       * number in RFC 6585. Nobody picks the name, and each of them is the server
+       * issuing the refusal rather than reading one: a constant is what you construct
+       * a response from, where receiving is a comparison against `.status`.
+       */
+      /StatusCode::TOO_MANY_REQUESTS/,
+      /http\.StatusTooManyRequests/,
+      /HttpStatus\.TOO_MANY_REQUESTS/,
+      /HttpStatusCode\.TooManyRequests/,
+      /Status429TooManyRequests/,
     ],
     20,
   );
-  const rateLimit = rateLimitDep || rateLimitSignals.length > 0;
+
+  /**
+   * Still issuing, not receiving — the constants need the same test the numbers got.
+   *
+   * `res.status(429)` can only be a server refusing, but
+   * `if resp.status() == StatusCode::TOO_MANY_REQUESTS` is this project being
+   * refused by somebody else's, which is what nocodb's webhook invoker does. A
+   * comparison is the reading direction; an argument is the writing one.
+   */
+  const issuedRateLimits = rateLimitSignals.filter((hit) => !COMPARES_A_STATUS.test(hit.snippet));
+  const rateLimit = rateLimitDep || issuedRateLimits.length > 0;
 
   /**
    * Rate limiting where the brute force happens.
@@ -342,12 +374,12 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   const rateLimitNearAuth =
     coversAnAuthMount
     || (boundLimiterUses ?? []).some((use) => authSurfaceFiles.has(use.file))
-    || rateLimitSignals.some((match) => authSurfaceFiles.has(match.file));
+    || issuedRateLimits.some((match) => authSurfaceFiles.has(match.file));
 
   if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet', claim: 'headers' });
   if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package', claim: 'rate-limit' });
   for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
-  for (const m of rateLimitSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'rate-limit' });
+  for (const m of issuedRateLimits) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'rate-limit' });
 
   /**
    * Every identifier the `cors` package reaches, per file.

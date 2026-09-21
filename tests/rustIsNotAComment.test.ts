@@ -93,3 +93,35 @@ describe('identity handed to somebody else', () => {
     expect(report.findings.find((f) => f.id.includes('password-reset'))).toBeUndefined();
   });
 });
+
+/**
+ * Throttling written by hand, recognised by the protocol rather than by the name.
+ *
+ * Three real repositories have now hit the same wall: a capability implemented
+ * without a package to anchor on. forem's erasure was solved by the regulation's own
+ * name; DuckDuckGo's crash handling is still open because the module name is the
+ * author's. crates.io's rate limiter is `src/rate_limiter.rs` with no crate — and it
+ * refuses with `StatusCode::TOO_MANY_REQUESTS`, which is a constant the standard
+ * library defines for one number in RFC 6585. Nobody picks that name.
+ *
+ * Every issuing shape the detector knew was JavaScript or Python, so a service that
+ * throttles in any other language had to declare a package to be seen at all.
+ */
+describe('a 429 the server issues', () => {
+  it('is read from the constant the platform defines', async () => {
+    const analysis = await analyzeProject(fixture('rust-throttles-by-hand'));
+
+    expect(analysis.detectors['security.core']?.details?.rateLimit).toBe(true);
+  });
+
+  /**
+   * The direction test the numbers already had, applied to the constants. nocodb's
+   * webhook invoker handles a 429 coming back from somebody else's server, which is
+   * this project being throttled — the opposite of this project throttling.
+   */
+  it('is not read from a client being refused by somebody else', async () => {
+    const analysis = await analyzeProject(fixture('rust-reads-a-429'));
+
+    expect(analysis.detectors['security.core']?.details?.rateLimit).toBe(false);
+  });
+});
