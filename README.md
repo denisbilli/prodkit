@@ -21,20 +21,33 @@ ProdKit inspects a target project and detects:
 - GDPR/privacy signals
 - Security hardening signals
 - Upload exposure signals
-- Billing/Stripe signals
+- Billing signals: payment processors declared in any manifest this reads
 - Observability/logging signals
 - Background jobs/queue signals
 - Deployment readiness signals
 
 Then it builds a structured production-readiness report with:
 
-- Overall score (0-100)
-- Maturity level (`prototype`, `early`, `partial`, `production_ready`)
+- Overall score (0-100), or `null` where too little of the repository could be read
+  to characterise it
+- Maturity level (`inconclusive`, `prototype`, `early`, `partial`, `production_ready`)
 - Findings grouped by category
 - Critical issues and warnings
 - Passed checks
 - Suggested next steps
-- Technical evidence for each finding
+- Technical evidence for each finding — a file and a line you can open, not a summary
+
+Two things the report says about its own reading, because a finding is only worth what
+the reading behind it is:
+
+- **How deeply each language was read.** A syntax tree answered the question, or a
+  keyword search did, or the language was not read at all — and the report names which,
+  per language. The optional `typescript` peer dependency decides whether JavaScript and
+  TypeScript are parsed; without it they are searched as text, and the report says so
+  rather than claiming otherwise.
+- **Which questions could not be asked.** A check whose answer depends on a reader that
+  could not run comes back `unknown`, never `passed` and never `missing`. Blindness can
+  turn a verdict into no verdict; it is not allowed to turn one into its opposite.
 
 From the report, ProdKit can also build a deterministic remediation plan with phases, task priorities, effort estimates, and test suggestions.
 
@@ -145,7 +158,11 @@ Profile warning:
 
 Inconclusive assessments:
 
-- If no stack signals and no package manifests are detected, the report is marked **inconclusive** and the score is capped at 39 (`prototype`). An unrecognized project is never scored as production ready.
+- Where nothing identifies the repository, where too few checks reach a verdict, or
+  where most of it is written in a language this cannot read, the report is marked
+  **inconclusive** and there is no score at all: `overallScore` is `null` and the
+  maturity level is `inconclusive`. It used to cap the score at 39 instead, which was
+  a number standing where an answer was missing.
 
 ## Examples
 
@@ -220,8 +237,12 @@ its own.
 ## Current limitations
 
 - Deterministic heuristics only: the AI layer is a separate package (see above)
-- Signal-based stack coverage across common Node/Python/JS frameworks + fallback
-- Signal-based detection can produce false positives/negatives
+- JavaScript and TypeScript are parsed when the optional `typescript` peer dependency is
+  installed; every other language is read as text, matched against what its frameworks
+  and its standard library define. The report states which of the two it did.
+- Signal-based detection can produce false positives and false negatives. Where a
+  reading rests on something this could not check, the answer is `unknown` rather than a
+  guess.
 - Plan output is deterministic and read-only only
 - No cloud dashboard or UI: this package is the CLI and the library
 
