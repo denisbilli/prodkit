@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyPyDep, hasAnyRustDep, hasDep } from './detectContext';
+import { hasAnyGradleDep, hasAnyPyDep, hasAnyRustDep, hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { findDjangoSettings } from './djangoSettings';
 import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
@@ -225,7 +225,46 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     ],
     20,
   );
-  const helmet = helmetDep || headerSignals.length > 0;
+  /**
+   * Spring Security, which writes the headers without being asked.
+   *
+   * Adding `spring-boot-starter-security` and configuring an `HttpSecurity` chain
+   * gives every response `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`
+   * and a no-store `Cache-Control` — the framework's defaults, applied whether or not
+   * anybody writes a line about headers. shopizer does exactly that and was told it
+   * has none.
+   *
+   * Unlike Django's `SecurityMiddleware`, which is deliberately not counted a few
+   * lines down: `django-admin startproject` writes that into every new project, so it
+   * distinguishes nothing, and its HSTS and nosniff behaviour still waits on
+   * `SECURE_*` settings. This starter is not in every Spring project — petclinic has
+   * no security at all — and its defaults need no settings.
+   *
+   * The chain is what is required. A project can pull the starter for method-level
+   * authorization in something that serves no requests, and then there is no filter
+   * chain and no headers — which is what the second fixture holds.
+   *
+   * The dependency check in front of it is a pre-filter and nothing more: it keeps
+   * this search off every file of every non-Spring repository. Removing it fails no
+   * test, and the comment says so rather than implying a safety it does not provide.
+   */
+  const springSecurity = hasAnyGradleDep(ctx, ['spring-boot-starter-security', 'spring-security-config']);
+  const springFilterChain = springSecurity.length > 0
+    ? await searchInFiles(ctx.root, source, [/HttpSecurity\s+\w+|\bhttp\s*\n?\s*\.\s*(?:authorizeHttpRequests|authorizeRequests|securityMatcher|antMatcher)/], 2)
+    : [];
+
+  if (springFilterChain.length > 0) {
+    for (const dep of springSecurity) evidence.push({ type: 'dependency', value: dep, claim: 'headers' });
+    evidence.push({
+      type: 'snippet',
+      value: springFilterChain[0].snippet,
+      file: springFilterChain[0].file,
+      line: springFilterChain[0].line,
+      claim: 'headers',
+    });
+  }
+
+  const helmet = helmetDep || headerSignals.length > 0 || springFilterChain.length > 0;
 
   /**
    * The packages the ecosystem names, as distinct from the variables authors do.

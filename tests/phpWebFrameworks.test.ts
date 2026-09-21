@@ -121,3 +121,36 @@ describe('an origin the server copies back', () => {
     expect(statusOf(report, 'security.cors-origin')).toBe('passed');
   });
 });
+
+/**
+ * Spring Security writes the headers without being asked.
+ *
+ * Adding `spring-boot-starter-security` and configuring an `HttpSecurity` chain gives
+ * every response `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` and a
+ * no-store `Cache-Control` — the framework's defaults, applied whether or not anybody
+ * writes a line about headers. shopizer does exactly that and was told it has none.
+ *
+ * Django's `SecurityMiddleware` is deliberately still not counted, and the difference
+ * is the point: `django-admin startproject` writes that into every new project, so it
+ * distinguishes nothing, and its nosniff and HSTS behaviour waits on `SECURE_*`
+ * settings. This starter is in no Spring project by default — petclinic has no
+ * security at all — and its defaults need no settings.
+ */
+describe('security headers a framework sets by itself', () => {
+  it('credits a configured Spring Security filter chain', async () => {
+    const analysis = await analyzeProject(fixture('spring-security-defaults'));
+
+    expect(analysis.detectors['security.core']?.details?.helmet).toBe(true);
+  });
+
+  /**
+   * Both halves are required. A project can pull the starter for method-level
+   * authorization in something that serves no requests, and then there is no filter
+   * chain and no headers.
+   */
+  it('does not credit the dependency on its own', async () => {
+    const analysis = await analyzeProject(fixture('spring-security-method-only'));
+
+    expect(analysis.detectors['security.core']?.details?.helmet).toBe(false);
+  });
+});
