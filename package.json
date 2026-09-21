@@ -1,6 +1,6 @@
 {
   "name": "@produtype/core",
-  "version": "1.9.2",
+  "version": "1.9.3",
   "description": "Deterministic CLI and library that analyzes a web application repository and reports how far it is from production-ready for the kind of product it is meant to be.",
   "license": "MIT",
   "bin": {
@@ -37,7 +37,7 @@
     "docs:stacks": "npm run build && node scripts/sync-readme-stacks.mjs",
     "prepare": "npm run build",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
-    "prepublishOnly": "npm run build && node scripts/assert-no-ai.mjs && npm test"
+    "prepublishOnly": "npm run build && npm run lint && node scripts/assert-no-ai.mjs && npm test"
   },
   "engines": {
     "node": ">=18"

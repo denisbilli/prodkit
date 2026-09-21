@@ -57,7 +57,7 @@ const PATTERN_DECLARATION = /^(?:const\s+\w+(?:\s*:[^=]+)?\s*=\s*)?\/(?:[^/\\]|\
  */
 const STATEMENT_KEYWORD = /^(?:import|package|from|export|return|case|new|type|class|struct|interface|enum|func|fun|def|public|private|protected|internal|throw|throws|extends|implements|use|using|namespace|module|require|await|yield|delete|typeof|instanceof|in|is|as|if|else|for|while|switch|do|try|catch|finally|with|assert|raise|lambda|val|const)\b/;
 
-const TYPE_DECLARATION = /^(?:var\s+|let\s+|readonly\s+)?\w+\??\s*(?::\s*|\s+)(?:\[\]|\*|Array<|Map<|\bstring\b|\bnumber\b|\bboolean\b|\bbool\b|\bany\b|\bunknown\b|\bvoid\b|[A-Z])[\w.<>\[\]|&\s]*;?$/;
+const TYPE_DECLARATION = /^(?:var\s+|let\s+|readonly\s+)?\w+\??\s*(?::\s*|\s+)(?:\[\]|\*|Array<|Map<|\bstring\b|\bnumber\b|\bboolean\b|\bbool\b|\bany\b|\bunknown\b|\bvoid\b|[A-Z])[\w.<>[\]|&\s]*;?$/;
 
 /**
  * Prose about the code, rather than the code.
