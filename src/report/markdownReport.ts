@@ -1,5 +1,6 @@
 import type { Finding, ProductionReadinessReport } from './types';
 import { describeReadingDepth } from '../analyzer/readingDepth';
+import { backendOrigin } from './backendOrigin';
 
 function profileSummary(report: ProductionReadinessReport): string[] {
   const profile = report.productProfile;
@@ -257,7 +258,7 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '## Detected Stack',
     '',
     `- Frontend: ${report.detectedStack.frontend.join(', ') || 'unknown'}`,
-    `- Backend: ${report.detectedStack.backend.join(', ') || 'unknown'}`,
+    `- Backend: ${report.detectedStack.backend.join(', ') || 'unknown'}${originNote(report)}`,
     `- Databases: ${report.detectedStack.databases.join(', ') || 'unknown'}`,
     `- Languages: ${report.detectedStack.languages.join(', ') || 'unknown'}`,
     `- Package manager: ${report.detectedStack.packageManager}`,
@@ -333,4 +334,11 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     '',
     appendix,
   ].join('\n');
+}
+
+/** The parenthetical that says whose backend it is, or nothing. */
+function originNote(report: ProductionReadinessReport): string {
+  const origin = backendOrigin(report.detectedStack);
+
+  return origin ? ` (${origin})` : '';
 }

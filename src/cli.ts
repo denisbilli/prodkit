@@ -14,6 +14,7 @@ import type { ProductProfile } from './expectations/types';
 import type { MaturityLevel } from './report/types';
 import type { ProjectAnalysis } from './analyzer/types';
 import { PRODKit_VERSION } from './version';
+import { backendOrigin } from './report/backendOrigin';
 
 /**
  * The profiles this tool actually has, read from the same table the analyzer uses.
@@ -111,7 +112,9 @@ function summarize(report: ReturnType<typeof buildReport>): string {
     'ProdKit Analysis Summary',
     `Project: ${report.projectPath}`,
     `Detected frontend: ${report.detectedStack.frontend.join(', ') || 'unknown'}`,
-    `Detected backend: ${report.detectedStack.backend.join(', ') || 'unknown'}`,
+    `Detected backend: ${report.detectedStack.backend.join(', ') || 'unknown'}${
+      backendOrigin(report.detectedStack) ? ` (${backendOrigin(report.detectedStack)})` : ''
+    }`,
     `Detected databases: ${report.detectedStack.databases.join(', ') || 'unknown'}`,
     // Named on their own line rather than folded into the databases list. A reader
     // whose data layer is entirely Supabase needs to see that the tool recognised
