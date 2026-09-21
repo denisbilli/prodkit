@@ -104,7 +104,20 @@ export const JVM_DATABASES: Array<[string, string[]]> = [
 
 /** Ruby frameworks, read from the Gemfile. */
 export const RUBY_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
-  ['rails', ['rails']],
+  /**
+   * Rails is often declared by its parts rather than by its name.
+   *
+   * Discourse's Gemfile has no `gem "rails"` in it at all: it pins `actionpack`,
+   * `actionview`, `activerecord` and `railties` separately, which is what a large
+   * application does when it wants to control the pieces. The report said
+   * `backend: ruby` — the fallback for a Gemfile with no web framework in it — about
+   * the best-known Rails application there is.
+   *
+   * `railties` is the framework itself and nothing but Rails and its engines depends
+   * on it; `actionpack` is the half that handles requests. Both are names the Rails
+   * team chose, which is the whole argument.
+   */
+  ['rails', ['rails', 'railties', 'actionpack']],
   ['sinatra', ['sinatra']],
   ['hanami', ['hanami']],
   ['roda', ['roda']],
