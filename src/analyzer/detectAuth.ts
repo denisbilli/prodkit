@@ -340,12 +340,75 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * is the one that meant three different things in three repositories, and it is the
    * one the tree answers.
    */
-  const unambiguousRoles = await searchInFiles(
-    ctx.root,
-    sourceFiles,
-    [/requireRole/i, /isAdmin/i, /SUPER_ADMIN/i, /roles\.includes\(/i],
-    20
-  );
+  /**
+   * Spring says all of this with names it owns, and none of them were here.
+   *
+   * mall is a Spring Boot shop with a full authorization model — a filter chain built
+   * with `authorizeHttpRequests`, a `DynamicAuthorizationManager` comparing the
+   * caller's `GrantedAuthority` against the one a path requires, and a
+   * `UmsAdminRoleRelationDao` that loads an administrator's roles from the database —
+   * and it was told at `medium` that it has no role checks and no permission checks
+   * at all.
+   *
+   * Every word above is Spring Security's or the JSR's: `GrantedAuthority`,
+   * `@PreAuthorize`, `@Secured`, `@RolesAllowed`, `hasAuthority`, `hasAnyRole`,
+   * `authorizeHttpRequests` and the `antMatchers` it replaced. What mall chose was
+   * `Ums`, the prefix on its own classes, and that is exactly what a search must not
+   * depend on.
+   */
+  const SPRING_AUTHORIZATION = [
+    /@PreAuthorize\b/,
+    /@PostAuthorize\b/,
+    /@Secured\b/,
+    /@RolesAllowed\b/,
+    /\bGrantedAuthority\b/,
+    /\bhasAuthority\s*\(/,
+    /\bhasAnyAuthority\s*\(/,
+    /\bhasAnyRole\s*\(/,
+    /\bhasRole\s*\(/,
+  ];
+  /**
+   * `authorizeHttpRequests` is not on that list, and the corpus is why.
+   *
+   * It was, and `spring-security-defaults` — a fixture whose whole point is a chain
+   * with no roles in it, `requests.anyRequest().authenticated()` — started reading as
+   * having an authorization model. Every Spring Security setup writes that line: it
+   * says the request must be authenticated, which is the question one capability
+   * along. The same test Django's `SecurityMiddleware` and Rails' default headers
+   * failed — a thing every project has distinguishes nothing.
+   *
+   * What survives is the part somebody chose: which authority a path requires, and
+   * the annotation that says it on a method.
+   */
+
+  const unambiguousRoles = [
+    ...await searchInFiles(
+      ctx.root,
+      sourceFiles,
+      [/requireRole/i, /isAdmin/i, /SUPER_ADMIN/i, /roles\.includes\(/i],
+      20
+    ),
+    ...await searchInFiles(
+      ctx.root,
+      sourceFiles,
+      SPRING_AUTHORIZATION,
+      20,
+      /**
+       * An import is not a check.
+       *
+       * `import org.springframework.security.core.GrantedAuthority;` names the type
+       * and decides nothing; `grantedAuthorities.stream()` twenty files away is where
+       * the caller's authority is compared against the one the path requires. The
+       * first version of this cited the import, which is the same complaint pocketbase
+       * earned two releases ago — a reader is promised the line that decides.
+       *
+       * Filtered inside the search rather than after it, so the budget is spent on
+       * lines that check something: a Java project has one import per file and they
+       * would fill it.
+       */
+      (match) => !/^\s*import\b/.test(match.snippet),
+    ),
+  ];
 
   const comparedRoles = guardedRoles
     ?? excludeChatTurnRoles(
@@ -604,7 +667,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     {
       key: 'authz.roles',
       present: roleSignals.length > 0,
-      evidence: evidenceOrSearch(snippetEvidence(roleSignals), 'role checks', ['role ===', 'hasRole', 'isAdmin', 'user.role', 'roles.includes', '@Roles', 'role_required']),
+      evidence: evidenceOrSearch(snippetEvidence(roleSignals), 'role checks', ['role ===', 'hasRole', 'isAdmin', 'user.role', 'roles.includes', '@Roles', 'role_required', '@PreAuthorize', '@Secured', 'GrantedAuthority', 'hasAuthority(', 'hasAnyRole(']),
     },
     {
       key: 'authz.permissions',
