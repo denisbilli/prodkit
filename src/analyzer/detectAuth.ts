@@ -157,6 +157,36 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     30
   );
   /**
+   * Identity the platform supplies, under a name the author did not choose.
+   *
+   * Cloudflare Access sits in front of Orange Meets and puts a signed JWT on every
+   * request as the `CF_Authorization` cookie; `app/root.tsx` decodes it, checks its
+   * expiry and redirects when it is about to lapse. There is no auth package in the
+   * manifest and no `/login` route, because signing in happens before the request
+   * reaches the application at all — so the report told a product behind an identity
+   * proxy that "anyone who finds a URL can use the product and read whatever it
+   * exposes".
+   *
+   * The same arrangement has a name on every platform: Google IAP, an AWS ALB with
+   * OIDC, Azure App Service's Easy Auth. Each one publishes a fixed header or cookie,
+   * and reading it is how an application asks who is calling. Those names are the
+   * anchor — nobody in the repository invented `x-amzn-oidc-data`.
+   *
+   * It says the request is authenticated, not that the application authorizes
+   * anything: `hasAuthz` is decided separately and stays untouched.
+   */
+  const PLATFORM_IDENTITY = [
+    /\bCF_Authorization\b/,
+    /\bCf-Access-Jwt-Assertion\b/i,
+    /\bcf-access-authenticated-user-email\b/i,
+    /\bx-goog-iap-jwt-assertion\b/i,
+    /\bx-goog-authenticated-user-email\b/i,
+    /\bx-amzn-oidc-(?:data|identity|accesstoken)\b/i,
+    /\bX-MS-CLIENT-PRINCIPAL(?:-NAME|-ID)?\b/i,
+  ];
+  const platformIdentity = await searchInFiles(ctx.root, sourceFiles, PLATFORM_IDENTITY, 10);
+
+  /**
    * `otp` as a word, not as three letters inside another one.
    *
    * `/otp/i` matched `VarError::NotPresent` and `PandasUseOfDotPivotOrUpdate` — N-**otp**-resent
@@ -471,7 +501,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   const ownershipUnasked =
     wentUnasked(structuralOwnership, sourceFiles) && (await anyFileImportsExpress(ctx.root, sourceFiles));
 
-  const hasAuth = authDeps.length > 0 || routeSignals.length > 0;
+  const hasAuth = authDeps.length > 0 || routeSignals.length > 0 || platformIdentity.length > 0;
   const hasAuthz = permissionSignals.length > 0 || roleSignals.length > 0;
   const b2bHint = b2bSignals.length > 0;
   const hasOrganization = organizationSignals.length > 0;
@@ -481,7 +511,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       key: 'auth.core',
       present: hasAuth,
       complete: hasAuth && hasAuthz,
-      evidence: evidenceOrSearch([...depEvidence(authDeps), ...authUseEvidence, ...snippetEvidence(routeSignals)], 'a way for somebody to sign in', ['next-auth', 'passport', 'lucia', '@clerk/', '@supabase/auth', 'django.contrib.auth', 'devise', 'jsonwebtoken', 'a /login or /signin route', 'signIn(', 'authenticate(']),
+      evidence: evidenceOrSearch([...depEvidence(authDeps), ...authUseEvidence, ...snippetEvidence(routeSignals), ...snippetEvidence(platformIdentity)], 'a way for somebody to sign in', ['next-auth', 'passport', 'lucia', '@clerk/', '@supabase/auth', 'django.contrib.auth', 'devise', 'jsonwebtoken', 'a /login or /signin route', 'signIn(', 'authenticate(', 'a Cloudflare Access, Google IAP, AWS ALB or Azure Easy Auth identity header']),
       details: {
         hasAuth,
         hasAuthz,

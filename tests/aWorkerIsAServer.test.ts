@@ -14,11 +14,13 @@ const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
  * as nothing at all: no backend, no stack, and a report that declined to score a
  * product that serves every request it gets.
  *
- * Weaker than its neighbours, and worth saying where a reader will see it: the shape
- * was diagnosed on a case built from the documentation rather than found in a
- * repository. openstatus, the serverless product measured that day, turned out to have
- * no `wrangler.toml` at all — it deploys to Fly and Vercel. A real Worker should
- * confirm this rule.
+ * It shipped weaker than its neighbours — diagnosed on a case built from the
+ * documentation rather than found in a repository, because openstatus, the serverless
+ * product measured that day, deploys to Fly and Vercel and has no `wrangler.toml` at
+ * all. Two real ones have since confirmed it: Cloudflare's own wildebeest, whose
+ * `do/wrangler.toml` sits beside a Durable Object module with `async fetch`, and
+ * Orange Meets, which deploys five wrangler environments. Both now read
+ * `cloudflare workers` where they used to read no backend at all.
  */
 describe('a Cloudflare Worker is a server', () => {
   it('is read from the manifest and the fetch handler together', async () => {
