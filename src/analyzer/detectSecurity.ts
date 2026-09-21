@@ -461,10 +461,26 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    */
   const boundLimiterUses = await readPackageValueUses(ctx.root, source, RATE_LIMIT_PACKAGES);
 
-  const authSurfaceFiles = new Set(
-    (await searchInFiles(ctx.root, source, [/['"`]\/(login|signin|sign-in|auth|session)/i, /passport\./, /signIn\s*\(/, /authenticate\s*\(/], 40))
-      .map((match) => match.file),
-  );
+  /**
+   * One budget per pattern, because a noisy one was spending the whole thing.
+   *
+   * These four searches ran as one with a cap of forty matches, and the cap decided
+   * the answer. n8n ships about four hundred `*.credentials.ts` files describing how
+   * to authenticate to *other people's* APIs — Airtop, Action Network, Microsoft — and
+   * they sort ahead of `packages/cli/src/controllers/auth.controller.ts`. Thirty-eight
+   * files of third-party credential definitions filled the budget, n8n's own sign-in
+   * controller never entered the set, and its login — throttled by IP and by email —
+   * was reported unprotected.
+   *
+   * A cap is there to bound work, and it had come to decide which files are this
+   * project's authentication surface. Per pattern, the decisive search keeps its own
+   * budget however much noise the others find.
+   */
+  const AUTH_SURFACE_PATTERNS = [/['"`]\/(login|signin|sign-in|auth|session)/i, /passport\./, /signIn\s*\(/, /authenticate\s*\(/];
+  const authSurfaceFiles = new Set<string>();
+  for (const pattern of AUTH_SURFACE_PATTERNS) {
+    for (const match of await searchInFiles(ctx.root, source, [pattern], 40)) authSurfaceFiles.add(match.file);
+  }
   /**
    * A limiter mounted on a prefix covers what is mounted under it.
    *
@@ -487,8 +503,52 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     authMountPaths.some((mount) => mount === prefix || mount.startsWith(`${prefix}/`)),
   );
 
+  /**
+   * The limit declared in the route's own options.
+   *
+   * n8n writes `@Post('/login', { ipRateLimit: {...}, keyedRateLimit:
+   * createBodyKeyedRateLimiter(...) })` and applies both in its controller registry.
+   * Nothing in that file imports `express-rate-limit` — a service does — and nothing
+   * in it issues a 429, because the package does that. So a login throttled by IP and
+   * by email came back `partial`, cited on a Discord node's type guard for somebody
+   * else's 429.
+   *
+   * The word `rateLimit` alone is what dokploy taught us not to trust: its
+   * `rateLimitEnabled: z.boolean().optional()` is a field in a form schema. What makes
+   * this different is where the word sits — inside the declaration of a route whose
+   * path is a sign-in path, within a few lines of it — and that the project declares a
+   * limiter package at all. A schema field is neither.
+   */
+  const AUTH_ROUTE_DECLARATION = /['"`]\/(?:login|signin|sign-in|sessions?|auth\/login)['"`]/i;
+  const LIMIT_IN_ROUTE_OPTIONS = /rate[_-]?limit|throttle/i;
+  const ROUTE_OPTIONS_WINDOW = 8;
+
+  const limitedAuthRoutes: Array<{ file: string; line: number; snippet: string }> = [];
+  if (rateLimitDep) {
+    for (const file of authSurfaceFiles) {
+      const text = await readTextFileSafe(ctx.root, file);
+      if (!text) continue;
+
+      const lines = text.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        if (!AUTH_ROUTE_DECLARATION.test(lines[i])) continue;
+
+        const window = lines.slice(i + 1, i + 1 + ROUTE_OPTIONS_WINDOW);
+        const offset = window.findIndex((line) => LIMIT_IN_ROUTE_OPTIONS.test(line));
+        if (offset === -1) continue;
+
+        limitedAuthRoutes.push({ file, line: i + 2 + offset, snippet: window[offset].trim().slice(0, 200) });
+        break;
+      }
+    }
+  }
+  for (const hit of limitedAuthRoutes.slice(0, 3)) {
+    evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line, claim: 'rate-limit' });
+  }
+
   const rateLimitNearAuth =
     coversAnAuthMount
+    || limitedAuthRoutes.length > 0
     || (boundLimiterUses ?? []).some((use) => authSurfaceFiles.has(use.file))
     || issuedRateLimits.some((match) => authSurfaceFiles.has(match.file));
 
