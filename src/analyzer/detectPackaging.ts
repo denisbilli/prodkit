@@ -206,7 +206,8 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
 
   const hasManifest = ctx.packageJson !== null
     || all.some((f) => /(^|\/)(pyproject\.toml|setup\.py|go\.mod|Cargo\.toml|composer\.json|\w+\.gemspec)$/i.test(f))
-    || all.some((f) => /\.(csproj|fsproj|vbproj)$/i.test(f));
+    || all.some((f) => /\.(csproj|fsproj|vbproj|pom\.xml)$/i.test(f))
+    || all.some((f) => /(^|\/)pom\.xml$/.test(f));
 
   /**
    * A name and a version. Without them nothing can depend on this, whatever else it
@@ -250,16 +251,58 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
     if (all.some((f) => f === `${crateRoot}src/lib.rs`)) rustCrate = true;
   }
 
+  /**
+   * Go says it with the absence of a `main` package.
+   *
+   * A module is importable by anything that knows its path; what makes it a program
+   * instead is a `package main`. testify is a module of 37 files with no `main`
+   * anywhere, and it came out `client-app` — below the floor, so in practice no
+   * profile at all.
+   *
+   * A repository that ships both a library and a `cmd/` binary answers no here, which
+   * is the cautious direction: a tool that also exposes packages is judged as a tool.
+   */
+  let goLibrary = false;
+  if (all.some((f) => /(^|\/)go\.mod$/.test(f))) {
+    const goFiles = ctx.files.source.filter((f) => /\.go$/.test(f));
+    let sawMain = false;
+
+    for (const file of goFiles.slice(0, 80)) {
+      const raw = (await readTextFileSafe(ctx.root, file)) ?? '';
+      if (/^\s*package\s+main\s*$/m.test(raw)) { sawMain = true; break; }
+    }
+
+    goLibrary = goFiles.length > 0 && !sawMain;
+  }
+
+  /**
+   * The JVM says it by configuring a publication.
+   *
+   * Every pom carries a groupId, an artifactId and a version, so those say nothing:
+   * an application has them too. What separates a published artifact is the plugin
+   * that uploads it — gson configures `central-publishing-maven-plugin`, Gradle
+   * projects apply `maven-publish`, older poms name a `distributionManagement`.
+   */
+  let jvmPublication = false;
+  for (const file of all.filter((f) => /(^|\/)(pom\.xml|build\.gradle(\.kts)?)$/.test(f)).slice(0, 8)) {
+    const raw = (await readTextFileSafe(ctx.root, file)) ?? '';
+    if (/maven-publish|<distributionManagement>|central-publishing-maven-plugin|maven-deploy-plugin|nexus-staging/.test(raw)) {
+      jvmPublication = true;
+    }
+  }
+
   const entrypointCount = nodeEntrypoints.length
     + (pythonEntrypoints ? 1 : 0)
     + (dotnetPackageId ? 1 : 0)
-    + (rustCrate ? 1 : 0);
+    + (rustCrate ? 1 : 0)
+    + (goLibrary ? 1 : 0)
+    + (jvmPublication ? 1 : 0);
 
   return [
     {
       key: 'packaging.manifest',
       present: hasManifest,
-      complete: hasManifest && (named || pythonEntrypoints || dotnetPackageId || rustCrate),
+      complete: hasManifest && (named || pythonEntrypoints || dotnetPackageId || rustCrate || goLibrary || jvmPublication),
       evidence: hasManifest
         ? [
             publishedMember
@@ -278,9 +321,11 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
         ...(pythonEntrypoints ? [{ type: 'note' as const, value: 'a Python package or console script declaration' }] : []),
         ...(dotnetPackageId ? [{ type: 'note' as const, value: 'a project that declares a NuGet package id' }] : []),
         ...(rustCrate ? [{ type: 'note' as const, value: 'a Cargo package with a library crate root' }] : []),
+        ...(goLibrary ? [{ type: 'note' as const, value: 'a Go module with no main package' }] : []),
+        ...(jvmPublication ? [{ type: 'note' as const, value: 'a build that configures a Maven publication' }] : []),
         ...(hasTypes ? [{ type: 'note' as const, value: 'TypeScript types are declared' }] : []),
       ],
-      details: { nodeEntrypoints, hasTypes, pythonEntrypoints, dotnetPackageId, rustCrate },
+      details: { nodeEntrypoints, hasTypes, pythonEntrypoints, dotnetPackageId, rustCrate, goLibrary, jvmPublication },
     },
     {
       key: 'packaging.license',

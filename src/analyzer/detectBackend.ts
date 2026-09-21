@@ -91,9 +91,50 @@ export async function detectBackend(ctx: DetectContext): Promise<{
    */
   const goShare = languageShare(ctx, /\.go$/);
 
-  if (!namedGoFramework && goShare >= MINIMUM_LANGUAGE_SHARE && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
+  /**
+   * A Go module is not a server for being a Go module.
+   *
+   * The fallback asked for a `go.mod` and enough Go to be the product, and named the
+   * backend `go`. testify is 100% Go and is a testing library: it came out with a
+   * backend, which made it a product with a server, which kept it out of the
+   * `library` profile — the same chain the `.csproj` fallback produced for Moq.
+   *
+   * Go's standard library does have an HTTP server, which is why this fallback exists
+   * at all and why Rust's was deleted in 0.71.0. So the test is the server side of
+   * it: `ListenAndServe`, an `http.Server` value, a handler registered on a mux.
+   * `net/http` alone is not enough — testify imports it to build a round tripper,
+   * which is the client.
+   */
+  const servesOverHttp = goShare >= MINIMUM_LANGUAGE_SHARE
+    ? await searchInFiles(
+      ctx.root,
+      ctx.files.source.filter((f) => /\.go$/.test(f)),
+      [
+        /\bhttp\.ListenAndServe(TLS)?\s*\(/,
+        /\bhttp\.Server\s*\{/,
+        /\bhttp\.(Handle|HandleFunc)\s*\(/,
+        /\bhttp\.NewServeMux\s*\(/,
+        /**
+         * The handler signature, which is the contract itself.
+         *
+         * A Go service often keeps its handlers in one package and its
+         * `ListenAndServe` in another, so requiring the server call missed the
+         * commonest shape: the `password-recovery-wording` fixture is one handler
+         * taking `http.ResponseWriter` and nothing else, and it stopped being a
+         * backend. Nothing on the client side is handed a ResponseWriter — testify
+         * defines a `TestResponseWriter` of its own and never names the interface.
+         */
+        /\bhttp\.ResponseWriter\b/,
+      ],
+      3,
+    )
+    : [];
+
+  if (!namedGoFramework && servesOverHttp.length > 0 && ctx.files.all.some((f) => /(^|\/)go\.mod$/.test(f))) {
     frameworks.push('go');
-    evidence.push({ type: 'note', value: 'a Go module with no web framework named in go.mod' });
+    for (const hit of servesOverHttp.slice(0, 1)) {
+      evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
+    }
   }
 
   /** The JVM, read from pom.xml and build.gradle alike: coordinates are the same shape. */

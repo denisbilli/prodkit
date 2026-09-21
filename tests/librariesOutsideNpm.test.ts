@@ -30,6 +30,65 @@ describe('a library that is not on npm', () => {
   it('is read from a Cargo package with a library crate root', async () => {
     expect(await topProfile('rust-published-crate')).toBe('library');
   });
+
+  /**
+   * Go says it with the absence of a `main` package: a module is importable by
+   * anything that knows its path, and what makes it a program instead is `package
+   * main`. testify is 37 files with no main anywhere and came out below the profile
+   * floor, which is no profile at all.
+   */
+  it('is read from a Go module with no main package', async () => {
+    expect(await topProfile('go-library-module')).toBe('library');
+  });
+
+  /**
+   * And a module that ships a `cmd/` binary answers no, which is the cautious
+   * direction: a tool that also exposes packages is judged as a tool.
+   */
+  it('is not claimed by a module that ships a command', async () => {
+    const analysis = await analyzeProject(fixture('go-cli-tool'));
+
+    expect(analysis.detectors['packaging.entrypoints']?.details?.goLibrary).toBe(false);
+  });
+
+  /**
+   * Every pom carries a groupId, an artifactId and a version, so those say nothing —
+   * an application has them too. What separates a published artifact is the plugin
+   * that uploads it, which is what gson configures.
+   */
+  it('is read from a build that configures a Maven publication', async () => {
+    expect(await topProfile('jvm-published-library')).toBe('library');
+  });
+});
+
+/**
+ * A Go module is not a server for being a Go module.
+ *
+ * The fallback asked for a `go.mod` and enough Go to be the product. testify is 100%
+ * Go and is a testing library: it came out with a backend, which made it a product
+ * with a server, which kept it out of the `library` profile — the same chain the
+ * `.csproj` fallback produced for Moq.
+ *
+ * Go's standard library does have an HTTP server, which is why this fallback exists
+ * and why Rust's was deleted in 0.71.0. The test is the server side of it.
+ */
+describe('what makes a Go module a backend', () => {
+  it('is not the module itself', async () => {
+    const analysis = await analyzeProject(fixture('go-library-module'));
+
+    expect(analysis.stack.backend).toEqual([]);
+  });
+
+  /**
+   * A service often keeps its handlers in one package and its `ListenAndServe` in
+   * another, so the handler signature counts too — nothing on the client side is
+   * handed a `http.ResponseWriter`.
+   */
+  it('is a handler signature, even with no ListenAndServe in sight', async () => {
+    const analysis = await analyzeProject(fixture('password-recovery-wording'));
+
+    expect(analysis.stack.backend).toContain('go');
+  });
 });
 
 /**
