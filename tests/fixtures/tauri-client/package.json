@@ -1,0 +1,6 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "scripts": { "tauri": "tauri" },
+  "dependencies": { "react": "^18.3.1" }
+}

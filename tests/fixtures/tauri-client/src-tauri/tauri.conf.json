@@ -1,0 +1,7 @@
+{
+  "productName": "client",
+  "version": "1.0.0",
+  "identifier": "com.example.client",
+  "app": { "windows": [{ "title": "client", "width": 1000, "height": 700 }] },
+  "bundle": { "active": true, "targets": "all" }
+}

@@ -229,6 +229,17 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
     case 'app.asset-delivery': {
       if (detector(analysis, 'game.engine')?.details?.nativeEngine === true) return 'not_applicable';
 
+      /**
+       * And the same for an application that is installed rather than visited.
+       *
+       * marktext ships as an Electron bundle and yaak as a Tauri one; their assets are
+       * inside the download, and `Cache-Control` has nobody to talk to. This is the
+       * native-game case again, arrived at from the other direction — the first time
+       * from a `ProjectVersion.txt`, this time from `electron` in a manifest and a
+       * `tauri.conf.json` in the tree.
+       */
+      if (detector(analysis, 'packaging.desktopBundle')?.present === true) return 'not_applicable';
+
       return detector(analysis, 'app.assetDelivery')?.present ? 'present' : 'missing';
     }
     case 'jobs.background': {

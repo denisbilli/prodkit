@@ -291,6 +291,13 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
     }
   }
 
+  const tauriConfigs = all.filter((file) => /(^|\/)tauri\.conf\.json$/.test(file));
+  const desktopBundle: DetectorEvidence[] = [
+    ...hasAnyDep(ctx, ['electron', 'electron-builder', '@tauri-apps/api', '@tauri-apps/cli'])
+      .map((dep) => ({ type: 'dependency' as const, value: dep })),
+    ...tauriConfigs.slice(0, 2).map((file) => ({ type: 'file' as const, value: file, file })),
+  ];
+
   const entrypointCount = nodeEntrypoints.length
     + (pythonEntrypoints ? 1 : 0)
     + (dotnetPackageId ? 1 : 0)
@@ -350,6 +357,24 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
         ? docsGenerators.map((dep) => ({ type: 'dependency' as const, value: dep }))
         : frontendFiles.slice(0, 5).map((file) => ({ type: 'file' as const, value: file, file })),
       details: { generators: docsGenerators, frontendFiles: frontendFiles.length, allUnderDocs: frontendAllInDocs },
+    },
+    {
+      /**
+       * An application that ships as a desktop bundle, not as a page.
+       *
+       * `electron` in the manifest and a `tauri.conf.json` in the tree are the two
+       * ways a project says its product is installed rather than visited. Both are
+       * the toolchain's own names: electron-builder reads the first, the Tauri CLI
+       * reads the second.
+       *
+       * Recorded here so the profile can stop asking a desktop application how it
+       * caches assets over HTTP — the question a Unity game stopped being asked in
+       * 0.84.0, for the same reason. marktext, an Electron editor, was told at `high`
+       * that it has no asset-delivery policy.
+       */
+      key: 'packaging.desktopBundle',
+      present: desktopBundle.length > 0,
+      evidence: desktopBundle,
     },
     {
       key: 'docs.readme',
