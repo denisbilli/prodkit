@@ -52,3 +52,62 @@ describe('a Rails application says it in Ruby', () => {
     expect(details?.helmet).toBe(false);
   });
 });
+
+/**
+ * Laravel's limiter is part of the framework, not a package to depend on.
+ *
+ * `Route::middleware(['throttle:api'])` applies it and `RateLimiter::for('api', ...)`
+ * defines the limit. A list of packages could never find either, and monica — which
+ * writes both — was told at `high` that it does not throttle.
+ */
+describe('a Laravel application throttles with the framework', () => {
+  it('reads the throttle middleware alias', async () => {
+    const analysis = await analyzeProject(fixture('laravel-throttled'));
+
+    expect(analysis.detectors['security.core']?.details?.rateLimit).toBe(true);
+  });
+
+  /**
+   * In its own fixture: the first version put the alias and `RateLimiter::for` in one
+   * repository, so removing either left the other to pass. Third fixture tonight to
+   * hide a rule that way.
+   */
+  it('reads the limit definition on its own', async () => {
+    const analysis = await analyzeProject(fixture('laravel-rate-limiter-for'));
+
+    expect(analysis.detectors['security.core']?.details?.rateLimit).toBe(true);
+  });
+
+  it('does not credit a Laravel application that applies none', async () => {
+    const analysis = await analyzeProject(fixture('laravel-open-cors'));
+
+    expect(analysis.detectors['security.core']?.details?.rateLimit).toBe(false);
+  });
+});
+
+/**
+ * The processor, declared wherever this project declares its dependencies.
+ *
+ * `hasDep` reads `package.json` and nothing else, so a product that charges people in
+ * any other language had to be caught by a `STRIPE_` variable search instead. pretix
+ * is a ticketing platform with `stripe`, `paypalrestsdk` and
+ * `paypal-checkout-serversdk` in its pyproject, and it was told at `high` that it has
+ * no way to charge for the product.
+ */
+describe('a payment processor outside npm', () => {
+  it('is read from the Python manifest', async () => {
+    const analysis = await analyzeProject(fixture('pretix-like-payments'));
+
+    expect(analysis.detectors['billing.stripe']?.present).toBe(true);
+  });
+
+  /**
+   * Only processors, not billing vocabulary. This fixture exists to hold that line:
+   * a route called `/api/billing/plans` is still not a payment integration.
+   */
+  it('is not read from billing words', async () => {
+    const analysis = await analyzeProject(fixture('movie-like-billing-no-stripe'));
+
+    expect(analysis.detectors['billing.stripe']?.present).toBe(false);
+  });
+});

@@ -364,6 +364,17 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
        * issuing the refusal rather than reading one: a constant is what you construct
        * a response from, where receiving is a comparison against `.status`.
        */
+      /**
+       * Laravel's, which is a middleware alias the framework registers.
+       *
+       * `Route::middleware(['throttle:oauth2-socialite'])` is monica applying the
+       * limiter that ships with the framework, and `RateLimiter::for('login', ...)`
+       * is where the limit is defined. Neither is a package to depend on — the
+       * limiter is part of Laravel — so a list of packages could never find them, and
+       * monica was told at `high` that it does not throttle.
+       */
+      /['"]throttle:[\w.-]+['"]/,
+      /\bRateLimiter::for\s*\(/,
       /StatusCode::TOO_MANY_REQUESTS/,
       /http\.StatusTooManyRequests/,
       /HttpStatus\.TOO_MANY_REQUESTS/,

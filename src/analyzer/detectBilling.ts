@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasDep } from './detectContext';
+import { hasAnyDotnetDep, hasAnyGradleDep, hasAnyPhpDep, hasAnyPyDep, hasAnyRubyDep, hasAnyRustDep, hasDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { evidenceOrSearch } from './absenceEvidence';
 
@@ -46,7 +46,32 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     30
   );
 
-  const hasStrongStripeSignal = hasStripeDep || stripeContextHits.length > 0;
+  /**
+   * The processor, declared wherever this project declares its dependencies.
+   *
+   * `hasDep` reads `package.json` and nothing else, so a product that charges people
+   * in any other language had to be caught by the `STRIPE_` variable search instead.
+   * pretix is a ticketing platform with `stripe==7.9.*`, `paypalrestsdk` and
+   * `paypal-checkout-serversdk` in its pyproject, and it was told at `high` that it
+   * has no way to charge for the product.
+   *
+   * Only processors, not billing vocabulary: the `movie-like-billing-no-stripe`
+   * fixture exists to hold that line, and a route called `/api/billing/plans` is
+   * still not a payment integration.
+   */
+  const PROCESSOR_PACKAGES = ['stripe', 'braintree', 'paddle', 'lemonsqueezy', 'mollie', 'razorpay', 'adyen'];
+
+  const processorDeps = [
+    ...hasAnyPyDep(ctx, [...PROCESSOR_PACKAGES, 'paypalrestsdk', 'paypal-checkout-serversdk', 'mollie-api-python']),
+    ...hasAnyRubyDep(ctx, [...PROCESSOR_PACKAGES, 'paypal-sdk-rest']),
+    ...hasAnyPhpDep(ctx, ['stripe/stripe-php', 'paypal/rest-api-sdk-php', 'mollie/mollie-api-php', 'braintree/braintree_php']),
+    ...hasAnyGradleDep(ctx, ['com.stripe:stripe-java', 'com.braintreepayments']),
+    ...hasAnyDotnetDep(ctx, ['Stripe.net', 'Braintree', 'PayPalCheckoutSdk']),
+    ...hasAnyRustDep(ctx, ['stripe-rust', 'async-stripe']),
+  ];
+  for (const dep of processorDeps) evidence.push({ type: 'dependency', value: dep });
+
+  const hasStrongStripeSignal = hasStripeDep || processorDeps.length > 0 || stripeContextHits.length > 0;
 
   const webhookRouteHits = hasStrongStripeSignal
     ? await searchInFiles(
