@@ -137,6 +137,59 @@ export function isCitableLine(line: string): boolean {
  */
 const MAX_CITABLE_LINE = 500;
 
+
+/**
+ * A placeholder is not a value.
+ *
+ * pocketbase was reported as having tenant boundaries — `passed`, which raises a
+ * score — and the only two strong matches in its readable source were
+ * `"Ex. https://login.microsoftonline.com/YOUR_DIRECTORY_TENANT_ID/oauth2/v2.0/authorize"`,
+ * twice, in the help text of the form where somebody configures Microsoft sign-in.
+ * Microsoft Entra calls its directory a tenant; the string is telling a reader where
+ * to paste theirs. pocketbase has no organizations at all, and the rest of that
+ * finding was Apple's developer `teamId`, a weak word that cannot stand alone.
+ *
+ * `YOUR_SOMETHING` is the convention for "replace this", in documentation, in example
+ * configuration and in the help text beside a field. This analyzer already knows the
+ * shape: `your[_-]?secret` has been in the weak-secret list since the beginning.
+ *
+ * The token around the match is what decides, not the line. A line may hold a
+ * placeholder and a real value both, and only the matched one is being judged.
+ */
+const PLACEHOLDER_TOKEN = /^(?:your|my|sample|example|placeholder|changeme|todo|xxx+)[_-]/i;
+
+function insideAPlaceholder(line: string, index: number, length: number): boolean {
+  let start = index;
+  while (start > 0 && /[A-Za-z0-9_-]/.test(line[start - 1])) start--;
+  let end = index + length;
+  while (end < line.length && /[A-Za-z0-9_-]/.test(line[end])) end++;
+
+  return PLACEHOLDER_TOKEN.test(line.slice(start, end));
+}
+
+/**
+ * Where a needle first matches, or -1. Shared so that both searches below judge a
+ * match the same way.
+ */
+function findNeedle(line: string, needle: string | RegExp): { index: number; length: number } | null {
+  if (typeof needle === 'string') {
+    const index = line.indexOf(needle);
+    return index === -1 ? null : { index, length: needle.length };
+  }
+
+  const found = new RegExp(needle.source, needle.flags.replace('g', '')).exec(line);
+  return found ? { index: found.index, length: found[0].length } : null;
+}
+
+function matchesHere(line: string, needles: Array<string | RegExp>): boolean {
+  for (const needle of needles) {
+    const found = findNeedle(line, needle);
+    if (found && !insideAPlaceholder(line, found.index, found.length)) return true;
+  }
+
+  return false;
+}
+
 /**
  * The lines of one already-read file that match, with the same hygiene the file
  * search applies: no comments, no pattern tables, no minified lines.
@@ -164,12 +217,8 @@ export function matchLines(text: string, needles: Array<string | RegExp>, file =
     if (testOnly.has(i + 1) || prose.has(i + 1) || commented.has(i + 1)) continue;
     if (line.length > MAX_CITABLE_LINE) continue;
     if (declaresRatherThanDoes(line)) continue;
-    for (const n of needles) {
-      const hit = typeof n === 'string' ? line.includes(n) : n.test(line);
-      if (hit) {
-        matches.push({ file, line: i + 1, snippet: line.trim().slice(0, 200) });
-        break;
-      }
+    if (matchesHere(line, needles)) {
+      matches.push({ file, line: i + 1, snippet: line.trim().slice(0, 200) });
     }
   }
   return matches;
@@ -215,13 +264,9 @@ export async function searchInFiles(
       if (line.length > MAX_CITABLE_LINE) continue;
       if (declaresRatherThanDoes(line)) continue;
 
-      for (const n of needles) {
-        const hit = typeof n === 'string' ? line.includes(n) : n.test(line);
-        if (hit) {
-          const match: TextMatch = { file, line: i + 1, snippet: line.trim().slice(0, 200) };
-          if (!keep || keep(match)) matches.push(match);
-          break;
-        }
+      if (matchesHere(line, needles)) {
+        const match: TextMatch = { file, line: i + 1, snippet: line.trim().slice(0, 200) };
+        if (!keep || keep(match)) matches.push(match);
       }
       if (matches.length >= limit) break;
     }
