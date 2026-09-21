@@ -46,14 +46,32 @@ const PATTERN_DECLARATION = /^(?:const\s+\w+(?:\s*:[^=]+)?\s*=\s*)?\/(?:[^/\\]|\
  * and `"access-control-allow-origin"` are one string spelled three ways. A trailing
  * comment is dropped first; Go puts the documentation link on the same line.
  */
+/**
+ * A header name, in the shape the protocol writes them.
+ *
+ * Radarr shortens its constants — `public const string AllowOrigin =
+ * "Access-Control-Allow-Origin";` — so the two halves do not match and the
+ * spells-its-own-name test says nothing. It is the same table: five lines naming five
+ * headers, and the policy that matters is `builder.AllowAnyOrigin()` in `Startup.cs`,
+ * two files away.
+ *
+ * Hyphenated capitalised words are how HTTP writes a header and almost nothing else
+ * is written that way. It is required to be the whole value of a declaration, so a
+ * line that *sends* one — `res.setHeader('Access-Control-Allow-Origin', origin)` —
+ * has other arguments and is untouched.
+ */
+const HTTP_HEADER_NAME = /^[A-Z][A-Za-z0-9]*(?:-[A-Z][A-Za-z0-9]*)+$/;
+
 function spellsItsOwnName(trimmed: string): boolean {
   const withoutComment = trimmed.replace(/\s*(\/\/|#).*$/, '').replace(/[,;]\s*$/, '');
-  const assignment = /^(?:const|let|var|final|static|public|private)?\s*([A-Za-z_][\w.]*)\s*(?::\s*[\w<>[\].]+)?\s*=\s*(['"`])([^'"`]+)\2$/.exec(withoutComment);
+  const assignment = /^(?:(?:public|private|protected|internal|export|const|let|var|final|static|readonly|string)\s+)*([A-Za-z_][\w.]*)\s*(?::\s*[\w<>[\].]+)?\s*=\s*(['"`])([^'"`]+)\2$/.exec(withoutComment);
   if (!assignment) return false;
 
   const plain = (value: string) => value.toLowerCase().replace(/[-_.\s]/g, '');
+  const declared = /^\s*(?:public|private|protected|internal|export|const|let|var|final|static|readonly)\b/.test(withoutComment);
 
-  return plain(assignment[1]) === plain(assignment[3]);
+  return plain(assignment[1]) === plain(assignment[3])
+    || (declared && HTTP_HEADER_NAME.test(assignment[3]));
 }
 
 /**

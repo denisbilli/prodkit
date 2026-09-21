@@ -45,4 +45,23 @@ describe('a constant that spells its own name', () => {
 
     expect(found?.status).not.toBe('unknown');
   });
+
+  /**
+   * And the variant that slipped past the first version. Radarr shortens its
+   * constants — `public const string AllowOrigin = "Access-Control-Allow-Origin";` —
+   * so the two halves do not match and the name-equality test says nothing about
+   * them. It is the same table: five lines naming five headers, while the policy that
+   * matters is `builder.AllowAnyOrigin()` two files away.
+   *
+   * Hyphenated capitalised words are how HTTP writes a header and almost nothing else
+   * is written that way. It has to be the whole value of a declaration, so a line
+   * that sends one — `res.setHeader('Access-Control-Allow-Origin', origin)` — has
+   * other arguments and is untouched.
+   */
+  it('cites the policy rather than a constant that shortens the header name', async () => {
+    const found = await cors('dotnet-shortens-its-headers');
+
+    expect(found?.evidence.some((e) => String(e.value).includes('AllowAnyOrigin'))).toBe(true);
+    expect(found?.evidence.some((e) => String(e.value).includes('const string AllowOrigin'))).toBe(false);
+  });
 });
