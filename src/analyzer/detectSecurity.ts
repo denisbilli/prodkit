@@ -207,6 +207,16 @@ const RATE_LIMIT_PACKAGES = [
   'koa-ratelimit',
   'fastify-rate-limit',
   '@fastify/rate-limit',
+  /**
+   * Nest's own, which is a module and a guard rather than a middleware function.
+   *
+   * ghostfolio registers `ThrottlerModule.forRootAsync` and puts a
+   * `CustomThrottlerGuard` on its sign-in route, and was told at `medium` that it has
+   * no rate limiting at all. The package name is Nest's; what the guard is called is
+   * ghostfolio's business.
+   */
+  '@nestjs/throttler',
+  '@nest-lab/throttler-storage-redis',
 ];
 
 export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult> {
@@ -348,6 +358,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     hasDep(ctx, '@upstash/ratelimit') ||
     hasDep(ctx, 'rate-limiter-flexible') ||
     hasDep(ctx, 'next-rate-limit') ||
+    hasDep(ctx, '@nestjs/throttler') ||
     hasAnyPyDep(ctx, ['django-ratelimit', 'slowapi', 'flask-limiter']).length > 0 ||
     hasAnyRustDep(ctx, ['governor', 'tower_governor', 'tower-governor', 'actix-governor', 'ratelimit']).length > 0 ||
     /**
@@ -483,7 +494,22 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * project's authentication surface. Per pattern, the decisive search keeps its own
    * budget however much noise the others find.
    */
-  const AUTH_SURFACE_PATTERNS = [/['"`]\/(login|signin|sign-in|auth|session)/i, /passport\./, /signIn\s*\(/, /authenticate\s*\(/];
+  /**
+   * A route decorator writes the path without a leading slash.
+   *
+   * Every pattern here wanted `'/login'`, and NestJS writes `@Controller('auth')` and
+   * `@Post('login')` — the slash belongs to the router, not to the string. ghostfolio
+   * throttles its sign-in with a `CustomThrottlerGuard` two lines under
+   * `@Controller('auth')`, and `auth.controller.ts` was not in this set at all: four
+   * files were, none of them the controller, and the report said the product has no
+   * rate limiting.
+   *
+   * The decorator name is the anchor. Dropping the slash from the plain pattern
+   * instead would have let every `from './auth'` into the authentication surface, and
+   * that surface decides what counts as protecting a sign-in.
+   */
+  const ROUTE_DECORATOR = /@(?:Controller|Post|Get|Put|Patch|All|RequestMapping)\(\s*(?:value\s*=\s*)?['"`]\/?(?:login|signin|sign-in|auth|session)/i;
+  const AUTH_SURFACE_PATTERNS = [/['"`]\/(login|signin|sign-in|auth|session)/i, ROUTE_DECORATOR, /passport\./, /signIn\s*\(/, /authenticate\s*\(/];
   const authSurfaceFiles = new Set<string>();
   for (const pattern of AUTH_SURFACE_PATTERNS) {
     for (const match of await searchInFiles(ctx.root, source, [pattern], 40)) authSurfaceFiles.add(match.file);
@@ -527,6 +553,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * limiter package at all. A schema field is neither.
    */
   const AUTH_ROUTE_DECLARATION = /['"`]\/(?:login|signin|sign-in|sessions?|auth\/login)['"`]/i;
+  const DECLARES_AN_AUTH_ROUTE = (line: string): boolean => AUTH_ROUTE_DECLARATION.test(line) || ROUTE_DECORATOR.test(line);
   const LIMIT_IN_ROUTE_OPTIONS = /rate[_-]?limit|throttle/i;
   const ROUTE_OPTIONS_WINDOW = 8;
 
@@ -538,7 +565,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
 
       const lines = text.split(/\r?\n/);
       for (let i = 0; i < lines.length; i++) {
-        if (!AUTH_ROUTE_DECLARATION.test(lines[i])) continue;
+        if (!DECLARES_AN_AUTH_ROUTE(lines[i])) continue;
 
         const window = lines.slice(i + 1, i + 1 + ROUTE_OPTIONS_WINDOW);
         const offset = window.findIndex((line) => LIMIT_IN_ROUTE_OPTIONS.test(line));
@@ -553,9 +580,35 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line, claim: 'rate-limit' });
   }
 
+  /**
+   * A guard is applied to a class, not to a line.
+   *
+   * ghostfolio puts `@UseGuards(CustomThrottlerGuard)` on three routes of
+   * `auth.controller.ts`, nine lines below `@Controller('auth')` — one past the window
+   * that reads a route's own options, and that window is the wrong question anyway. A
+   * Nest guard protects the handler it decorates, wherever in the class it sits.
+   *
+   * `Throttler` is the word `@nestjs/throttler` exports; what the guard wrapping it is
+   * called is the author's business. So the claim is narrow: the package is declared,
+   * and its name appears in a file this analyzer already established as the
+   * authentication surface.
+   *
+   * Matched without word boundaries and without case, because the author's name for it
+   * wraps the package's: `CustomThrottlerGuard` has no boundary before `Throttler`,
+   * and `custom-throttler.guard` spells it in lower case. The first version of this
+   * rule asked for `\bThrottler` and found neither.
+   */
+  const nestThrottler = hasDep(ctx, '@nestjs/throttler')
+    ? (await searchInFiles(ctx.root, source, [/throttler/i], 20)).filter((hit) => authSurfaceFiles.has(hit.file))
+    : [];
+  for (const hit of nestThrottler.slice(0, 2)) {
+    evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line, claim: 'rate-limit' });
+  }
+
   const rateLimitNearAuth =
     coversAnAuthMount
     || limitedAuthRoutes.length > 0
+    || nestThrottler.length > 0
     || (boundLimiterUses ?? []).some((use) => authSurfaceFiles.has(use.file))
     || issuedRateLimits.some((match) => authSurfaceFiles.has(match.file));
 
@@ -685,6 +738,28 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     corsLoose.push(...detected.loose);
     corsStrict.push(...detected.strict);
   }
+  /**
+   * NestJS turns it on with a method of its own.
+   *
+   * `app.enableCors()` is how a Nest application does this, and bare — with no
+   * argument — it is Nest's default, which is every origin. ghostfolio calls exactly
+   * that in `apps/api/src/main.ts`, and the one line the report cited was
+   * `allowedOrigins: [hostname]` in an MCP module twelve directories away: an
+   * allowlist, while the whole API answers anybody.
+   *
+   * `enableCors` is the framework's name for the method, so it is the anchor. An
+   * argument means somebody chose something and the choice is read the same way as
+   * everywhere else here — a literal `'*'` is open, anything else is a decision this
+   * search cannot settle and says so.
+   */
+  const nestCors = await searchInFiles(ctx.root, source, [/\.enableCors\s*\(/], 5);
+  for (const hit of nestCors) {
+    const argument = /\.enableCors\s*\(\s*([^)]*)/.exec(hit.snippet)?.[1]?.trim() ?? '';
+    const wideOpen = argument === '' || /^["']\*["']/.test(argument) || /origin\s*:\s*["']\*["']/.test(argument);
+
+    (wideOpen ? corsLoose : corsStrict).push(hit);
+  }
+
   /**
    * Django's answer, which is a string in a list.
    *

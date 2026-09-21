@@ -1,0 +1,11 @@
+{
+  "name": "nest-auth-api",
+  "private": true,
+  "dependencies": {
+    "@nestjs/core": "^10.4.0",
+    "@nestjs/common": "^10.4.0",
+    "@nestjs/throttler": "^6.5.0",
+    "bcryptjs": "^2.4.3",
+    "@nestjs/platform-express": "^10.4.0"
+  }
+}

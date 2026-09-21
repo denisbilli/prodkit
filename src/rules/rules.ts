@@ -436,7 +436,18 @@ export const rules: Rule[] = [
     category: 'security',
     severity: 'medium',
     evaluate: ({ analysis }) => {
-      const isExpress = analysis.stack.backend.includes('express');
+      /**
+       * The backends this check can actually read.
+       *
+       * It was `express` alone, and said so in its own unknown sentence — the
+       * coverage reading follows `app.use('/api', limiter)`, which is Express. Two
+       * readers have joined it since: a limit declared in a route's own options, and
+       * a Nest guard applied in the controller that declares the sign-in. A NestJS
+       * application that does not also declare express — which is most of them, since
+       * `@nestjs/platform-express` is the adapter rather than the framework — got no
+       * verdict at all, on a capability this analyzer can now read there.
+       */
+      const readableBackend = ['express', 'nestjs'].some((name) => analysis.stack.backend.includes(name));
       const auth = analysis.detectors['auth.core'];
       const sec = analysis.detectors['security.core'];
       const hasAuth = Boolean(auth?.present);
@@ -459,7 +470,7 @@ export const rules: Rule[] = [
        * showed it.
        */
       const coverageUnasked = Boolean(sec?.details?.rateLimitCoverageUnasked);
-      const status: FindingStatus = !isExpress || !hasAuth
+      const status: FindingStatus = !readableBackend || !hasAuth
         ? 'unknown'
         : nearAuth ? 'passed' : coverageUnasked && hasRate ? 'unknown' : hasRate ? 'partial' : 'missing';
       return mkFinding({
@@ -484,7 +495,7 @@ export const rules: Rule[] = [
           ? 'Not assessed: this project throttles something, and whether it reaches the login is read from where the limiter is mounted — which needs the optional `typescript` peer dependency. Install it and re-run.'
           : !hasAuth
           ? 'Nothing here authenticates anybody, so there is no login surface to throttle.'
-          : 'This check reads Express middleware, and this project does not use it — any throttling it has is somewhere this cannot see.',
+          : 'This check reads Express and NestJS, and this project uses neither — any throttling it has is somewhere this cannot see.',
         recommendation: 'Apply express-rate-limit (or equivalent) to login/register/password reset endpoints.',
         /**
          * The claim is about rate limiting, so the evidence is about rate limiting.
