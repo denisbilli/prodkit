@@ -116,10 +116,30 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
     apiKey: [],
     unknown: [],
   };
-  const hasEnvExample = ctx.files.all.includes('.env.example');
+  /**
+   * The template has more than one spelling, and one exact string knew one of them.
+   *
+   * immich ships `docker/example.env` — the name reversed, and one directory down,
+   * which is where a compose deployment keeps it — and was told at `medium` that it
+   * reads environment variables without publishing a template. The check was
+   * `files.all.includes('.env.example')`: the right idea matched against a single
+   * literal at the root.
+   *
+   * The vocabulary is small and conventional, so it is written out: `.env` followed
+   * by example, sample, template, dist or defaults, the same words in front of `.env`
+   * instead, and the `.env.local.example` shape a monorepo uses per application.
+   *
+   * `.env` itself is deliberately not in it, and neither is `.env.production`: the
+   * first is the real file — a different finding when it is committed — and the second
+   * is one environment's values rather than a blank somebody fills in.
+   */
+  const ENV_TEMPLATE = /(^|\/)(?:\.?env(?:\.[a-z0-9-]+)?\.(?:example|sample|template|dist|defaults)|(?:example|sample|template)\.env)$/i;
+
+  const envTemplates = ctx.files.all.filter((file) => ENV_TEMPLATE.test(file));
+  const hasEnvExample = envTemplates.length > 0;
   const hasEnv = ctx.files.all.includes('.env');
 
-  if (hasEnvExample) evidence.push({ type: 'file', value: '.env.example' });
+  for (const file of envTemplates.slice(0, 3)) evidence.push({ type: 'file', value: file, file });
   if (hasEnv) evidence.push({ type: 'file', value: '.env' });
 
   const sourceFiles = ctx.files.source;
