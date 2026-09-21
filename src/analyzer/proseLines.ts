@@ -1,5 +1,5 @@
 /**
- * The lines of a Python file that are a docstring rather than code.
+ * The lines of a Python or Elixir file that are prose rather than code.
  *
  * This analyzer has skipped comments since the day it read its own prose about Stripe
  * as evidence that it takes payments. The rule looks for a line marker — `#`, `//`,
@@ -17,6 +17,8 @@
  * has nothing before it but indentation.
  */
 export function proseLines(file: string, text: string): Set<number> {
+  if (/\.exs?$/i.test(file)) return elixirDocLines(text);
+
   const prose = new Set<number>();
   if (!/\.py$/i.test(file)) return prose;
 
@@ -50,6 +52,44 @@ export function proseLines(file: string, text: string): Set<number> {
 
     openQuote = match[1];
     openIsProse = standsAlone;
+  }
+
+  return prose;
+}
+
+/**
+ * Elixir writes its prose as a module attribute, and the rest is a heredoc.
+ *
+ * `@moduledoc """ ... """` is the same trap as a Python docstring with a different
+ * marker: the interior lines begin with whatever the author was saying, and nothing
+ * about them says they are not code. Phoenix generators put one at the top of every
+ * controller, context and channel, so a repository has thousands.
+ *
+ * Anchored on Elixir's own attribute names — `@moduledoc`, `@doc`, `@typedoc`,
+ * `@shortdoc` — rather than on the heredoc, because `@query """SELECT ..."""` is data
+ * assigned to a name and a hardcoded secret could live in one. Same distinction the
+ * Python reader draws, made by a different marker.
+ */
+function elixirDocLines(text: string): Set<number> {
+  const prose = new Set<number>();
+  const lines = text.split(/\r?\n/);
+  let open = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (open) {
+      prose.add(i + 1);
+      if (/"""/.test(line)) open = false;
+      continue;
+    }
+
+    const doc = /^\s*@(?:module|type|short)?doc\s+(?:~[A-Za-z])?"""/.exec(line);
+    if (!doc) continue;
+
+    prose.add(i + 1);
+    /** A heredoc cannot close on its opening line, so the block is always open here. */
+    open = true;
   }
 
   return prose;

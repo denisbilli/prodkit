@@ -132,7 +132,7 @@ describe('an unreadable repository is not a finished one', () => {
     // A profile asked for by name, so the estimate is not short-circuited by the
     // "no profile applied" branch: this is the case where the estimator has a profile,
     // finds nothing open, and would otherwise report that there is nothing to do.
-    const report = buildReport(await analyzeProject(path.join(FIXTURES, 'phoenix-app')), {
+    const report = buildReport(await analyzeProject(path.join(FIXTURES, 'lua-project')), {
       profile: 'b2b-saas',
     });
 

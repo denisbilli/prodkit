@@ -199,6 +199,7 @@ export const LANGUAGES: Array<{ id: string; label: string; extensions: RegExp }>
   { id: 'kotlin', label: 'Kotlin', extensions: /\.(kt|kts)$/ },
   { id: 'swift', label: 'Swift', extensions: /\.swift$/ },
   { id: 'dart', label: 'Dart', extensions: /\.dart$/ },
+  { id: 'elixir', label: 'Elixir', extensions: /\.exs?$/ },
 ];
 
 export interface CatalogueEntry {

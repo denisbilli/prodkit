@@ -164,10 +164,15 @@ describe('an absence is evidenced by what was looked for', () => {
  * client application, with high confidence, scored 85 and not inconclusive. Found by
  * cloning public repositories; not one of the seventy-eight on the machine this was
  * written on crosses the line.
+ *
+ * Elixir is read now, so the case moved to one still unread rather than being deleted.
+ * The guard is about what the analyzer may claim where it cannot look, and every
+ * language it learns leaves the next one needing it just as much: Lua, Scala, Clojure,
+ * Erlang, Haskell, Perl and C++ are all still on the other side of it.
  */
 describe('a reading that covers a minority of the repository', () => {
   it('does not characterise a project whose language it cannot read', async () => {
-    const report = buildReport(await analyzeProject(fixture('phoenix-app')), { profile: 'auto' });
+    const report = buildReport(await analyzeProject(fixture('lua-project')), { profile: 'auto' });
 
     expect(report.inconclusive).toBe(true);
     expect(report.overallScore).toBeNull();
@@ -178,10 +183,10 @@ describe('a reading that covers a minority of the repository', () => {
     // "Check that the path points at application source" is right for an empty directory
     // and wrong here: the path was fine, and it sends somebody looking for a mistake they
     // did not make.
-    const report = buildReport(await analyzeProject(fixture('phoenix-app')), { profile: 'auto' });
+    const report = buildReport(await analyzeProject(fixture('lua-project')), { profile: 'auto' });
 
-    expect(report.inconclusiveReasons.join(' ')).toMatch(/written in Elixir/);
-    expect(report.executiveSummary.verdict).toMatch(/Elixir/);
+    expect(report.inconclusiveReasons.join(' ')).toMatch(/written in Lua/);
+    expect(report.executiveSummary.verdict).toMatch(/Lua/);
   });
 
   it('leaves a project with a few files in another language alone', async () => {

@@ -282,7 +282,7 @@ function isTestOrExamplePath(file: string): boolean {
  * `.vue`, `.svelte` and `.astro` were missing for the same reason: a single-file
  * component holds the logic, not just the markup.
  */
-const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift|dart|html?|vue|svelte|astro)$/;
+const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift|dart|ex|exs|html?|vue|svelte|astro)$/;
 
 function pickSource(files: string[]): string[] {
   return files.filter((f) => SOURCE_EXTENSIONS.test(f) && !isTestOrExamplePath(f));
@@ -299,7 +299,6 @@ function pickSource(files: string[]): string[] {
  * Being wrong is recoverable. Being wrong while announcing no reservations is not.
  */
 const KNOWN_UNREADABLE: Array<[RegExp, string]> = [
-  [/\.(ex|exs)$/, 'Elixir'],
   [/\.(scala|sc)$/, 'Scala'],
   [/\.(clj|cljs)$/, 'Clojure'],
   [/\.(cpp|cc|hpp)$/, 'C++'],

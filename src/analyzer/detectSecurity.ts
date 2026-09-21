@@ -241,6 +241,26 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     20,
   );
   /**
+   * Reading a header is not setting one.
+   *
+   * plausible ships `tracker/installation_support/check-disallowed-by-csp.js`, whose
+   * whole job is to look at somebody else's `content-security-policy` and tell a user
+   * why the tracker was blocked. Its line `responseHeaders?.['content-security-policy']`
+   * was the evidence behind "security headers: passed" — a tool that inspects other
+   * people's headers credited with setting its own.
+   *
+   * The shape is the anchor, not the file: a header name used as a key into a headers
+   * object is a lookup. Setting one is a call — `put_resp_header`, `setHeader`,
+   * `headers.set`, `add_header` — or an assignment to that subscript, and a line doing
+   * either is left alone.
+   */
+  const READS_A_HEADER = /\[\s*(['"`])[^'"`]+\1\s*\](?!\s*=[^=])/;
+  const SETS_A_HEADER = /put_resp_header|setHeader|set_header|add_header|headers\.(?:set|append)|writeHead/i;
+  const headerSignalsThatSet = headerSignals.filter(
+    (hit) => !READS_A_HEADER.test(hit.snippet) || SETS_A_HEADER.test(hit.snippet),
+  );
+
+  /**
    * Spring Security, which writes the headers without being asked.
    *
    * Adding `spring-boot-starter-security` and configuring an `HttpSecurity` chain
@@ -279,7 +299,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     });
   }
 
-  const helmet = helmetDep || headerSignals.length > 0 || springFilterChain.length > 0;
+  const helmet = helmetDep || headerSignalsThatSet.length > 0 || springFilterChain.length > 0;
 
   /**
    * The packages the ecosystem names, as distinct from the variables authors do.
@@ -453,7 +473,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
 
   if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet', claim: 'headers' });
   if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package', claim: 'rate-limit' });
-  for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
+  for (const m of headerSignalsThatSet) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
   for (const m of issuedRateLimits) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'rate-limit' });
 
   /**
@@ -628,6 +648,36 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     const cited = anyOrigin[0] ?? chosen[0] ?? aspNetCors[0];
 
     target.push({ file: cited.file, line: cited.line, snippet: cited.snippet.trim().slice(0, 200) });
+  }
+
+  /**
+   * Elixir's, which is a plug in the endpoint or the router.
+   *
+   * `cors_plug` and `corsica` are the two packages, and both are used the same way:
+   * `plug CORSPlug, origin: ["https://app.example.com"]` or `plug Corsica, origins:
+   * "*"`. The module name comes from the package, so it is the anchor; what the
+   * author chose is the value of `origin`.
+   *
+   * `plug` takes parentheses as readily as not — plausible writes `plug(CORSPlug)` in
+   * its endpoint, and a rule that required a space after the keyword could not see
+   * it. Both forms are ordinary Elixir and the formatter leaves either alone.
+   *
+   * `"*"` is the wide-open one. A list, a function or a regex is a decision somebody
+   * made, and the same reflection-versus-allowlist question the other frameworks are
+   * asked. Where the plug names no origin at all, cors_plug's own default is `"*"`,
+   * so silence is the open branch rather than the strict one.
+   */
+  const elixirCorsPackages = hasAnyElixirDep(ctx, ['cors_plug', 'corsica']);
+  if (elixirCorsPackages.length > 0) {
+    const elixirSource = source.filter((f) => /\.exs?$/i.test(f));
+    const plugged = await searchInFiles(ctx.root, elixirSource, [/\bplug[\s(]+(?:CORSPlug|Corsica)\b/], 5);
+
+    for (const hit of plugged) {
+      const origin = /origins?:\s*(.+)$/.exec(hit.snippet);
+      const wideOpen = !origin || /^["']\*["']/.test(origin[1].trim());
+
+      (wideOpen ? corsLoose : corsStrict).push({ file: hit.file, line: hit.line, snippet: hit.snippet.trim().slice(0, 200) });
+    }
   }
 
   const django = await findDjangoSettings(ctx);

@@ -31,10 +31,22 @@ describe('the report says how it read the code', () => {
   });
 
   it('counts a language it cannot read at all as skipped', async () => {
+    const analysis = await analyzeProject(fixture('lua-project'));
+    const readings = readingDepths(analysis.files.source, analysis.files.unreadable, analysis.parsedStructure);
+
+    expect(readings.find((entry) => entry.language === 'Lua')?.depth).toBe('skipped');
+  });
+
+  /**
+   * And one that moved across. Elixir was `skipped` until `mix.exs` and the sources
+   * were read; it is `searched` now, which is the truth about it — matched against
+   * keywords, not parsed — and the distinction is the whole point of this line.
+   */
+  it('counts a language read as text as searched', async () => {
     const analysis = await analyzeProject(fixture('phoenix-app'));
     const readings = readingDepths(analysis.files.source, analysis.files.unreadable, analysis.parsedStructure);
 
-    expect(readings.find((entry) => entry.language === 'Elixir')?.depth).toBe('skipped');
+    expect(readings.find((entry) => entry.language === 'Elixir')?.depth).toBe('searched');
   });
 
   it('says nothing when everything was parsed', () => {

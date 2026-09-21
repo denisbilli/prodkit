@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyGradleDep } from './detectContext';
+import { hasAnyDep, hasAnyElixirDep, hasAnyGradleDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
 import { readPackageValueUses } from './structural/valuesFromPackage';
@@ -31,9 +31,12 @@ const LOGGING_PACKAGES = [
   'npmlog',
 ];
 
+/** Elixir reaches for a backend rather than a logger: Logger itself is in OTP. */
+const ELIXIR_LOGGING_PACKAGES = ['logger_json', 'logger_file_backend', 'sentry'];
+
 export async function detectObservability(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
-  const logDeps = hasAnyDep(ctx, LOGGING_PACKAGES);
+  const logDeps = [...hasAnyDep(ctx, LOGGING_PACKAGES), ...hasAnyElixirDep(ctx, ELIXIR_LOGGING_PACKAGES)];
   const sentryDeps = hasAnyDep(ctx, ['@sentry/node', 'sentry-sdk']);
   for (const d of logDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
   for (const d of sentryDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
@@ -112,6 +115,13 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
       /LoggerFactory\.getLogger|org\.slf4j/,
       /Rails\.logger/,
       /\btracing::(info|warn|error|debug)!|\blog::(info|warn|error)!/,
+      /**
+       * Elixir's, which is one module in the standard library.
+       *
+       * `Logger.info(...)` is how every Phoenix application logs, and `Logger` is
+       * OTP's name rather than anybody's variable.
+       */
+      /\bLogger\.(info|warning|warn|error|debug|notice)\(/,
     ],
     15,
   );
@@ -161,7 +171,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
     evidence.push(...searchedFor('a health endpoint', ['/health', '/healthz', '/readyz', 'a health, healthz, readyz, liveness or readiness route file'], 'health'));
   }
   if (!hasAnyLogging) {
-    evidence.push(...searchedFor('logging', ['winston', 'pino', 'morgan', 'bunyan', 'Monolog', 'slog', 'zap', 'logrus', 'slf4j', 'Rails.logger', 'tracing::', 'logger.info/warn/error/debug', 'error_log(', 'JSON.stringify with a level field'], 'logging'));
+    evidence.push(...searchedFor('logging', ['winston', 'pino', 'morgan', 'bunyan', 'Monolog', 'slog', 'zap', 'logrus', 'slf4j', 'Rails.logger', 'tracing::', 'logger.info/warn/error/debug', 'Logger.info', 'error_log(', 'JSON.stringify with a level field'], 'logging'));
   }
 
   return {
