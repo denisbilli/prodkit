@@ -240,28 +240,57 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
     evidence.push({ type: 'file', value: 'sqlite db file detected' });
   }
 
-  // docker-compose hints
-  const composeFile = ctx.files.all.find((f) =>
-    /(^|\/)(docker-compose\.ya?ml|compose\.ya?ml)$/.test(f)
-  );
-  if (composeFile) {
+  /**
+   * Every compose file, not the first one in the list.
+   *
+   * A repository has several: `docker-compose.yml` beside `.devcontainer/
+   * docker-compose.yml`, an override for tests, one per deployment shape. This read
+   * whichever came back first and ignored the rest, so a Postgres declared only in
+   * the production compose was invisible whenever a development one sorted ahead of
+   * it — and which one that is was the filesystem's business until this session
+   * sorted the scan.
+   *
+   * The devcontainer is not excluded here, and that is the difference from
+   * `docker.presence` next door. "How does this ship" is answered by the image the
+   * product is built into; "what does it store data in" is answered by the database
+   * it talks to, and in development that is the one the devcontainer starts. The same
+   * file, two questions, two answers.
+   */
+  const composeFiles = ctx.files.all.filter((f) =>
+    /(^|\/)(docker-compose[\w.-]*\.ya?ml|compose[\w.-]*\.ya?ml)$/.test(f)
+  ).slice(0, 8);
+  /**
+   * Each store cited once, from the first file that shows it.
+   *
+   * immich has seven compose files and all of them run Postgres and Redis, so reading
+   * every one turned two facts into eleven citations of the same two facts. A reader
+   * is promised a line they can open and argue with; eleven lines saying the same
+   * thing is not eleven times the argument.
+   */
+  const COMPOSE_SERVICES: Array<[string, RegExp, RegExp | null]> = [
+    ['postgres', /image:\s*postgres/i, /postgres:/i],
+    ['redis', /image:\s*redis/i, /redis:/i],
+    ['mysql', /image:\s*mysql/i, null],
+    ['mongodb', /image:\s*mongo/i, null],
+  ];
+
+  /**
+   * Counted for this reading only, not against `databases`: a store the dependencies
+   * already named still deserves the compose line beside it, and skipping on the set
+   * removed every compose citation from a project that declares its driver too.
+   */
+  const citedFromCompose = new Set<string>();
+
+  for (const composeFile of composeFiles) {
     const text = (await readTextFileSafe(ctx.root, composeFile)) ?? '';
-    const lower = text.toLowerCase();
-    if (/image:\s*postgres/i.test(text) || lower.includes('postgres:')) {
-      databases.add('postgres');
-      evidence.push({ type: 'file', value: 'postgres in docker-compose', file: composeFile });
-    }
-    if (/image:\s*redis/i.test(text) || lower.includes('redis:')) {
-      databases.add('redis');
-      evidence.push({ type: 'file', value: 'redis in docker-compose', file: composeFile });
-    }
-    if (/image:\s*mysql/i.test(text)) {
-      databases.add('mysql');
-      evidence.push({ type: 'file', value: 'mysql in docker-compose', file: composeFile });
-    }
-    if (/image:\s*mongo/i.test(text)) {
-      databases.add('mongodb');
-      evidence.push({ type: 'file', value: 'mongo in docker-compose', file: composeFile });
+
+    for (const [name, image, service] of COMPOSE_SERVICES) {
+      if (citedFromCompose.has(name)) continue;
+      if (!image.test(text) && !(service && service.test(text))) continue;
+
+      databases.add(name);
+      citedFromCompose.add(name);
+      evidence.push({ type: 'file', value: `${name} in docker-compose`, file: composeFile });
     }
   }
 

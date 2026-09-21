@@ -1,0 +1,6 @@
+services:
+  app:
+    build: ..
+    command: sleep infinity
+  cache:
+    image: redis:7-alpine

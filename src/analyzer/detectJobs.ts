@@ -107,14 +107,24 @@ export async function detectJobs(ctx: DetectContext): Promise<DetectorResult> {
     evidence.push({ type: 'note', value: `package.json script "${name}" starts a separate process` });
   }
 
-  // A compose service that runs one.
-  const composeFile = ctx.files.all.find((file) =>
-    /(^|\/)(docker-compose\.ya?ml|compose\.ya?ml)$/.test(file)
-  );
-  const composeText = composeFile ? ((await readTextFileSafe(ctx.root, composeFile)) ?? '') : '';
-  const composeWorker = /^\s{2}(worker|jobs?|scheduler|cron|consumer)[a-z0-9_-]*:/im.test(composeText);
+  /**
+   * A compose service that runs one — in any of the compose files, not the first.
+   *
+   * A repository has several, and this read whichever came back first: a worker
+   * declared in the production compose was invisible whenever a development one
+   * sorted ahead of it. The same first-match reading that made `docker.presence`
+   * answer "how does this ship" with a devcontainer, one detector along.
+   */
+  const composeFiles = ctx.files.all.filter((file) =>
+    /(^|\/)(docker-compose[\w.-]*\.ya?ml|compose[\w.-]*\.ya?ml)$/.test(file)
+  ).slice(0, 8);
+  let composeWorker = false;
 
-  if (composeWorker && composeFile) {
+  for (const composeFile of composeFiles) {
+    const composeText = (await readTextFileSafe(ctx.root, composeFile)) ?? '';
+    if (!/^\s{2}(worker|jobs?|scheduler|cron|consumer)[a-z0-9_-]*:/im.test(composeText)) continue;
+
+    composeWorker = true;
     evidence.push({ type: 'file', value: 'a worker service in compose', file: composeFile });
   }
 
