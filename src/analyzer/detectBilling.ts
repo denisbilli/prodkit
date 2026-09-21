@@ -61,8 +61,10 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
       /\/webhooks?\/stripe/i,
       /\/stripe\/webhooks?/i,
     ],
-    30
-  )).filter((hit) => !LARAVEL_SERVICE_SLOTS.test(hit.file));
+    30,
+    /** The budget counts real signals, not entries in Laravel's table of slots. */
+    (match) => !LARAVEL_SERVICE_SLOTS.test(match.file),
+  ));
 
   /**
    * The processor, declared wherever this project declares its dependencies.

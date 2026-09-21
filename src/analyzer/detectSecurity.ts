@@ -12,6 +12,11 @@ import { isDevelopmentOnlyFile } from './developmentOnly';
 /** Lines that decide which origins may call this server. */
 const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /ALLOWED_ORIGINS/, /allowedOrigins/i];
 
+/** A header name used as a key into a headers object: a lookup, not a decision. */
+const READS_A_HEADER = /\[\s*(['"`])[^'"`]+\1\s*\](?!\s*=[^=])/;
+/** The calls that put one on a response, in the frameworks this reads. */
+const SETS_A_HEADER = /put_resp_header|setHeader|set_header|add_header|headers\.(?:set|append)|writeHead/i;
+
 /** The cloud SDKs' names for a bucket's own cross-origin rules. */
 const CLOUD_STORAGE_CORS = /\bStorageCorsRule\b|\bCorsRules\b|\bCORSRule\b|\bCORSConfiguration\b|\bsetCorsConfiguration\b/;
 
@@ -260,6 +265,11 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       /^\s*config\.force_ssl\s*=\s*true/m,
     ],
     20,
+    /**
+     * The filter runs inside the search, so the budget is spent on lines that set a
+     * header rather than on lines that merely name one — see the rule below.
+     */
+    (match) => !READS_A_HEADER.test(match.snippet) || SETS_A_HEADER.test(match.snippet),
   );
   /**
    * Reading a header is not setting one.
@@ -275,11 +285,6 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * `headers.set`, `add_header` — or an assignment to that subscript, and a line doing
    * either is left alone.
    */
-  const READS_A_HEADER = /\[\s*(['"`])[^'"`]+\1\s*\](?!\s*=[^=])/;
-  const SETS_A_HEADER = /put_resp_header|setHeader|set_header|add_header|headers\.(?:set|append)|writeHead/i;
-  const headerSignalsThatSet = headerSignals.filter(
-    (hit) => !READS_A_HEADER.test(hit.snippet) || SETS_A_HEADER.test(hit.snippet),
-  );
 
   /**
    * Spring Security, which writes the headers without being asked.
@@ -320,7 +325,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     });
   }
 
-  const helmet = helmetDep || headerSignalsThatSet.length > 0 || springFilterChain.length > 0;
+  const helmet = helmetDep || headerSignals.length > 0 || springFilterChain.length > 0;
 
   /**
    * The packages the ecosystem names, as distinct from the variables authors do.
@@ -425,6 +430,8 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       /Status429TooManyRequests/,
     ],
     20,
+    /** The budget counts refusals issued, not 429s this project received. */
+    (match) => !COMPARES_A_STATUS.test(match.snippet),
   );
 
   /**
@@ -435,7 +442,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * refused by somebody else's, which is what nocodb's webhook invoker does. A
    * comparison is the reading direction; an argument is the writing one.
    */
-  const issuedRateLimits = rateLimitSignals.filter((hit) => !COMPARES_A_STATUS.test(hit.snippet));
+  const issuedRateLimits = rateLimitSignals;
   const rateLimit = rateLimitDep || issuedRateLimits.length > 0;
 
   /**
@@ -554,7 +561,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
 
   if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet', claim: 'headers' });
   if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package', claim: 'rate-limit' });
-  for (const m of headerSignalsThatSet) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
+  for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
   for (const m of issuedRateLimits) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'rate-limit' });
 
   /**

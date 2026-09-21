@@ -141,11 +141,26 @@ export function matchLines(text: string, needles: Array<string | RegExp>, file =
  * Search a list of relative file paths for any of the given needles
  * (string or RegExp). Returns at most `limit` matches.
  */
+/**
+ * A budget counts answers, not candidates.
+ *
+ * Several detectors search with a cap and then filter what came back — the header
+ * search drops lines that *read* a header rather than set one, the rate-limit search
+ * drops a 429 this project received rather than issued. The cap was spent on the
+ * candidates, so a repository with enough noise never handed the filter anything to
+ * keep: seventy files reading `content-security-policy` filled a budget of twenty,
+ * and the file setting one was never opened.
+ *
+ * Giving the filter to the search fixes it at the root. `keep` runs per match, and
+ * only a match it keeps costs budget, so the limit means what it says — "up to this
+ * many findings" — rather than "up to this many lines that might have been findings".
+ */
 export async function searchInFiles(
   root: string,
   files: string[],
   needles: Array<string | RegExp>,
-  limit = 25
+  limit = 25,
+  keep?: (match: TextMatch) => boolean,
 ): Promise<TextMatch[]> {
   const matches: TextMatch[] = [];
   for (const file of files) {
@@ -165,7 +180,8 @@ export async function searchInFiles(
       for (const n of needles) {
         const hit = typeof n === 'string' ? line.includes(n) : n.test(line);
         if (hit) {
-          matches.push({ file, line: i + 1, snippet: line.trim().slice(0, 200) });
+          const match: TextMatch = { file, line: i + 1, snippet: line.trim().slice(0, 200) };
+          if (!keep || keep(match)) matches.push(match);
           break;
         }
       }

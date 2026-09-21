@@ -138,7 +138,21 @@ export async function scanFiles(opts: ScanOptions): Promise<string[]> {
     suppressErrors: true,
   });
 
-  return withoutVirtualenvs(entries.map((e) => e.split(path.sep).join('/')));
+  /**
+   * Sorted, because every search below has a cap and the cap counts in this order.
+   *
+   * fast-glob returns what the filesystem hands it, which is the directory entry order
+   * on that machine. Every detector here reads the first N matches and stops, so the
+   * same repository could be read differently on two computers, or after a fresh clone
+   * — in a tool whose first word is "deterministic".
+   *
+   * It was found in n8n, where the four searches that decide a project's
+   * authentication surface filled their budget with third-party credential
+   * definitions and never reached `auth.controller.ts`. Which files won that race was
+   * nobody's decision. Sorting does not make the budget large enough; it makes the
+   * answer the same every time, which is the part that was promised.
+   */
+  return withoutVirtualenvs(entries.map((e) => e.split(path.sep).join('/'))).sort();
 }
 
 /**
