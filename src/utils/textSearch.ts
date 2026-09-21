@@ -104,7 +104,7 @@ function spellsItsOwnName(trimmed: string): boolean {
  */
 const STATEMENT_KEYWORD = /^(?:import|package|from|export|return|case|new|type|class|struct|interface|enum|func|fun|def|public|private|protected|internal|throw|throws|extends|implements|use|using|namespace|module|require|await|yield|delete|typeof|instanceof|in|is|as|if|else|for|while|switch|do|try|catch|finally|with|assert|raise|lambda|val|const)\b/;
 
-const TYPE_DECLARATION = /^(?:var\s+|let\s+|readonly\s+)?\w+\??\s*(?::\s*|\s+)(?:\[\]|\*|Array<|Map<|\bstring\b|\bnumber\b|\bboolean\b|\bbool\b|\bany\b|\bunknown\b|\bvoid\b|[A-Z])[\w.<>[\]|&\s]*;?$/;
+const TYPE_DECLARATION = /^(?:var\s+|let\s+|readonly\s+)?\w+\??\s*(?::\s*|\s+)(?:\[\]|\*|Array<|Map<|\bstring\b|\bnumber\b|\bboolean\b|\bbool\b|\bany\b|\bunknown\b|\bvoid\b|[A-Z])[\w.<>[\]|&*\s]*;?$/;
 
 /**
  * Prose about the code, rather than the code.
@@ -137,10 +137,23 @@ const COMMENT_LINE = /^(?:\/\/|\/\*|\*\/?|#(?![![])(?!!)|<!--|--\s)/;
  *
  * Nothing in the shape of the line tells the two apart, so the rule is not made.
  */
+/**
+ * Two shapes the first version of this let through, both found in caddy.
+ *
+ * `allowedOrigins []*url.URL` is a struct field and the type is a pointer, which the
+ * character class did not allow — so a declaration was cited as a cross-origin
+ * decision. `AllowDomain []string // FIXME: this option is from legacy` is the same
+ * thing with gitea's note after it, and the rule required the line to end at the
+ * type.
+ *
+ * A trailing comment is dropped before the test, exactly as the self-naming rule
+ * drops it, and `*` and `&` join the characters a type may be written with.
+ */
 function declaresAType(trimmed: string): boolean {
-  const withoutDeclarator = trimmed.replace(/^(?:var|let|readonly)\s+/, '');
+  const withoutComment = trimmed.replace(/\s*(?:\/\/|#).*$/, '').trimEnd();
+  const withoutDeclarator = withoutComment.replace(/^(?:var|let|readonly)\s+/, '');
 
-  return !STATEMENT_KEYWORD.test(withoutDeclarator) && TYPE_DECLARATION.test(trimmed);
+  return !STATEMENT_KEYWORD.test(withoutDeclarator) && TYPE_DECLARATION.test(withoutComment);
 }
 
 function declaresRatherThanDoes(line: string): boolean {

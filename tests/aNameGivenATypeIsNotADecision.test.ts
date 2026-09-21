@@ -38,6 +38,38 @@ describe('a name given a type is not a decision', () => {
    * first version of this rule hid every Swift and Kotlin import, which is how the
    * native toolkits are detected, so an iOS application lost its interface.
    */
+  /**
+   * Two shapes the first version let through, both found in caddy and gitea.
+   *
+   * `allowedOrigins []*url.URL` is a struct field whose type is a pointer, and the
+   * character class did not allow `*`; `AllowDomain []string // FIXME: this option is
+   * from legacy` is the same thing with a note after it, and the rule required the
+   * line to end at the type. Both were cited as cross-origin decisions.
+   */
+  it('skips a declaration with a pointer type or a note after it', async () => {
+    const report = buildReport(await analyzeProject(fixture('go-declares-with-a-comment')), { profile: 'auto' });
+    const cited = (report.findings.find((f) => f.id === 'security.cors-origin')?.evidence ?? []).map((e) => String(e.value));
+
+    expect(cited.some((line) => line.includes('AllowedOrigins: []string{"*"}'))).toBe(true);
+    expect(cited.some((line) => line.startsWith('AllowedOrigins   []string'))).toBe(false);
+    expect(cited.some((line) => line.startsWith('allowedOrigins '))).toBe(false);
+  });
+
+  /**
+   * A function signature is not swept up with them, and that was measured rather than
+   * assumed. Thirteen of the corpus's 282 snippet citations are signatures, and they
+   * are the *best* evidence in nearly all of them — `function requireAuth(req, res,
+   * next)`, `def anonymize_users_data(cutoff)`, `function requirePermission(permission)`.
+   * caddy's `func (admin AdminConfig) allowedOrigins(...)` is the unlucky one, and
+   * excluding the shape to fix it would have cost twelve good citations.
+   */
+  it('leaves a function signature alone, which the corpus says is usually the point', async () => {
+    const report = buildReport(await analyzeProject(fixture('express-secure')), { profile: 'auto' });
+    const cited = (report.findings.find((f) => f.id === 'auth.core')?.evidence ?? []).map((e) => String(e.value));
+
+    expect(cited.some((line) => line.includes('function requireAuth'))).toBe(true);
+  });
+
   it('leaves an import alone, whatever it looks like', async () => {
     const analysis = await analyzeProject(fixture('ios-with-build-tooling'));
 
