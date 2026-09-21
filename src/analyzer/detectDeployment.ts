@@ -32,7 +32,22 @@ export async function detectDeployment(ctx: DetectContext): Promise<DetectorResu
     || /(^|\/)(\.gitlab-ci\.yml|\.circleci\/config\.yml|azure-pipelines\.yml|Jenkinsfile|\.woodpecker\.ya?ml)$/i.test(f)
     || /(^|\/)(k8s|kubernetes|helm|deploy|\.platform)\//i.test(f),
   );
-  for (const f of presentFiles.slice(0, 20)) evidence.push({ type: 'file', value: f });
+  /**
+   * The container the editor opens is not a deployment artifact.
+   *
+   * 1.9.0 taught `docker.presence` that `.devcontainer/` is the Development Containers
+   * convention — the environment a *contributor* works in — and left this detector
+   * believing it. atuin's deployment evidence opened with `.devcontainer/Dockerfile`,
+   * so "how does this ship" was answered with how it is developed, in the same report
+   * that the other detector got right.
+   *
+   * Only where something else is present: a repository whose only container
+   * definition is its devcontainer keeps it rather than losing the answer.
+   */
+  const shipped = presentFiles.filter((f) => !/(^|\/)\.devcontainer\//.test(f));
+  const cited = shipped.length > 0 ? shipped : presentFiles;
+
+  for (const f of cited.slice(0, 20)) evidence.push({ type: 'file', value: f });
 
   const hits = await searchInFiles(
     ctx.root,
@@ -90,7 +105,7 @@ export async function detectDeployment(ctx: DetectContext): Promise<DetectorResu
     complete: prodAware,
     evidence: evidenceOrFileNameSearch(evidence, 'anything that says how this is deployed', ['Dockerfile', 'docker-compose', '.github/workflows/', 'Procfile', 'fly.toml', 'render.yaml', 'NODE_ENV', 'RAILS_ENV', 'ASPNETCORE_ENVIRONMENT', 'a file naming production']),
     details: {
-      dockerArtifacts: presentFiles.some((f) => /Dockerfile|compose/.test(f)),
+      dockerArtifacts: cited.some((f) => /Dockerfile|compose/.test(f)),
       ci: presentFiles.some((f) => f.startsWith('.github/workflows/')),
       gracefulShutdown: graceful,
       /** False where the runtime hands each request to a worker that exits on its own. */

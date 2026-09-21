@@ -75,6 +75,23 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
        */
       /gdpr[_\- ]?(delete|deletion|eras|removal|forget)/i,
       /(delete|deletion|eras|removal)[_\- ]?gdpr/i,
+      /**
+       * A DELETE on the caller's own account, which is what article 17 asks for.
+       *
+       * The note below records that `deleteUser(id)` was measured and withdrawn —
+       * delete is every admin screen ever written. A route is not that call. atuin's
+       * server declares `.route("/account", delete(handlers::user::delete))` and was
+       * told it has no erasure flow at all; the difference between that and an admin
+       * screen is in the path, which says whose account is being removed.
+       *
+       * `DELETE` is HTTP's word and `/account`, `/users/me` and `/me` are the
+       * conventional first-person paths. `/accounts/:id` does not match: the boundary
+       * after `account` fails on the plural, which is the admin case this must keep
+       * out.
+       */
+      /\bdelete\s*[(:]\s*["'`]\/?(?:account\b|users?\/me\b|me\b)/i,
+      /@Delete\(\s*["'`]\/?(?:account\b|users?\/me\b|me\b)/i,
+      /\.route\(\s*["'`]\/?(?:account\b|users?\/me\b|me\b)[^)]*,\s*delete\(/i,
     ],
     20
   );

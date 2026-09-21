@@ -25,4 +25,18 @@ describe('the container it ships in', () => {
     expect(docker?.status).toBe('passed');
     expect(docker?.evidence.some((e) => e.value === 'docker/Dockerfile')).toBe(true);
   });
+
+  /**
+   * And the detector next door believed the same thing for one release longer. 1.9.0
+   * taught `docker.presence` the convention and left `deployment.readiness` citing
+   * `.devcontainer/Dockerfile` as the answer to "how does this ship" — atuin's report
+   * opened with exactly that, in the same run where the other detector got it right.
+   */
+  it('does not answer how a project ships with how it is developed', async () => {
+    const report = buildReport(await analyzeProject(fixture('devcontainer-is-not-a-deployment')), { profile: 'auto' });
+    const deployment = report.findings.find((f) => f.id === 'deployment.readiness');
+
+    expect(deployment?.evidence.some((e) => String(e.value).includes('.devcontainer/'))).toBe(false);
+    expect(deployment?.evidence.some((e) => String(e.value).includes('.github/workflows/'))).toBe(true);
+  });
 });
