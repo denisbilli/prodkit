@@ -28,6 +28,38 @@ export interface TextMatch {
  */
 const PATTERN_DECLARATION = /^(?:const\s+\w+(?:\s*:[^=]+)?\s*=\s*)?\/(?:[^/\\]|\\.)+\/[gimsuy]*\s*[,;]?$/;
 /**
+ * A name given a type, rather than a value.
+ *
+ * pocketbase's report cited three lines for its cross-origin policy: `AllowedOrigins
+ * []string` — a field in a Go struct — `var allowedOrigins []string` in the command
+ * that parses the flag, and `allowedOrigins: Array<string>` in a generated `.d.ts`.
+ * Not one of them is a decision about origins. The line that is,
+ * `config.AllowedOrigins = []string{"*"}` twenty lines further down, was never
+ * reached, so a reader was given three declarations to argue with instead of the
+ * default that actually applies.
+ *
+ * It is the same rule as the regex table above, for the same reason: a declaration
+ * says what a thing is, and this analyzer claims to say what the code does.
+ *
+ * The right-hand side has to look like a type, not a value, because `AllowOrigins:
+ * config.AllowedOrigins,` is a use and reads almost identically. A type starts with a
+ * capital or is one of the primitives, and carries no quotes, no call and no digits —
+ * and an object-literal member ends in a comma, which a field signature does not.
+ */
+/**
+ * `import SwiftUI` has the shape and is not a declaration of anything.
+ *
+ * A keyword followed by a capitalised word reads exactly like a field given a type,
+ * and the first version of this rule hid every Swift and Kotlin import — which is how
+ * the native toolkits are detected, so an iOS application lost its interface. The
+ * statement keywords are excluded by name; `var`, `let` and `readonly` stay, because
+ * those really do introduce a declaration.
+ */
+const STATEMENT_KEYWORD = /^(?:import|package|from|export|return|case|new|type|class|struct|interface|enum|func|fun|def|public|private|protected|internal|throw|throws|extends|implements|use|using|namespace|module|require|await|yield|delete|typeof|instanceof|in|is|as|if|else|for|while|switch|do|try|catch|finally|with|assert|raise|lambda|val|const)\b/;
+
+const TYPE_DECLARATION = /^(?:var\s+|let\s+|readonly\s+)?\w+\??\s*(?::\s*|\s+)(?:\[\]|\*|Array<|Map<|\bstring\b|\bnumber\b|\bboolean\b|\bbool\b|\bany\b|\bunknown\b|\bvoid\b|[A-Z])[\w.<>\[\]|&\s]*;?$/;
+
+/**
  * Prose about the code, rather than the code.
  *
  * A comment that mentions Stripe is somebody explaining Stripe. This file's own comment
@@ -58,10 +90,16 @@ const COMMENT_LINE = /^(?:\/\/|\/\*|\*\/?|#(?![![])(?!!)|<!--|--\s)/;
  *
  * Nothing in the shape of the line tells the two apart, so the rule is not made.
  */
+function declaresAType(trimmed: string): boolean {
+  const withoutDeclarator = trimmed.replace(/^(?:var|let|readonly)\s+/, '');
+
+  return !STATEMENT_KEYWORD.test(withoutDeclarator) && TYPE_DECLARATION.test(trimmed);
+}
+
 function declaresRatherThanDoes(line: string): boolean {
   const trimmed = line.trim();
 
-  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed);
+  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed) || declaresAType(trimmed);
 }
 
 /**
