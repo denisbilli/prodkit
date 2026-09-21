@@ -41,7 +41,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/\/(health|healthz|readyz)\b/i, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
+    [/\/(health|healthz|readyz|livez|alive)\b/i, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
     25
   );
   /**
@@ -52,7 +52,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
    * is what the line is evidence of.
    */
   for (const m of hits) {
-    const claim = /\/(health|healthz|readyz)\b/i.test(m.snippet)
+    const claim = /\/(health|healthz|readyz|livez|alive)\b/i.test(m.snippet)
       ? 'health'
       : /x-request-id|correlation-id/i.test(m.snippet)
         ? 'request-id'
@@ -68,7 +68,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   );
   for (const file of healthFiles) evidence.push({ type: 'file', value: file, claim: 'health' });
 
-  const hasHealth = healthFiles.length > 0 || hits.some((h) => /\/(health|healthz|readyz)\b/i.test(h.snippet));
+  const hasHealth = healthFiles.length > 0 || hits.some((h) => /\/(health|healthz|readyz|livez|alive)\b/i.test(h.snippet));
   const hasReqId = hits.some((h) => /x-request-id|correlation-id/i.test(h.snippet));
 
   // Structured logging without a logging library is still structured logging. What

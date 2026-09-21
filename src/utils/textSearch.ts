@@ -37,8 +37,14 @@ const PATTERN_DECLARATION = /^(?:const\s+\w+(?:\s*:[^=]+)?\s*=\s*)?\/(?:[^/\\]|\
  * A signal that appears only in a comment was never evidence of behaviour, which is the
  * whole argument: the report cites a line and says "this is what your code does", and a
  * sentence about the code is not that.
+ *
+ * `#` is where this went wrong for a whole language. It opens a comment in Python, YAML
+ * and shell, and in Rust `#[get("/alive")]` is the route itself — so every Rust
+ * attribute was invisible to every search this analyzer makes. vaultwarden declares its
+ * liveness endpoint that way and was told it has none; the same blindness covered
+ * `#[post(...)]`, every derive and every `#[cfg]`.
  */
-const COMMENT_LINE = /^(?:\/\/|\/\*|\*\/?|#(?!!)|<!--|--\s)/;
+const COMMENT_LINE = /^(?:\/\/|\/\*|\*\/?|#(?![![])(?!!)|<!--|--\s)/;
 
 /**
  * A table of strings is not a third rule, and that was a mistake worth recording.

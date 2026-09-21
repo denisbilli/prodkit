@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasDep } from './detectContext';
+import { hasAnyPyDep, hasAnyRustDep, hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { findDjangoSettings } from './djangoSettings';
 import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
@@ -228,13 +228,25 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * The packages the ecosystem names, as distinct from the variables authors do.
    * Shared between the dependency check below and the binding walk further down.
    */
+  /**
+   * Two of these were checked against the wrong manifest for as long as they existed.
+   *
+   * `hasDep` reads `package.json` and nothing else, so `django-ratelimit` and
+   * `slowapi` — a Python package and a Python package — were being looked for among a
+   * project's npm dependencies, where they can never be. Written as though they
+   * worked, never able to match.
+   *
+   * Rust joins them, measured: vaultwarden declares `governor` and calls
+   * `check_limit_login(&ip.ip)` on its login route, and was told at `high` that it
+   * does not throttle authentication.
+   */
   const rateLimitDep =
     hasDep(ctx, 'express-rate-limit') ||
     hasDep(ctx, '@upstash/ratelimit') ||
     hasDep(ctx, 'rate-limiter-flexible') ||
     hasDep(ctx, 'next-rate-limit') ||
-    hasDep(ctx, 'django-ratelimit') ||
-    hasDep(ctx, 'slowapi');
+    hasAnyPyDep(ctx, ['django-ratelimit', 'slowapi', 'flask-limiter']).length > 0 ||
+    hasAnyRustDep(ctx, ['governor', 'tower_governor', 'tower-governor', 'actix-governor', 'ratelimit']).length > 0;
   /**
    * Throttling by what the protocol says, not by what the variable is called.
    *
