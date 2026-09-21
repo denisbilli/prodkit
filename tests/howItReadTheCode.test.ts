@@ -222,6 +222,14 @@ describe('a package inside a workspace', () => {
 
     // The servers are still detected — they are really there — and they are not the
     // product's.
+    //
+    // Revisited on 21/09 and left alone. marktext is an Electron editor whose report
+    // says "Detected backend: next", from `packages/website`; a reader takes that as a
+    // Next backend in the product. The fix attempted was to drop a backend that lives
+    // only in a docs or playground workspace, and this test failed it — which is the
+    // decision here working as intended. What misleads is the summary line, not the
+    // list, so the repair belongs there: say which workspace a backend came from,
+    // rather than delete a server that exists.
     expect(report.detectedStack.backend.length).toBeGreaterThan(0);
     expect(report.productProfile?.inferredProfile).toBe('library');
   });
