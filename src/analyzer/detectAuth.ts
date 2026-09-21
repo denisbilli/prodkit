@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyPyDep } from './detectContext';
+import { hasAnyDep, hasAnyDotnetDep, hasAnyGradleDep, hasAnyPyDep, hasAnyRustDep } from './detectContext';
 import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readRoleChecks } from './structural/roleChecks';
 import { evidenceOrSearch, searchedFor } from './absenceEvidence';
@@ -81,6 +81,24 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     'passport',
   ]);
   const managedAuthPyDeps = hasAnyPyDep(ctx, ['django-allauth', 'authlib', 'python-jose', 'fastapi-users', 'flask-login']);
+
+  /** Identity handed to somebody else, in every ecosystem this analyzer reads. */
+  const externalIdentityProviders = [
+    ...managedAuthDeps,
+    ...hasAnyPyDep(ctx, ['django-allauth', 'authlib', 'social-auth-app-django']),
+    ...hasAnyRustDep(ctx, ['oauth2', 'openidconnect']),
+    ...hasAnyGradleDep(ctx, ['spring-boot-starter-oauth2-client', 'com.okta.spring']),
+    ...hasAnyDotnetDep(ctx, ['Microsoft.AspNetCore.Authentication.OpenIdConnect', 'Microsoft.Identity.Web']),
+  ];
+
+  /** And a password of its own, which is what makes a reset flow something to have. */
+  const storesAPasswordItself = [
+    ...hasAnyDep(ctx, ['bcrypt', 'bcryptjs', 'argon2', 'scrypt-kdf', 'passport-local']),
+    ...hasAnyPyDep(ctx, ['django', 'passlib', 'bcrypt', 'argon2-cffi', 'werkzeug']),
+    ...hasAnyRustDep(ctx, ['argon2', 'rust-argon2', 'bcrypt', 'scrypt', 'password-hash', 'pbkdf2']),
+    ...hasAnyGradleDep(ctx, ['spring-security-crypto', 'org.mindrot:jbcrypt']),
+    ...hasAnyDotnetDep(ctx, ['Microsoft.AspNetCore.Identity']),
+  ];
   /**
    * The packages that do the authenticating, as distinct from the words people use
    * around them.
@@ -475,13 +493,26 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       // makes password reset not applicable rather than missing — there is no
       // password to reset.
       key: 'auth.externalIdentityOnly',
+      /**
+       * Read from npm alone, so only a JavaScript project could ever reach it.
+       *
+       * crates.io authenticates through GitHub and nothing else: `oauth2` in its
+       * Cargo.toml, no password-hashing crate anywhere, no reset route. It was told
+       * at `high` to build a password reset flow for passwords it does not have.
+       *
+       * The disqualifying half matters more than the qualifying one, so it is the
+       * wider of the two: anything that hashes a password, in any of these
+       * ecosystems, means there is a password to reset. Django is on that list as
+       * itself — `django-allauth` sits on top of Django's own user model, and those
+       * projects can almost always reset a password.
+       */
       present:
-        managedAuthDeps.length > 0 &&
-        hasAnyDep(ctx, ['bcrypt', 'bcryptjs', 'argon2', 'scrypt-kdf', 'passport-local']).length === 0 &&
+        externalIdentityProviders.length > 0 &&
+        storesAPasswordItself.length === 0 &&
         passwordResetSignals.length === 0 &&
         passwordResetFiles.length === 0,
-      evidence: depEvidence(managedAuthDeps),
-      details: { managedProviders: managedAuthDeps.length },
+      evidence: depEvidence(externalIdentityProviders),
+      details: { managedProviders: externalIdentityProviders.length },
     },
     {
       key: 'auth.2fa',

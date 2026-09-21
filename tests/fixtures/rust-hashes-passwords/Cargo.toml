@@ -1,0 +1,11 @@
+[package]
+name = "registry"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+oauth2 = "5.0.0"
+argon2 = "0.5"
+diesel = { version = "2.2", features = ["postgres"] }
+tokio = { version = "1", features = ["full"] }
