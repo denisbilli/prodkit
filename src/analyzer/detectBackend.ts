@@ -262,6 +262,41 @@ export async function detectBackend(ctx: DetectContext): Promise<{
    */
 
   /**
+   * A Cloudflare Worker, which is a server with no server framework in it.
+   *
+   * `wrangler.toml` names the entry module and the compatibility date; the module
+   * exports an object with a `fetch` handler. That pair is Cloudflare's documented
+   * contract and there is no other way to write a Worker — but together they were read
+   * as nothing at all: no backend, no stack, and a report that declined to score.
+   *
+   * Both halves are required. A `wrangler.toml` beside a static site deploys Pages and
+   * serves no requests of its own, and an `export default { fetch }` with no manifest
+   * is a module somebody may import.
+   *
+   * Weaker than the rest of this file, and worth saying: the shape was diagnosed on a
+   * case built from Cloudflare's documentation rather than found in a repository. Every
+   * other rule here has a named project behind it. A real Worker should confirm this
+   * one.
+   */
+  const wranglerManifests = ctx.files.all.filter((f) => /(^|\/)wrangler\.(toml|jsonc?)$/.test(f));
+  if (wranglerManifests.length > 0 && !frameworks.includes('hono')) {
+    const fetchHandler = await searchInFiles(
+      ctx.root,
+      ctx.files.source,
+      [/export\s+default\s*\{[\s\S]{0,120}?\bfetch\s*\(/, /^\s*async\s+fetch\s*\(\s*request/m],
+      2,
+    );
+
+    if (fetchHandler.length > 0) {
+      frameworks.push('cloudflare workers');
+      evidence.push({ type: 'file', value: wranglerManifests[0], file: wranglerManifests[0] });
+      for (const hit of fetchHandler.slice(0, 1)) {
+        evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
+      }
+    }
+  }
+
+  /**
    * Astro, which is a backend only when it is configured to be one.
    *
    * Astro builds a static site by default and becomes a server when `output` is set

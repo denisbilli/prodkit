@@ -269,6 +269,7 @@ const LABELS: Record<string, string> = {
   electron: 'Electron',
   flutter: 'Flutter',
   'react-native': 'React Native',
+  'cloudflare workers': 'Cloudflare Workers',
   ios: 'iOS (native)',
   android: 'Android (native)',
   swiftui: 'SwiftUI',
@@ -377,7 +378,11 @@ export function supportedStacks(): StackCatalogue {
       ...entries(PHP_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'php', label: 'PHP', detectedFrom: 'PHP sources with no framework in composer.json' },
       { id: 'aspnet-core', label: 'ASP.NET Core', detectedFrom: 'the Microsoft.NET.Sdk.Web SDK attribute' },
-      { id: 'dotnet', label: '.NET', detectedFrom: 'a .csproj with no web SDK' },
+      {
+        id: 'cloudflare workers',
+        label: 'Cloudflare Workers',
+        detectedFrom: 'a wrangler manifest beside a module exporting a fetch handler',
+      },
     ],
     frontend: [
       { id: 'react', label: 'React' },
