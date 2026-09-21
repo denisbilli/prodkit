@@ -4,6 +4,7 @@ import { searchInFiles } from '../utils/textSearch';
 import { readLookupTableLines } from './structural/lookupTables';
 import { anyFileReachesASecretSink, readHardcodedSecretArguments } from './structural/secretArguments';
 import { wentUnasked } from './readingDepth';
+import { looksLikeDjangoSettings, settingsModulesTheAppRuns } from './djangoSettings';
 
 const WEAK_SECRET_VALUE_RE =
   /(changeme|your[_-]?secret|fallback-secret(?:-change-in-production)?|change[_-]in[_-]production|your_jwt_secret_key_change_in_production|local[-_]?secret|development[-_]?secret|dev[-_]?secret|not[_-]?for[_-]?production|test123|secret)/i;
@@ -175,6 +176,20 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
   const secretSinksUnasked =
     wentUnasked(secretArguments, sourceFiles) && (await anyFileReachesASecretSink(ctx.root, sourceFiles));
 
+  /**
+   * A settings module the application does not run is not where its secret lives.
+   *
+   * pretix keeps `SECRET_KEY = "build-time-secret-key"` in `_build_settings.py`, a
+   * module named only by its packaging script, while `manage.py` and `wsgi.py` both
+   * name `pretix.settings`. That literal was the one `critical` in its report.
+   *
+   * Only applied when the entry points say something: with no `manage.py` to read,
+   * nothing is excused and the behaviour is what it was.
+   */
+  const runningSettings = await settingsModulesTheAppRuns(ctx);
+  const isAnotherSettingsModule = (file: string): boolean =>
+    runningSettings.length > 0 && looksLikeDjangoSettings(file) && !runningSettings.includes(file);
+
   const weakHits = fallbackHits.filter(
     (m) => WEAK_SECRET_VALUE_RE.test(m.snippet)
       && SECRET_ASSIGNMENT_CONTEXT_RE.test(m.snippet)
@@ -182,6 +197,7 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
       && !valueIsAnIdentifier(m.snippet)
       && !REDACTED_VALUE_RE.test(m.snippet)
       && !isTableEntry(m)
+      && !isAnotherSettingsModule(m.file)
   );
   for (const m of weakHits) {
     const hitEvidence = { type: 'snippet', value: m.snippet, file: m.file, line: m.line } as const;

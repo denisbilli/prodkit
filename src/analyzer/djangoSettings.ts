@@ -29,3 +29,75 @@ export async function findDjangoSettings(ctx: DetectContext): Promise<{ file: st
   }
   return null;
 }
+
+/**
+ * The settings module the application actually runs, named by Django's own entry points.
+ *
+ * `manage.py`, `wsgi.py` and `asgi.py` each set `DJANGO_SETTINGS_MODULE`, and that is
+ * the framework saying which configuration is the project's. Everything else called
+ * `settings` is somebody's variant: a test harness, a build-time module, a sample.
+ *
+ * pretix is the measured case. `src/pretix/_build_settings.py` holds
+ * `SECRET_KEY = "build-time-secret-key"` and is named only by `src/pretix/_build.py`,
+ * a packaging script; `manage.py` and `wsgi.py` both name `pretix.settings`. That
+ * literal was the single `critical` in pretix's report — the severity that bars a
+ * report from the top band — raised against a line that never serves a request.
+ *
+ * A name rule could not do this: `configuration_testing.py` was caught by one in
+ * 0.80.0, and `_build_settings.py` would need "build" to mean something, which it does
+ * not. The entry point is a fact, not a word.
+ */
+export async function settingsModulesTheAppRuns(ctx: DetectContext): Promise<string[]> {
+  const entryPoints = ctx.files.all.filter((file) => /(^|\/)(manage|wsgi|asgi)\.py$/.test(file));
+  const modules = new Set<string>();
+
+  for (const file of entryPoints.slice(0, 6)) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+
+    for (const match of text.matchAll(/DJANGO_SETTINGS_MODULE["'\s,]+["']([\w.]+)["']/g)) {
+      modules.add(match[1]);
+    }
+  }
+
+  if (modules.size === 0) return [];
+
+  const paths: string[] = [];
+  for (const module of modules) {
+    const asPath = module.replace(/\./g, '/');
+    for (const file of ctx.files.all) {
+      if (file.endsWith(`${asPath}.py`) || file.endsWith(`${asPath}/__init__.py`)) paths.push(file);
+    }
+  }
+
+  /**
+   * A settings package is loaded whole, through its own imports.
+   *
+   * `config.settings.production` starts with `from .base import *`, so `base.py` is as
+   * much the running configuration as the module named. The first version of this rule
+   * excused `base.py` and a fixture written for exactly that shape — a `SECRET_KEY =
+   * "changeme"` in the base module — went from `missing` to `passed` in the corpus
+   * diff, which is how the mistake surfaced within a minute of making it.
+   *
+   * Every module beside the named one, inside a directory called `settings`, counts.
+   * That is the shape of a split configuration, and it does not reach a sibling of a
+   * plain `settings.py` — which is where pretix keeps the build-time module this rule
+   * exists to exclude.
+   */
+  const withSiblings = new Set(paths);
+  for (const file of paths) {
+    const directory = file.slice(0, file.lastIndexOf('/'));
+    if (!/(^|\/)settings$/.test(directory)) continue;
+
+    for (const candidate of ctx.files.all) {
+      if (candidate.startsWith(`${directory}/`) && candidate.endsWith('.py')) withSiblings.add(candidate);
+    }
+  }
+
+  return [...withSiblings];
+}
+
+/** Whether a path is the sort of file a Django project keeps its configuration in. */
+export function looksLikeDjangoSettings(file: string): boolean {
+  return /(^|\/)[\w-]*settings[\w-]*\.py$/i.test(file) || /(^|\/)settings\/[\w-]+\.py$/i.test(file);
+}
