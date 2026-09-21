@@ -21,6 +21,44 @@ const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /ALLOWED_ORIGINS/, /all
 const WILDCARD_ORIGIN = /(Access-Control-Allow-Origin["'\s:,]+\*)|(["']\*["'])/i;
 
 /**
+ * A line that names an origin somebody chose.
+ *
+ * The test is that the value is written down: a quoted string that is not `*`, or a
+ * list of them. Everything else — a variable, a concatenation, a method call — is a
+ * value the reader of this line cannot see, and a security check does not get to
+ * assume it is an allowlist.
+ */
+function allowsAChosenOrigin(line: string, file: string): boolean {
+  /**
+   * The line itself asks whether the origin belongs.
+   *
+   * `!ALLOWED_ORIGINS.includes(origin)` is the allowlist being enforced, and it is
+   * the strongest evidence there is — stronger than the declaration it checks
+   * against, which may live in an environment variable.
+   */
+  if (MEMBERSHIP_TEST.test(line)) return true;
+
+  const assigned = /(?:Access-Control-Allow-Origin|ALLOWED_ORIGINS|allowedOrigins)[^=:,]*[=:,]\s*(.+)$/i.exec(line);
+  if (!assigned) return false;
+
+  // An origin written down: it has a scheme or a dotted host, which `","` does not.
+  if (/["'`](?:https?:\/\/|\*\.)[^"'`]*["'`]|["'`][^"'`]*\.[a-z]{2,}[^"'`]*["'`]/i.test(assigned[1])) return true;
+
+  /**
+   * Or a value this line cannot see, checked somewhere else in the same file.
+   *
+   * A list kept in an environment variable is still an allowlist, so the test cannot
+   * be "is the value a literal". What separates it from reflection is that somebody
+   * asks whether the origin belongs before answering yes — and shopizer never does:
+   * `origin = request.getHeader("origin")` goes straight into the header.
+   */
+  return MEMBERSHIP_TEST.test(file);
+}
+
+/** `includes`, `contains`, `indexOf`, `has` — asking whether a value belongs. */
+const MEMBERSHIP_TEST = /\.(includes|contains|indexOf|has)\s*\(/i;
+
+/**
  * Flask's answer, which was invisible.
  *
  * `\bcors\s*\(` is case-sensitive, so `CORS(app)` matched nothing, and the extension's
@@ -327,7 +365,23 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     // every repository that triggered it was an import.
     for (const m of matchLines(text, ORIGIN_HANDLING, file)) {
       if (WILDCARD_ORIGIN.test(m.snippet)) corsLoose.push(m);
-      else corsStrict.push(m);
+      else if (allowsAChosenOrigin(m.snippet, text)) corsStrict.push(m);
+      /**
+       * Anything else sets the header to a value this cannot see.
+       *
+       * shopizer writes `origin = request.getHeader("origin")` and then
+       * `setHeader("Access-Control-Allow-Origin", origin)` — reflecting whatever the
+       * caller asked for, which allows every origin there is. The report called it
+       * "configured with explicit origins" and passed it: a clean verdict on the one
+       * shape this check exists to catch.
+       *
+       * An allowlist is a fixed set, so it is written down. A variable, a
+       * concatenation or a call cannot be shown to be one — it may be a value from
+       * configuration, and it may be the request's own header, and nothing in the line
+       * says which. `partial` is what that deserves: something is configured and
+       * nothing here shows it restricted.
+       */
+      else corsLoose.push(m);
     }
 
     // Only where the middleware is actually imported. A sentence in this tool's own

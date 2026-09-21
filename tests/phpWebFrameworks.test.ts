@@ -89,3 +89,35 @@ describe('cross-origin handling in ASP.NET Core', () => {
     expect(statusOf(report, 'security.cors-origin')).toBe('unknown');
   });
 });
+
+/**
+ * An origin copied back from the request, read as an allowlist.
+ *
+ * shopizer writes `origin = request.getHeader("origin")` and then
+ * `setHeader("Access-Control-Allow-Origin", origin)`. The report said "CORS appears
+ * configured with explicit origins" and **passed** it — a clean verdict on the one
+ * shape this check exists to catch, on a real e-commerce product.
+ *
+ * The rule cannot simply be "the value must be a literal": a list kept in an
+ * environment variable is still an allowlist. What separates the two is that somebody
+ * asks whether the origin belongs before answering yes.
+ */
+describe('an origin the server copies back', () => {
+  it('is not an allowlist', async () => {
+    const report = buildReport(await analyzeProject(fixture('java-reflects-the-origin')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('partial');
+  });
+
+  it('is still told apart from a list held in an environment variable', async () => {
+    const report = buildReport(await analyzeProject(fixture('nextjs-managed-auth')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('passed');
+  });
+
+  it('still reads a literal origin as the choice it is', async () => {
+    const report = buildReport(await analyzeProject(fixture('express-secure')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('passed');
+  });
+});
