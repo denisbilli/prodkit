@@ -131,18 +131,31 @@ function parsePyprojectSections(text: string | null, runtimeOnly: boolean): stri
  * Everything after `src/main/java` is a package name, not a project layout.
  *
  * spring-petclinic lives in `org.springframework.samples.petclinic`, so every one of
- * its thirty Java files sits under a path segment called `samples` — and the rule that
- * removes sample code removed the whole application. The report saw a project with no
- * Java in it at all: twelve files, an HTML front end, no backend, and a profile of
- * `client-app` at high confidence for a Spring Boot server.
+ * its thirty Java files sat under a path segment called `samples`, and the rule that
+ * removes sample code removed the whole application: twelve files, an HTML front end,
+ * no backend, and `client-app` at high confidence for a Spring Boot server.
  *
- * Maven and Gradle both fix that prefix, so the segments after it are the author's
- * package and mean nothing about the layout. A real sample directory sits beside
- * `src`, not inside its source root — ktor-documentation keeps its under
- * `codeSnippets/snippets/`, which this still removes.
+ * It was not only `samples`. `spring-test/src/main/java/org/springframework/mock/`
+ * holds forty-four files — `MockHttpServletRequest` and its neighbours, shipped in the
+ * jar and the whole point of that module — and the rule that removes `mocks/` removed
+ * every one of them. A package can be called anything: `vendor`, `testing`, `fixtures`
+ * are all ordinary domain words.
+ *
+ * Maven and Gradle fix the `src/main/<language>` prefix, so directory rules are
+ * applied to the path *up to* it and never to the package below.
+ *
+ * Only `main` is named, and that is a statement of intent rather than a rule doing
+ * work: `src/test/java/...` stays excluded either way, because the boundary itself
+ * contains `test` and the directory rule matches it. Writing `main|test` here fails
+ * no test, which is worth saying instead of implying a protection that is not there.
  */
-function isAPackageName(file: string): boolean {
-  return /(^|\/)src\/(main|test)\/(java|kotlin|scala|groovy)\//.test(file);
+const JVM_MAIN_SOURCE_ROOT = /(^|\/)src\/main\/(java|kotlin|scala|groovy)\//;
+
+/** The part of the path that describes layout rather than package. */
+function layoutPartOf(file: string): string {
+  const root = JVM_MAIN_SOURCE_ROOT.exec(file);
+
+  return root ? file.slice(0, root.index + root[0].length) : file;
 }
 
 function isTestOrExamplePath(file: string): boolean {
@@ -152,7 +165,9 @@ function isTestOrExamplePath(file: string): boolean {
   // `fixtures` was listed and `fixture` was not, so `extra/fixture/authsources.php`
   // made PHP one of the languages of an Elixir analytics product — and of cal.com,
   // which is TypeScript.
-  return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures?|frontend-example)(\/|$)/i.test(file)
+  const layout = layoutPartOf(file);
+
+  return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures?|frontend-example)(\/|$)/i.test(layout)
     /**
      * The conventions other ecosystems use, which this list did not know.
      *
@@ -163,7 +178,7 @@ function isTestOrExamplePath(file: string): boolean {
      * would have parsed the same files and reached the same wrong conclusion, which is
      * the argument for fixing what gets read before fixing how.
      */
-    || /(^|\/)(spec|specs|e2e|integration-tests?|cypress|playwright|testing)(\/|$)/i.test(file)
+    || /(^|\/)(spec|specs|e2e|integration-tests?|cypress|playwright|testing)(\/|$)/i.test(layout)
     || /\.(e2e|e2e-spec|cy|stories)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file)
     || /_spec\.rb$/i.test(file)
     || /_test\.(go|py|rb|java|cs|php)$/i.test(file)
@@ -207,7 +222,7 @@ function isTestOrExamplePath(file: string): boolean {
      * spell it. A repository whose every source file is a sample now has no source
      * files, and says so — which is the honest answer for one.
      */
-    || (/(^|\/)(samples?|snippets?|codesnippets)(\/|$)/i.test(file) && !isAPackageName(file))
+    || /(^|\/)(samples?|snippets?|codesnippets)(\/|$)/i.test(layout)
     /**
      * Somebody else's code, vendored in.
      *
@@ -216,7 +231,7 @@ function isTestOrExamplePath(file: string): boolean {
      * crate copied in whole. A manifest under a vendor directory is a statement about
      * that library, not about this product.
      */
-    || /(^|\/)(vendor|vendored|third[-_]?party|external[-_]crates)(\/|$)/i.test(file);
+    || /(^|\/)(vendor|vendored|third[-_]?party|external[-_]crates)(\/|$)/i.test(layout);
 }
 
 /**

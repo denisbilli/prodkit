@@ -167,12 +167,35 @@ describe('security headers a framework sets by itself', () => {
  * Maven and Gradle both fix that prefix, so the segments after it are the author's
  * package. A real sample directory sits beside `src`, not inside its source root.
  */
-describe('a package called samples is not a samples directory', () => {
+describe('a package name is not a project layout', () => {
   it('reads an application whose package name contains samples', async () => {
     const analysis = await analyzeProject(fixture('spring-in-a-samples-package'));
 
     expect(analysis.files.source.length).toBeGreaterThan(0);
     expect(analysis.stack.backend).toContain('spring-boot');
+  });
+
+  /**
+   * It was never only `samples`. `spring-test/src/main/java/org/springframework/mock/`
+   * holds forty-four files — `MockHttpServletRequest` and its neighbours, shipped in
+   * the jar and the whole point of that module — and the rule that removes `mocks/`
+   * removed every one. Measured on a sparse checkout of spring-framework: 0 source
+   * files before, 460 after.
+   */
+  it('reads a module whose product is a mock', async () => {
+    const analysis = await analyzeProject(fixture('jvm-mock-module'));
+
+    expect(analysis.files.source).toContain('src/main/java/org/example/mock/web/MockHttpServletRequest.java');
+  });
+
+  /**
+   * `src/test` is deliberately still layout: there the convention does say the code
+   * is tests, which is the same contract working in the other direction.
+   */
+  it('still removes what sits under src/test', async () => {
+    const analysis = await analyzeProject(fixture('jvm-mock-module'));
+
+    expect(analysis.files.source.some((f) => f.startsWith('src/test/'))).toBe(false);
   });
 
   it('still removes snippets that sit beside the source root', async () => {
