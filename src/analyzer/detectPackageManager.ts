@@ -7,6 +7,8 @@ interface PackageManagerResolution {
   confidence: 'lockfile' | 'manifest' | 'inferred' | 'unknown';
   warnings: string[];
   evidence: string[];
+  /** How much of the repository is written in the language this manifest builds. */
+  share?: number;
 }
 
 /**
@@ -112,7 +114,7 @@ function resolveFromOtherManifests(ctx: DetectContext): PackageManagerResolution
       : winner,
   );
 
-  return { manager: best.manager, confidence: 'manifest', warnings: [], evidence: [best.file] };
+  return { manager: best.manager, confidence: 'manifest', warnings: [], evidence: [best.file], share: best.share };
 }
 
 function resolveWorkspaceManager(workspace: DetectContext['workspaces'][number]): PackageManagerResolution {
@@ -192,8 +194,26 @@ export async function detectPackageManager(ctx: DetectContext): Promise<{
    * prefer: a repository whose only manifest is a package.json is an npm repository
    * however little JavaScript it has.
    */
+  const nodeOrPythonShare = languageShare(ctx, /\.(ts|tsx|js|jsx|mjs|cjs|py)$/);
+
+  /**
+   * And clearing the line is not the same as winning.
+   *
+   * The test above asks whether Node is a real part of the repository, and the
+   * question is which manifest builds the *product*. Firefly III is 1748 PHP files
+   * and 221 of JavaScript — eleven per cent, comfortably over the line — and it is a
+   * Laravel application whose package.json runs Vite over its frontend assets. The
+   * report said "Package manager: npm (lockfile)" about a project installed with
+   * Composer.
+   *
+   * Where both manifests clear the line, the larger language decides, which is the
+   * comparison the other manifests already make among themselves. Below the line
+   * nothing changes, and a repository whose only manifest is a package.json is an npm
+   * repository however little JavaScript it has.
+   */
   const nodeOrPythonIsTheProduct =
-    languageShare(ctx, /\.(ts|tsx|js|jsx|mjs|cjs|py)$/) >= MINIMUM_LANGUAGE_SHARE;
+    nodeOrPythonShare >= MINIMUM_LANGUAGE_SHARE
+    && nodeOrPythonShare >= (otherManifest?.share ?? 0);
 
   const selected = fromWorkspaces
     && fromWorkspaces.manager !== 'unknown'

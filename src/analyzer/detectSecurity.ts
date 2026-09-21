@@ -11,6 +11,27 @@ import { isDevelopmentOnlyFile } from './developmentOnly';
 
 /** Lines that decide which origins may call this server. */
 const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /ALLOWED_ORIGINS/, /allowedOrigins/i];
+
+/** The cloud SDKs' names for a bucket's own cross-origin rules. */
+const CLOUD_STORAGE_CORS = /\bStorageCorsRule\b|\bCorsRules\b|\bCORSRule\b|\bCORSConfiguration\b|\bsetCorsConfiguration\b/;
+
+/**
+ * Whether this line sits inside one of those rules.
+ *
+ * The type is named where the object is opened and the origins are listed a few lines
+ * further in — bitwarden's `CorsRules.Add(new StorageCorsRule` is two lines above its
+ * `AllowedOrigins`. A short window rather than the whole file, because the names are
+ * specific enough to be decisive and a file-wide test would excuse a real policy that
+ * happens to share a file with a bucket's.
+ */
+const CLOUD_STORAGE_CORS_WINDOW = 5;
+
+function namesACloudStorageRule(text: string, line: number): boolean {
+  const lines = text.split(/\r?\n/);
+  const from = Math.max(0, line - 1 - CLOUD_STORAGE_CORS_WINDOW);
+
+  return lines.slice(from, line).some((candidate) => CLOUD_STORAGE_CORS.test(candidate));
+}
 /**
  * The same line, allowing everyone.
  *
@@ -503,6 +524,21 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     // allowlist made a wildcard read as restricted; and it cited line 1, which in
     // every repository that triggered it was an import.
     for (const m of matchLines(text, ORIGIN_HANDLING, file)) {
+      /**
+       * A bucket's CORS is not the application's CORS.
+       *
+       * bitwarden's Aspire host configures the local Azurite storage emulator with
+       * `AllowedOrigins = [new BicepValue<string>("*")]` inside a `StorageCorsRule`,
+       * and that one line made a `high` finding out of an API whose actual policy is
+       * `SetIsOriginAllowed(o => CoreHelpers.IsCorsOriginAllowed(o, globalSettings))`
+       * — a function deciding, cited two lines below it in the same report.
+       *
+       * The subject is different, not the severity: a storage account, a bucket or a
+       * CDN distribution answers for the objects it serves, and this check is about
+       * the requests this application answers. `StorageCorsRule`, `CorsRules` and S3's
+       * `CORSRule` are type names from the cloud SDKs, so they are the anchor.
+       */
+      if (namesACloudStorageRule(text, m.line)) continue;
       if (WILDCARD_ORIGIN.test(m.snippet)) corsLoose.push(m);
       else if (allowsAChosenOrigin(m.snippet, text)) corsStrict.push(m);
       /**

@@ -13,7 +13,25 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
   const hasStripeDep = hasDep(ctx, 'stripe');
   if (hasStripeDep) evidence.push({ type: 'dependency', value: 'stripe' });
 
-  const stripeContextHits = await searchInFiles(
+  /**
+   * Laravel's table of service credentials, which is a list of slots.
+   *
+   * `config/services.php` ships with the framework and holds a block per service the
+   * skeleton knows about — mailgun, postmark, ses, and for years a `stripe` one
+   * reading `env('STRIPE_KEY')`. Firefly III still carries it, beside sparkpost,
+   * mandrill and pushover, and takes no payments at all: no processor package in its
+   * composer.json, no charge anywhere. It was reported at `medium` for an unhardened
+   * billing webhook, and the rest of that finding was its own webhooks feature —
+   * notifications a *user* registers to hear about their transactions, which point
+   * the other way entirely.
+   *
+   * An entry there is a slot the deployment may fill, not an integration this project
+   * has. A project that charges people declares `stripe/stripe-php` or
+   * `laravel/cashier`, and that is read from the manifest a few lines down.
+   */
+  const LARAVEL_SERVICE_SLOTS = /(^|\/)config\/services\.php$/;
+
+  const stripeContextHits = (await searchInFiles(
     ctx.root,
     ctx.files.source,
     [
@@ -44,7 +62,7 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
       /\/stripe\/webhooks?/i,
     ],
     30
-  );
+  )).filter((hit) => !LARAVEL_SERVICE_SLOTS.test(hit.file));
 
   /**
    * The processor, declared wherever this project declares its dependencies.
