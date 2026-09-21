@@ -1,7 +1,7 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
-import { evidenceOrSearch } from './absenceEvidence';
+import { evidenceOrFileNameSearch } from './absenceEvidence';
 
 export async function detectDocker(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
@@ -41,7 +41,7 @@ export async function detectDocker(ctx: DetectContext): Promise<DetectorResult> 
     key: 'infra.docker',
     present: Boolean(dockerfile || composeFile),
     complete: hasHealthcheck,
-    evidence: evidenceOrSearch(evidence, 'a container definition', ['Dockerfile', 'Containerfile', 'docker-compose.yml', 'compose.yaml']),
+    evidence: evidenceOrFileNameSearch(evidence, 'a container definition', ['Dockerfile', 'Containerfile', 'docker-compose.yml', 'compose.yaml']),
     details: { dockerfile: Boolean(dockerfile), compose: Boolean(composeFile), hasHealthcheck, hasExpose, services },
   };
 }

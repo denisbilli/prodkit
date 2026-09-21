@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyGradleDep, hasAnyPyDep, hasAnyRubyDep, hasAnyRustDep, hasDep } from './detectContext';
+import { hasAnyElixirDep, hasAnyGradleDep, hasAnyPyDep, hasAnyRubyDep, hasAnyRustDep, hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { findDjangoSettings } from './djangoSettings';
 import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
@@ -311,7 +311,9 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
      * that it does not throttle. The list had grown npm, Python and Rust entries and
      * skipped the ecosystem where the answer is a single well-known name.
      */
-    hasAnyRubyDep(ctx, ['rack-attack', 'rack_attack']).length > 0;
+    hasAnyRubyDep(ctx, ['rack-attack', 'rack_attack']).length > 0 ||
+    /** Elixir's, which are plugs: `hammer` counts, `plug_attack` and `ex_rated` refuse. */
+    hasAnyElixirDep(ctx, ['hammer', 'plug_attack', 'ex_rated', 'pow_ratelimit']).length > 0;
   /**
    * Throttling by what the protocol says, not by what the variable is called.
    *

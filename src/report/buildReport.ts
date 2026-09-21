@@ -108,6 +108,34 @@ function onlyEvidencedInDocumentation(finding: Finding, hasProductSource: boolea
   return cited.length > 0 && cited.every((item) => DOCS_DIRECTORIES.test(item.file as string));
 }
 
+/**
+ * A verdict nothing could have reached.
+ *
+ * Teaching the analyzer to read `mix.exs` gave it plausible's backend, its two data
+ * stores and its password hashing — all from package names nobody there invented. It
+ * also turned every other capability from `unknown` into `missing`: no CORS, no
+ * security headers, no health endpoint, no consent, each at `high`, about 1257 Elixir
+ * files the analyzer had not opened. The guard that used to hold those back was an
+ * accident — with no backend detected, the rules said nothing here serves requests —
+ * and naming the backend removed it.
+ *
+ * So it is said properly. Where most of a repository is a language this analyzer does
+ * not read, a finding whose only evidence is the search that found nothing is a
+ * question that went unasked, and `unknown` is the answer. A finding still holding a
+ * dependency, a file or a line stands: `bcrypt_elixir` in the manifest is evidence
+ * whatever language the rest of the repository is in, and so is a search over the list
+ * of file names: "no Dockerfile" is true of a repository in any language, because the
+ * names are readable whatever is inside the files.
+ *
+ * This is the same rule as the documentation one above, for the same reason. Blindness
+ * may turn a verdict into no verdict; it may never turn it into the opposite verdict.
+ */
+function onlyEvidencedByASearchThatCouldNotRead(finding: Finding): boolean {
+  if (finding.status === 'passed' || finding.status === 'unknown') return false;
+
+  return finding.evidence.every((item) => item.type === 'search' && !item.overFileNames);
+}
+
 export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOptions): ProductionReadinessReport {
   const observedFindings = runRules(analysis);
   const observedScore = computeScore(observedFindings);
@@ -176,10 +204,26 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
    */
   const hasProductSource = analysis.files.source.some((file) => !DOCS_DIRECTORIES.test(file));
 
+  /**
+   * Read here as well as below, because it decides what the findings may claim and not
+   * only whether the report carries a score.
+   */
+  const unreadableFileCount = analysis.files.unreadable.reduce((total, entry) => total + entry.files, 0);
+  const mostlyUnreadable = unreadableFileCount > analysis.files.source.length;
+  const [largestUnreadable] = [...analysis.files.unreadable].sort((left, right) => right.files - left.files);
+
   const findings = withEvidenceDigest(withBusinessImpact(
     [...observedFindings, ...expectationFindings]
       .map((finding) =>
-        onlyEvidencedInDocumentation(finding, hasProductSource)
+        mostlyUnreadable && onlyEvidencedByASearchThatCouldNotRead(finding)
+          ? {
+              ...finding,
+              status: 'unknown' as const,
+              severity: 'info' as const,
+              description: `${finding.description} Most of this repository is written in ${largestUnreadable?.language ?? 'a language'}, which this analyzer does not read, so nothing here was in a position to answer.`,
+              recommendation: '',
+            }
+          : onlyEvidencedInDocumentation(finding, hasProductSource)
           ? {
               ...finding,
               status: 'unknown' as const,
@@ -292,8 +336,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
    * this was written on crosses the line, and the first public repository that did was
    * the sixth one tried.
    */
-  const unreadableFiles = analysis.files.unreadable.reduce((total, entry) => total + entry.files, 0);
-  const mostlyUnreadable = unreadableFiles > analysis.files.source.length;
+  const unreadableFiles = unreadableFileCount;
   const inconclusive = nothingIdentified || tooLittleAssessed || mostlyUnreadable;
 
   // Each reason says which of the two it was, because they call for different things:
@@ -308,7 +351,7 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
     }
   }
   if (mostlyUnreadable) {
-    const [largest] = [...analysis.files.unreadable].sort((left, right) => right.files - left.files);
+    const largest = largestUnreadable;
     inconclusiveReasons.push(
       `Most of this repository is written in ${largest.language}, which this analyzer does not read: ${unreadableFiles} of its files were skipped and ${analysis.files.source.length} were read.`,
     );

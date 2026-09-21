@@ -111,6 +111,29 @@ export const RUBY_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['grape', ['grape']],
 ];
 
+/**
+ * Elixir frameworks, read from mix.exs.
+ *
+ * Phoenix is the answer in nearly every case. Plug is the layer underneath it and a
+ * real answer on its own — an Elixir service that serves requests without Phoenix
+ * serves them through Plug — and Bandit and Cowboy are the servers that run it.
+ */
+export const ELIXIR_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
+  ['phoenix', ['phoenix']],
+  ['plug', ['plug', 'plug_cowboy']],
+  ['bandit', ['bandit']],
+];
+
+/** Elixir data stores, read from mix.exs. */
+export const ELIXIR_DATABASES: Array<[string, string[]]> = [
+  ['postgres', ['postgrex']],
+  ['mysql', ['myxql']],
+  ['sqlite', ['ecto_sqlite3', 'exqlite']],
+  ['clickhouse', ['ecto_ch', 'ch']],
+  ['redis', ['redix']],
+  ['mongodb', ['mongodb_driver']],
+];
+
 /** PHP frameworks, read from composer.json. */
 export const PHP_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['laravel', ['laravel/framework', 'laravel/laravel']],
@@ -244,6 +267,10 @@ const LABELS: Record<string, string> = {
   hanami: 'Hanami',
   roda: 'Roda',
   grape: 'Grape',
+  phoenix: 'Phoenix',
+  plug: 'Plug',
+  bandit: 'Bandit',
+  clickhouse: 'ClickHouse',
   laravel: 'Laravel',
   symfony: 'Symfony',
   slim: 'Slim',
@@ -375,6 +402,7 @@ export function supportedStacks(): StackCatalogue {
       ...entries(JVM_BACKEND_FRAMEWORKS.map(([id]) => id)),
       ...entries(RUBY_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'ruby', label: 'Ruby', detectedFrom: 'a Gemfile with no web framework in it' },
+      ...entries(ELIXIR_BACKEND_FRAMEWORKS.map(([id]) => id)),
       ...entries(PHP_BACKEND_FRAMEWORKS.map(([id]) => id)),
       { id: 'php', label: 'PHP', detectedFrom: 'PHP sources with no framework in composer.json' },
       { id: 'aspnet-core', label: 'ASP.NET Core', detectedFrom: 'the Microsoft.NET.Sdk.Web SDK attribute' },

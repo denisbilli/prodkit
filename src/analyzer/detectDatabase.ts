@@ -1,7 +1,7 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRubyDep, hasAnyDotnetDep, hasAnyDartDep, type DetectContext } from './detectContext';
+import { hasAnyDep, hasAnyPyDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRubyDep, hasAnyDotnetDep, hasAnyDartDep, hasAnyElixirDep, type DetectContext } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
-import { JVM_DATABASES } from './catalogue';
+import { ELIXIR_DATABASES, JVM_DATABASES } from './catalogue';
 
 /**
  * Managed data platforms, and the engine each one actually is.
@@ -115,6 +115,22 @@ export async function detectDatabase(ctx: DetectContext): Promise<{
    */
   for (const [db, names] of JVM_DATABASES) {
     const hits = hasAnyGradleDep(ctx, names);
+    if (hits.length) {
+      databases.add(db);
+      for (const h of hits) evidence.push({ type: 'dependency', value: h });
+    }
+  }
+
+  /**
+   * Elixir, by driver package.
+   *
+   * Ecto is the query layer and names no store: `postgrex` is what makes it Postgres,
+   * `ecto_ch` what makes it ClickHouse. plausible has both — its application data in
+   * Postgres and its analytics in ClickHouse — and was reported as having no data
+   * layer at all.
+   */
+  for (const [db, names] of ELIXIR_DATABASES) {
+    const hits = hasAnyElixirDep(ctx, names);
     if (hits.length) {
       databases.add(db);
       for (const h of hits) evidence.push({ type: 'dependency', value: h });

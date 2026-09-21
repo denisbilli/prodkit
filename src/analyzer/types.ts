@@ -27,6 +27,7 @@ export type PackageManager =
   | 'nuget'
   | 'swift package manager'
   | 'cocoapods'
+  | 'mix'
   | 'unknown';
 
 export type PackageManagerConfidence = 'lockfile' | 'manifest' | 'inferred' | 'unknown';
@@ -73,6 +74,15 @@ export interface DetectorEvidence {
    * the reader can check and disagree with.
    */
   type: 'file' | 'dependency' | 'snippet' | 'note' | 'search';
+  /**
+   * For a `search`: whether it read the source text or only the list of file names.
+   *
+   * "No Dockerfile" is true of a repository in any language, because the file list is
+   * readable whatever is inside the files. "No security headers" is a claim about what
+   * the code does, and a language this analyzer cannot read cannot answer it. Only the
+   * second kind is withdrawn where most of the repository went unread.
+   */
+  overFileNames?: boolean;
   value: string;
   file?: string;
   line?: number;

@@ -1,7 +1,7 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
-import { evidenceOrSearch } from './absenceEvidence';
+import { evidenceOrFileNameSearch } from './absenceEvidence';
 
 export async function detectDeployment(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
@@ -88,7 +88,7 @@ export async function detectDeployment(ctx: DetectContext): Promise<DetectorResu
     key: 'deployment.readiness',
     present: presentFiles.length > 0 || hits.length > 0,
     complete: prodAware,
-    evidence: evidenceOrSearch(evidence, 'anything that says how this is deployed', ['Dockerfile', 'docker-compose', '.github/workflows/', 'Procfile', 'fly.toml', 'render.yaml', 'NODE_ENV', 'RAILS_ENV', 'ASPNETCORE_ENVIRONMENT', 'a file naming production']),
+    evidence: evidenceOrFileNameSearch(evidence, 'anything that says how this is deployed', ['Dockerfile', 'docker-compose', '.github/workflows/', 'Procfile', 'fly.toml', 'render.yaml', 'NODE_ENV', 'RAILS_ENV', 'ASPNETCORE_ENVIRONMENT', 'a file naming production']),
     details: {
       dockerArtifacts: presentFiles.some((f) => /Dockerfile|compose/.test(f)),
       ci: presentFiles.some((f) => f.startsWith('.github/workflows/')),

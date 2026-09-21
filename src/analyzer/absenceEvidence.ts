@@ -35,6 +35,18 @@ export function searchedFor(what: string, terms: string[], claim?: string): Dete
  * it say so, so that a reader whose roles are called `capabilities` can see why they
  * were missed and tell us we are wrong.
  */
+/**
+ * The same, for a look that needed no reader.
+ *
+ * A search over the list of file names answers whatever language the files are
+ * written in. Separated so that the report can withdraw the claims a blind reader
+ * made without withdrawing the ones anybody could check — see
+ * `onlyEvidencedByASearchThatCouldNotRead` in the report.
+ */
+export function searchedFileNamesFor(what: string, terms: string[], claim?: string): DetectorEvidence[] {
+  return searchedFor(what, terms, claim).map((item) => ({ ...item, overFileNames: true }));
+}
+
 export function evidenceOrSearch(
   evidence: DetectorEvidence[],
   what: string,
@@ -42,4 +54,14 @@ export function evidenceOrSearch(
   claim?: string
 ): DetectorEvidence[] {
   return evidence.length > 0 ? evidence : searchedFor(what, terms, claim);
+}
+
+/** `evidenceOrSearch` for a search that only had to read file names. */
+export function evidenceOrFileNameSearch(
+  evidence: DetectorEvidence[],
+  what: string,
+  terms: string[],
+  claim?: string
+): DetectorEvidence[] {
+  return evidence.length > 0 ? evidence : searchedFileNamesFor(what, terms, claim);
 }

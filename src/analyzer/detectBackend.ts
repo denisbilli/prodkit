@@ -1,5 +1,5 @@
 import type { DetectorResult, DetectorEvidence } from './types';
-import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRuntimeRustDep, hasAnyRubyDep, hasAnyDotnetDep, type DetectContext } from './detectContext';
+import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRuntimeRustDep, hasAnyRubyDep, hasAnyDotnetDep, hasAnyRuntimeElixirDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { MINIMUM_LANGUAGE_SHARE, languageShare } from './languageShare';
@@ -11,6 +11,7 @@ import {
   PHP_BACKEND_FRAMEWORKS,
   PYTHON_BACKEND_FRAMEWORKS,
   RUBY_BACKEND_FRAMEWORKS,
+  ELIXIR_BACKEND_FRAMEWORKS,
 } from './catalogue';
 
 export async function detectBackend(ctx: DetectContext): Promise<{
@@ -178,6 +179,22 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     if (!hits.length) continue;
 
     namedRubyFramework = true;
+    frameworks.push(framework);
+    for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
+  }
+
+  /**
+   * Elixir, read from mix.exs.
+   *
+   * No fallback beside it, for Rust's reason rather than Go's: Elixir's standard
+   * library has no HTTP server, so a mix project with no Phoenix, Plug or Bandit in
+   * it is a library or a release tool. Phoenix is what serves the requests when
+   * anything does.
+   */
+  for (const [framework, deps] of ELIXIR_BACKEND_FRAMEWORKS) {
+    const hits = hasAnyRuntimeElixirDep(ctx, deps);
+    if (!hits.length) continue;
+
     frameworks.push(framework);
     for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
   }

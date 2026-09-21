@@ -571,6 +571,51 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   }
 
   /**
+   * mix.exs, read for the packages an Elixir project depends on.
+   *
+   * plausible is 1257 Elixir files and the report had no score at all: no backend, no
+   * database, no package manager, and an honest note saying the language was not read.
+   * The note was the right answer to give while it was true — but Phoenix, Ecto,
+   * bcrypt_elixir, cors_plug and nimble_totp are all in its manifest, and every one of
+   * them is a package name nobody at plausible invented.
+   *
+   * Mix declares dependencies as tuples in a function rather than as a data file:
+   * `{:phoenix, "~> 1.8.2"}` and `{:location, git: "..."}` are both entries, and
+   * `{:credo, "~> 1.7", only: [:dev, :test]}` is one the product does not ship. The
+   * `only:` option is the same distinction `runtimeRustDeps` draws, written in Elixir.
+   *
+   * Read from inside the `deps` function and nowhere else. A tuple beginning with an
+   * atom is ordinary Elixir and appears all over a manifest: plausible's release
+   * configuration holds `{:system, "RELEASE_ROOT", ...}` and its dialyzer settings
+   * `{:no_warn, "priv/plts/dialyzer.plt"}`, and both were being read as packages.
+   * `deps: deps()` in `project/0` is Mix's own convention, so the function is where
+   * the list is.
+   */
+  const elixirDeps: string[] = [];
+  const runtimeElixirDeps: string[] = [];
+
+  for (const file of ownManifests.filter((f) => /(^|\/)mix\.exs$/.test(f))) {
+    const raw = (await readTextFileSafe(root, file)) ?? '';
+    /**
+     * An entry can run over several lines — plausible writes four of its OpenTelemetry
+     * dependencies with the git ref on lines of their own — so `only:` is looked for
+     * in the whole tuple rather than on the line that opens it.
+     */
+    const opener = /^(\s*)defp?\s+deps\s+do\s*$/m.exec(raw);
+    if (!opener) continue;
+    const lines = raw.slice(opener.index).split('\n');
+    const closer = lines.findIndex((line, i) => i > 0 && line === `${opener[1]}end`);
+    const block = lines.slice(1, closer === -1 ? undefined : closer).join('\n');
+    const entries = block.matchAll(/\{\s*:([a-z][a-z0-9_]*)\s*(,[\s\S]*?)?\}/g);
+    for (const entry of entries) {
+      const name = entry[1].toLowerCase();
+      const options = entry[2] ?? '';
+      elixirDeps.push(name);
+      if (!/\bonly:\s*(?:\[[^\]]*\]|:[a-z_]+)/.test(options)) runtimeElixirDeps.push(name);
+    }
+  }
+
+  /**
    * pubspec.yaml, read for its two dependency blocks.
    *
    * YAML with a hand-written reader again, and the shape here is forgiving: the blocks
@@ -877,6 +922,8 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
     goDeps: unique(goDeps),
     rustDeps: unique(rustDeps),
     runtimeRustDeps: unique(runtimeRustDeps),
+    elixirDeps: unique(elixirDeps),
+    runtimeElixirDeps: unique(runtimeElixirDeps),
     rubyDeps: unique(rubyDeps),
     dotnetDeps: unique(dotnetDeps),
     dotnetWebSdk,

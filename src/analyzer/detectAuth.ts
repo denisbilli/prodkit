@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyDotnetDep, hasAnyGradleDep, hasAnyPyDep, hasAnyRustDep } from './detectContext';
+import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGradleDep, hasAnyPyDep, hasAnyRustDep } from './detectContext';
 import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readRoleChecks } from './structural/roleChecks';
 import { evidenceOrSearch, searchedFor } from './absenceEvidence';
@@ -89,6 +89,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...hasAnyRustDep(ctx, ['oauth2', 'openidconnect']),
     ...hasAnyGradleDep(ctx, ['spring-boot-starter-oauth2-client', 'com.okta.spring']),
     ...hasAnyDotnetDep(ctx, ['Microsoft.AspNetCore.Authentication.OpenIdConnect', 'Microsoft.Identity.Web']),
+    ...hasAnyElixirDep(ctx, ['ueberauth', 'assent', 'openid_connect']),
   ];
 
   /** And a password of its own, which is what makes a reset flow something to have. */
@@ -98,6 +99,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...hasAnyRustDep(ctx, ['argon2', 'rust-argon2', 'bcrypt', 'scrypt', 'password-hash', 'pbkdf2']),
     ...hasAnyGradleDep(ctx, ['spring-security-crypto', 'org.mindrot:jbcrypt']),
     ...hasAnyDotnetDep(ctx, ['Microsoft.AspNetCore.Identity']),
+    ...hasAnyElixirDep(ctx, ['bcrypt_elixir', 'argon2_elixir', 'pbkdf2_elixir']),
   ];
   /**
    * The packages that do the authenticating, as distinct from the words people use
@@ -129,13 +131,36 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     '@oslojs/crypto',
     '@auth/core',
   ];
+  /**
+   * The same question in Elixir, where the packages have their own names.
+   *
+   * `bcrypt_elixir` hashes the password, `guardian` and `pow` hold the session,
+   * `ueberauth` hands identity to a provider. plausible declares three of them and
+   * reported no authentication at all, because none of these words appears in any of
+   * the lists above.
+   */
+  const elixirAuthDeps = hasAnyElixirDep(ctx, [
+    'bcrypt_elixir',
+    'argon2_elixir',
+    'pbkdf2_elixir',
+    'guardian',
+    'pow',
+    'ueberauth',
+    'assent',
+    'joken',
+  ]);
   const authDeps = [
     ...hasAnyDep(ctx, AUTH_PACKAGES),
     ...managedAuthDeps,
     ...managedAuthPyDeps,
+    ...elixirAuthDeps,
   ];
   const sessionDeps = [...hasAnyDep(ctx, ['express-session', 'cookie-session']), ...managedAuthDeps];
-  const twoFaDeps = hasAnyDep(ctx, ['speakeasy', 'pyotp', 'qrcode', '@simplewebauthn/server', 'otplib']);
+  const twoFaDeps = [
+    ...hasAnyDep(ctx, ['speakeasy', 'pyotp', 'qrcode', '@simplewebauthn/server', 'otplib']),
+    /** `nimble_totp` is the Elixir one, and plausible ships it. */
+    ...hasAnyElixirDep(ctx, ['nimble_totp']),
+  ];
 
   const routeSignals = await searchInFiles(
     ctx.root,
