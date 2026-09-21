@@ -35,6 +35,24 @@ const GENERIC_SECRET_ASSIGNMENT_RE = /(JWT_SECRET|SECRET_KEY|SESSION_SECRET|API_
  */
 const REDACTED_VALUE_RE = /[:=]\s*['"`](\*{2,}|x{3,}|<?\[?redacted\]?>?|hidden|\.{3,})['"`]/i;
 
+/**
+ * A sentence assigned to a secret-named identifier is not a secret.
+ *
+ * `secret_key: "must be #{@secret_key_size} bytes in Base 64 URL alphabet"` is
+ * Livebook's validation message, returned when somebody types a bad key, and it was
+ * the one `critical` in its report. The finding is "Weak/fallback secret values" and
+ * the value was never looked at: every test above runs on the whole line, and the
+ * line says "secret" because the identifier does. The redaction rule beside this one
+ * was the same discovery made once, for one shape, and patched there.
+ *
+ * A secret is a token. It has no spaces in it and it is not a template with a
+ * variable in the middle — an error message, a label and a sentence all do. Three
+ * Elixir products raised this `critical` on the day Elixir became readable, and
+ * `critical` is the severity that caps maturity, so it was the loudest thing in each
+ * of three reports about products that had done nothing wrong.
+ */
+const VALUE_IS_A_SENTENCE_RE = /[:=]\s*(['"`])[^'"`]*(?:\s|#\{|\$\{)[^'"`]*\1/;
+
 function classifySecretFallback(snippet: string): 'jwt' | 'session' | 'app' | 'apiKey' | 'unknown' {
   if (/JWT_SECRET/i.test(snippet)) return 'jwt';
   if (/SESSION_SECRET/i.test(snippet)) return 'session';
@@ -196,6 +214,7 @@ export async function detectEnv(ctx: DetectContext): Promise<DetectorResult[]> {
       && !namesItself(m.snippet)
       && !valueIsAnIdentifier(m.snippet)
       && !REDACTED_VALUE_RE.test(m.snippet)
+      && !VALUE_IS_A_SENTENCE_RE.test(m.snippet)
       && !isTableEntry(m)
       && !isAnotherSettingsModule(m.file)
   );

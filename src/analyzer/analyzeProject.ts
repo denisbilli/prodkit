@@ -208,6 +208,20 @@ function isTestOrExamplePath(file: string): boolean {
     || /\.(e2e|e2e-spec|cy|stories)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file)
     || /_spec\.rb$/i.test(file)
     || /_test\.(go|py|rb|java|cs|php)$/i.test(file)
+    || /_test\.exs$/i.test(file)
+    /**
+     * Mix names its environments, and the file name is the environment.
+     *
+     * `config/test.exs` and `config/dev.exs` are compiled only under `MIX_ENV=test` and
+     * `MIX_ENV=dev`; a production release carries `config/prod.exs` and
+     * `config/runtime.exs` and neither of the other two. supabase/realtime keeps
+     * `metrics_jwt_secret: "test"` in `config/test.exs` and it was the one `critical`
+     * in its report — a literal written to be fake, read as production configuration.
+     *
+     * The same argument as `_test.go`: the name is the toolchain's, not the author's,
+     * and it says which build the file is part of.
+     */
+    || /(^|\/)config\/(test|dev)\.exs$/i.test(file)
     || /(^|\/)test[-_][^/]+\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     /**
      * The other half of the convention.
