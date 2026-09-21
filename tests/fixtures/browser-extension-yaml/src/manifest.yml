@@ -1,0 +1,10 @@
+# Compiled into manifest.json at build time, which is how Violentmonkey does it.
+manifest_version: 2
+name: Tab Tidy
+version: 1.0.0
+permissions:
+  - tabs
+  - storage
+background:
+  scripts:
+    - background.js

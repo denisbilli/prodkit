@@ -292,10 +292,33 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
   }
 
   const tauriConfigs = all.filter((file) => /(^|\/)tauri\.conf\.json$/.test(file));
+
+  /**
+   * A browser extension, which ships inside a packaged archive like any other bundle.
+   *
+   * `manifest_version` is the key the WebExtensions platform requires, and it appears
+   * in nothing else. The file it sits in is not always `manifest.json`: Dark Reader
+   * keeps one per browser — `manifest-chrome-mv3.json`, `manifest-firefox.json` —
+   * and Violentmonkey writes `manifest.yml` and compiles it at build time. The key is
+   * the contract; the file name is the project's business.
+   *
+   * Violentmonkey was asked at `high` how it delivers assets over HTTP. Its assets are
+   * inside the `.xpi` the browser installed, which is the Electron case again.
+   */
+  const extensionManifests: string[] = [];
+  for (const file of all.filter((f) => /(^|\/)manifest[\w.-]*\.(json|yml|yaml)$/i.test(f)).slice(0, 8)) {
+    const raw = (await readTextFileSafe(ctx.root, file)) ?? '';
+    if (/["']?manifest_version["']?\s*[:=]/.test(raw)) extensionManifests.push(file);
+  }
   const desktopBundle: DetectorEvidence[] = [
     ...hasAnyDep(ctx, ['electron', 'electron-builder', '@tauri-apps/api', '@tauri-apps/cli'])
       .map((dep) => ({ type: 'dependency' as const, value: dep })),
     ...tauriConfigs.slice(0, 2).map((file) => ({ type: 'file' as const, value: file, file })),
+    ...extensionManifests.slice(0, 2).map((file) => ({
+      type: 'file' as const,
+      value: `${file} declares manifest_version`,
+      file,
+    })),
   ];
 
   const entrypointCount = nodeEntrypoints.length

@@ -33,6 +33,27 @@ describe('an application you install', () => {
   });
 
   /**
+   * A browser extension ships inside a packaged archive like any other bundle.
+   *
+   * `manifest_version` is the key the WebExtensions platform requires and it appears
+   * in nothing else. The file it sits in is the project's business: Dark Reader keeps
+   * one per browser, Violentmonkey writes `manifest.yml` and compiles it at build
+   * time. Violentmonkey was asked at `high` how it delivers assets over HTTP; its
+   * assets are inside the `.xpi` the browser installed.
+   */
+  it('is not asked, when it is a browser extension', async () => {
+    const report = buildReport(await analyzeProject(fixture('browser-extension-mv3')), { profile: 'client-app' });
+
+    expect(finding(report, 'expectation.app.asset-delivery.required')).toBeUndefined();
+  });
+
+  it('is not asked, when the manifest is compiled from YAML', async () => {
+    const report = buildReport(await analyzeProject(fixture('browser-extension-yaml')), { profile: 'client-app' });
+
+    expect(finding(report, 'expectation.app.asset-delivery.required')).toBeUndefined();
+  });
+
+  /**
    * The direction this must not drift in: a browser application is still asked, and
    * one that answers still passes.
    */
