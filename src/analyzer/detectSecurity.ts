@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyGradleDep, hasAnyPyDep, hasAnyRustDep, hasDep } from './detectContext';
+import { hasAnyGradleDep, hasAnyPyDep, hasAnyRubyDep, hasAnyRustDep, hasDep } from './detectContext';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { findDjangoSettings } from './djangoSettings';
 import { isCitableLine, matchLines, searchInFiles } from '../utils/textSearch';
@@ -222,6 +222,21 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       /^\s*SECURE_REFERRER_POLICY\s*=/m,
       /^\s*SECURE_CROSS_ORIGIN_OPENER_POLICY\s*=/m,
       /^\s*CSP_DEFAULT_SRC\s*=/m,
+      /**
+       * Rails writes its header policy as Ruby, not as a header name.
+       *
+       * `config.content_security_policy do |policy|` in an initializer is the policy
+       * itself, and `config.force_ssl = true` is what turns on Strict-Transport-Security
+       * for the whole application. lobsters has both and was told at `high` to add
+       * security headers.
+       *
+       * Both are lines somebody chose to write. Rails' *default* headers —
+       * `X-Frame-Options: SAMEORIGIN`, nosniff, and the rest of `DefaultHeaders` —
+       * are not counted, for the reason Django's `SecurityMiddleware` is not: every
+       * application has them, so they distinguish nothing.
+       */
+      /config\.content_security_policy\b/,
+      /^\s*config\.force_ssl\s*=\s*true/m,
     ],
     20,
   );
@@ -288,7 +303,15 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     hasDep(ctx, 'rate-limiter-flexible') ||
     hasDep(ctx, 'next-rate-limit') ||
     hasAnyPyDep(ctx, ['django-ratelimit', 'slowapi', 'flask-limiter']).length > 0 ||
-    hasAnyRustDep(ctx, ['governor', 'tower_governor', 'tower-governor', 'actix-governor', 'ratelimit']).length > 0;
+    hasAnyRustDep(ctx, ['governor', 'tower_governor', 'tower-governor', 'actix-governor', 'ratelimit']).length > 0 ||
+    /**
+     * Ruby's, which is one gem and nearly universal in Rails.
+     *
+     * lobsters declares `gem "rack-attack" # rate-limiting` and was told at `high`
+     * that it does not throttle. The list had grown npm, Python and Rust entries and
+     * skipped the ecosystem where the answer is a single well-known name.
+     */
+    hasAnyRubyDep(ctx, ['rack-attack', 'rack_attack']).length > 0;
   /**
    * Throttling by what the protocol says, not by what the variable is called.
    *
