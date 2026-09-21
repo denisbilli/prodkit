@@ -776,6 +776,35 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * one line that opens it.
    */
   /**
+   * Rails' answer, which is a gem with a small language of its own.
+   *
+   * chatwoot scored 98 and `production_ready` with its cross-origin policy reported
+   * as "not detected". It installs `rack-cors`, mounts `Rack::Cors` as the first
+   * middleware in `config/initializers/cors.rb`, and writes `origins '*'` — which
+   * opens `/packs/*`, `/audio/*`, `/public/api/*`, and everything else when
+   * `CW_API_ONLY_SERVER` is set. Not one of the words this check looked for appears
+   * in that file: the gem's DSL says `origins`, not `Access-Control-Allow-Origin`.
+   *
+   * `rack-cors`, `Rack::Cors` and `origins` are the gem's; the values are the
+   * author's. Every `origins` line is read, because the block lists one per rule and
+   * a permissive one beside a restricted one is still permissive.
+   */
+  for (const file of ctx.files.all.filter((f) => /\.rb$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text || !/\bRack::Cors\b/.test(text)) continue;
+
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const origins = /^\s*origins\s+(.+)$/.exec(lines[i]);
+      if (!origins || !isCitableLine(lines[i].trim())) continue;
+
+      const hit: CorsHit = { file, line: i + 1, snippet: lines[i].trim().slice(0, 200) };
+      if (/^['"]\*['"]/.test(origins[1].trim())) corsLoose.push(hit);
+      else corsStrict.push(hit);
+    }
+  }
+
+  /**
    * Symfony's answer, which is a bundle and the file it reads.
    *
    * kimai scored 93 and `production_ready` while its API answered every origin on
