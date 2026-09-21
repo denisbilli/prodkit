@@ -57,3 +57,35 @@ describe('the database a Laravel project falls back to', () => {
     expect(analysis.stack.databases).not.toContain('mysql');
   });
 });
+
+/**
+ * ASP.NET Core, whose cross-origin handling is a call to the framework's own builder.
+ *
+ * `AddCors()` registers the service and `UseCors()` puts it in the pipeline; both
+ * names belong to the framework. Jellyfin calls each of them — 1929 C# files — and
+ * was told at `high` that it has no cross-origin configuration at all.
+ *
+ * Which policy it is comes from the builder. Jellyfin ships both branches,
+ * `AllowAnyOrigin()` when no hosts are configured and `WithOrigins(...)` when they
+ * are, and where both are shipped the open one is what the report should say: it is
+ * reachable.
+ */
+describe('cross-origin handling in ASP.NET Core', () => {
+  it('reads an allowlist somebody chose', async () => {
+    const report = buildReport(await analyzeProject(fixture('aspnet-chosen-origins')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('passed');
+  });
+
+  it('calls AllowAnyOrigin what it is', async () => {
+    const report = buildReport(await analyzeProject(fixture('aspnet-open-cors')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('partial');
+  });
+
+  it('says nothing about a service that configures none', async () => {
+    const report = buildReport(await analyzeProject(fixture('aspnet-api')), { profile: 'auto' });
+
+    expect(statusOf(report, 'security.cors-origin')).toBe('unknown');
+  });
+});

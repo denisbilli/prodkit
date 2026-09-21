@@ -429,6 +429,34 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     break;
   }
 
+  /**
+   * ASP.NET Core's, which is a call to the framework's own builder.
+   *
+   * `AddCors()` registers the service and `UseCors()` puts it in the pipeline; both
+   * names belong to the framework. Jellyfin calls each of them and was told at `high`
+   * that it has no cross-origin configuration.
+   *
+   * Which policy it is comes from the builder: `AllowAnyOrigin()` is the wide-open
+   * one and `WithOrigins(...)` is a list somebody chose. Jellyfin has both — the
+   * first when no hosts are configured — and where both are shipped the open branch
+   * is the one worth reporting, because it is reachable.
+   */
+  const aspNetCors = await searchInFiles(
+    ctx.root,
+    source.filter((f) => /\.cs$/i.test(f)),
+    [/\.\s*AddCors\s*\(/, /\.\s*UseCors\s*\(/, /\bUseCors\s*\(/, /\bAddCors\s*\(/],
+    5,
+  );
+
+  if (aspNetCors.length > 0) {
+    const anyOrigin = await searchInFiles(ctx.root, source.filter((f) => /\.cs$/i.test(f)), [/AllowAnyOrigin\s*\(/], 2);
+    const chosen = await searchInFiles(ctx.root, source.filter((f) => /\.cs$/i.test(f)), [/WithOrigins\s*\(/, /SetIsOriginAllowed\s*\(/], 2);
+    const target = anyOrigin.length > 0 || chosen.length === 0 ? corsLoose : corsStrict;
+    const cited = anyOrigin[0] ?? chosen[0] ?? aspNetCors[0];
+
+    target.push({ file: cited.file, line: cited.line, snippet: cited.snippet.trim().slice(0, 200) });
+  }
+
   const django = await findDjangoSettings(ctx);
   if (django) {
     const middlewareLine = django.text
