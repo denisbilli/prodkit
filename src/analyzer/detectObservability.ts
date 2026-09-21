@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep } from './detectContext';
+import { hasAnyDep, hasAnyGradleDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
 import { readPackageValueUses } from './structural/valuesFromPackage';
@@ -68,7 +68,25 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   );
   for (const file of healthFiles) evidence.push({ type: 'file', value: file, claim: 'health' });
 
-  const hasHealth = healthFiles.length > 0 || hits.some((h) => /\/(health|healthz|readyz|livez|alive)\b/i.test(h.snippet));
+  /**
+   * Spring Boot Actuator, which is the endpoint rather than a route to it.
+   *
+   * Adding `spring-boot-starter-actuator` publishes `/actuator/health` — exposed by
+   * default, with no route written anywhere — so a project that has it cannot be
+   * found by searching for a path. spring-petclinic declares it in both its pom and
+   * its build.gradle and was reported as having no health endpoint.
+   *
+   * A deliberate dependency, unlike two things this file and its neighbour decline to
+   * count: Dropwizard's admin `/healthcheck`, which every Dropwizard application has
+   * for being Dropwizard, and Django's `SecurityMiddleware`, which `startproject`
+   * writes into every new project. Actuator is in no Spring application by default.
+   */
+  const actuator = hasAnyGradleDep(ctx, ['spring-boot-starter-actuator']);
+  for (const dep of actuator) evidence.push({ type: 'dependency', value: dep, claim: 'health' });
+
+  const hasHealth = healthFiles.length > 0
+    || actuator.length > 0
+    || hits.some((h) => /\/(health|healthz|readyz|livez|alive)\b/i.test(h.snippet));
   const hasReqId = hits.some((h) => /x-request-id|correlation-id/i.test(h.snippet));
 
   // Structured logging without a logging library is still structured logging. What

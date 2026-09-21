@@ -127,6 +127,24 @@ function parsePyprojectSections(text: string | null, runtimeOnly: boolean): stri
   return deps;
 }
 
+/**
+ * Everything after `src/main/java` is a package name, not a project layout.
+ *
+ * spring-petclinic lives in `org.springframework.samples.petclinic`, so every one of
+ * its thirty Java files sits under a path segment called `samples` — and the rule that
+ * removes sample code removed the whole application. The report saw a project with no
+ * Java in it at all: twelve files, an HTML front end, no backend, and a profile of
+ * `client-app` at high confidence for a Spring Boot server.
+ *
+ * Maven and Gradle both fix that prefix, so the segments after it are the author's
+ * package and mean nothing about the layout. A real sample directory sits beside
+ * `src`, not inside its source root — ktor-documentation keeps its under
+ * `codeSnippets/snippets/`, which this still removes.
+ */
+function isAPackageName(file: string): boolean {
+  return /(^|\/)src\/(main|test)\/(java|kotlin|scala|groovy)\//.test(file);
+}
+
 function isTestOrExamplePath(file: string): boolean {
   // `__mocks__` was missing, and a mock is the most misleading file in a repository:
   // `application_fee_percent: null` inside a Stripe fixture made an open-source CRM read
@@ -189,7 +207,7 @@ function isTestOrExamplePath(file: string): boolean {
      * spell it. A repository whose every source file is a sample now has no source
      * files, and says so — which is the honest answer for one.
      */
-    || /(^|\/)(samples?|snippets?|codesnippets)(\/|$)/i.test(file)
+    || (/(^|\/)(samples?|snippets?|codesnippets)(\/|$)/i.test(file) && !isAPackageName(file))
     /**
      * Somebody else's code, vendored in.
      *

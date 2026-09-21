@@ -154,3 +154,56 @@ describe('security headers a framework sets by itself', () => {
     expect(analysis.detectors['security.core']?.details?.helmet).toBe(false);
   });
 });
+
+/**
+ * Everything after `src/main/java` is a package name, not a project layout.
+ *
+ * spring-petclinic lives in `org.springframework.samples.petclinic`, so every one of
+ * its thirty Java files sits under a path segment called `samples` — and the rule
+ * that removes sample code removed the whole application. The report saw a project
+ * with no Java in it: twelve files, an HTML front end, no backend, and `client-app`
+ * at high confidence for a Spring Boot server.
+ *
+ * Maven and Gradle both fix that prefix, so the segments after it are the author's
+ * package. A real sample directory sits beside `src`, not inside its source root.
+ */
+describe('a package called samples is not a samples directory', () => {
+  it('reads an application whose package name contains samples', async () => {
+    const analysis = await analyzeProject(fixture('spring-in-a-samples-package'));
+
+    expect(analysis.files.source.length).toBeGreaterThan(0);
+    expect(analysis.stack.backend).toContain('spring-boot');
+  });
+
+  it('still removes snippets that sit beside the source root', async () => {
+    const analysis = await analyzeProject(fixture('jvm-docs-with-snippets'));
+
+    expect(analysis.files.source).toHaveLength(0);
+  });
+});
+
+/**
+ * Spring Boot Actuator is the endpoint rather than a route to one.
+ *
+ * Adding `spring-boot-starter-actuator` publishes `/actuator/health`, exposed by
+ * default with no route written anywhere, so a project that has it cannot be found by
+ * searching for a path. spring-petclinic declares it in both its pom and its
+ * build.gradle and was reported as having no health endpoint.
+ *
+ * A deliberate dependency, unlike two this analyzer declines to count: Dropwizard's
+ * admin `/healthcheck`, which every Dropwizard application has for being Dropwizard,
+ * and Django's `SecurityMiddleware`, which `startproject` writes into every project.
+ */
+describe('the health endpoint a dependency publishes', () => {
+  it('is credited to a project that adds Actuator', async () => {
+    const analysis = await analyzeProject(fixture('spring-in-a-samples-package'));
+
+    expect(analysis.detectors['observability.core']?.details?.healthEndpoint).toBe(true);
+  });
+
+  it('is not credited to a Spring project without it', async () => {
+    const analysis = await analyzeProject(fixture('spring-security-defaults'));
+
+    expect(analysis.detectors['observability.core']?.details?.healthEndpoint).toBe(false);
+  });
+});
