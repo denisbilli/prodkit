@@ -776,6 +776,37 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * one line that opens it.
    */
   /**
+   * Rust's answer, which is a builder rather than a value.
+   *
+   * meilisearch calls `.send_wildcard()` and `.allow_any_origin()` on an
+   * `actix_cors::Cors` — the most explicit way there is to say "everybody" — and the
+   * report said "CORS configuration not detected". Third product in three releases
+   * scoring well while answering every origin on the web, after kimai's
+   * `nelmio_cors.yaml` and chatwoot's `origins '*'`.
+   *
+   * Nothing here is a header name or an `allowedOrigins` field. `Cors`,
+   * `allow_any_origin`, `allowed_origin` and `permissive` are actix-cors'; `CorsLayer`
+   * and `allow_origin` are tower-http's. The method says which branch it is:
+   * `allow_any_origin`, `permissive` and `Any` are open, a named origin is a choice.
+   *
+   * The tower-http half ships weaker and this says so: meilisearch is the actix case,
+   * and two axum services cloned looking for the other one — atuin and lapdev — turned
+   * out to configure no CORS at all. It is the same contract read from the same kind
+   * of builder, but no repository stands behind it yet.
+   */
+  const RUST_CORS_OPEN = [/\.allow_any_origin\s*\(/, /\.send_wildcard\s*\(/, /Cors::permissive\s*\(/, /CorsLayer::permissive\s*\(/, /\.allow_origin\s*\(\s*Any\b/];
+  const RUST_CORS_CHOSEN = [/\.allowed_origin\s*\(/, /\.allowed_origin_fn\s*\(/, /\.allow_origin\s*\(\s*["'[]/];
+  const rustSource = source.filter((f) => /\.rs$/.test(f));
+
+  if (rustSource.length > 0) {
+    const open = await searchInFiles(ctx.root, rustSource, RUST_CORS_OPEN, 5);
+    const chosen = await searchInFiles(ctx.root, rustSource, RUST_CORS_CHOSEN, 5);
+
+    for (const hit of open) corsLoose.push(hit);
+    for (const hit of chosen) corsStrict.push(hit);
+  }
+
+  /**
    * Rails' answer, which is a gem with a small language of its own.
    *
    * chatwoot scored 98 and `production_ready` with its cross-origin policy reported
