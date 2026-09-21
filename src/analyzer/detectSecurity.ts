@@ -776,6 +776,43 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * one line that opens it.
    */
   /**
+   * Symfony's answer, which is a bundle and the file it reads.
+   *
+   * kimai scored 93 and `production_ready` while its API answered every origin on
+   * earth: `config/packages/nelmio_cors.yaml` sets `allow_origin: []` in its defaults
+   * — the bundle's own comment says "for security reasons we do not allow CORS by
+   * default" — and then `allow_origin: ['*']` under `^/api/`. The report said "CORS
+   * configuration not detected" and gave no verdict at all.
+   *
+   * `nelmio/cors-bundle` is what a Symfony project installs for this, `nelmio_cors` is
+   * the configuration key the bundle defines and `allow_origin` is its setting. None
+   * of the three is the author's to choose; the values are.
+   *
+   * Every `allow_origin` in the file is read, not the first. A bundle configures
+   * defaults and then overrides them per path, and it is the override that is
+   * reachable — the same reason the ASP.NET branch above reports the open one where a
+   * project ships both.
+   */
+  for (const file of ctx.files.all.filter((f) => /(^|\/)config\/packages\/[\w.-]*nelmio_cors[\w.-]*\.ya?ml$/i.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const origins = /^\s*allow_origin\s*:\s*(.*)$/.exec(lines[i]);
+      if (!origins) continue;
+
+      const value = origins[1].trim();
+      /** An empty list is the bundle refusing every cross-origin request. */
+      if (value === '[]' || value === '') continue;
+
+      const hit: CorsHit = { file, line: i + 1, snippet: lines[i].trim().slice(0, 200) };
+      if (/\[\s*['"]\*['"]\s*\]/.test(value) || value === "'*'" || value === '"*"') corsLoose.push(hit);
+      else corsStrict.push(hit);
+    }
+  }
+
+  /**
    * Laravel's answer, which is a file with a name the framework chose.
    *
    * `config/cors.php` is published by Laravel and read by its own middleware; a
