@@ -202,10 +202,23 @@ export async function detectBackend(ctx: DetectContext): Promise<{
       type: 'note',
       value: ctx.dotnetWebSdk ? 'a project declaring Microsoft.NET.Sdk.Web' : 'an ASP.NET Core package reference',
     });
-  } else if (ctx.dotnetDeps.length > 0 || ctx.files.all.some((f) => /\.csproj$/i.test(f))) {
-    frameworks.push('dotnet');
-    evidence.push({ type: 'note', value: 'a .NET project with no web SDK' });
   }
+  /**
+   * A `.csproj` with no web SDK used to be listed as a backend called "dotnet", and
+   * that is the same mistake the Rust fallback made before 0.71.0: a project file is
+   * not a server.
+   *
+   * .NET builds libraries, console tools, desktop applications and web services from
+   * the same project format, and `Microsoft.NET.Sdk.Web` is the line that says which.
+   * Moq — a mocking library, 243 C# files — was reported with "Backend: dotnet",
+   * which made it a product with a server, which kept it out of the `library` profile
+   * and got it judged as a client application: asked at `high` for state durability,
+   * asset delivery and browser crash reporting.
+   *
+   * Nothing replaces it. The language is already named in the reading-depth line and
+   * in the package manager, and "this is a .NET project" was never an answer to
+   * "what serves the requests".
+   */
 
   /**
    * Astro, which is a backend only when it is configured to be one.

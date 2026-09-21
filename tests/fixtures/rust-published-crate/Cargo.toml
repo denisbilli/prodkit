@@ -1,0 +1,9 @@
+[package]
+name = "asyncio"
+version = "1.40.0"
+edition = "2021"
+description = "An asynchronous runtime."
+license = "MIT"
+
+[dependencies]
+pin-project-lite = "0.2"

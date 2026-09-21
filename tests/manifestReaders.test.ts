@@ -39,12 +39,19 @@ describe('manifests beyond npm and pip', () => {
     expect(analysis.detectors['stack.backend']?.evidence?.some((e) => /Sdk\.Web/.test(e.value))).toBe(true);
   });
 
+  /**
+   * Changed in 0.95.0, and the rule changed rather than the expectation being
+   * loosened. This asserted `backend` contains `dotnet`, which was the fallback for
+   * "a .csproj with no web SDK" — the same mistake the Rust fallback made before
+   * 0.71.0. .NET builds libraries, console tools and desktop applications from that
+   * same project format, and calling them all backends kept Moq out of the `library`
+   * profile and got it judged as a client application.
+   */
   it('does not call a .NET library a web application', async () => {
     // The other half: a class library uses the plain SDK and has no web packages.
     const analysis = await analyzeProject(fixture('dotnet-library'));
 
-    expect(analysis.stack.backend).toContain('dotnet');
-    expect(analysis.stack.backend).not.toContain('aspnet-core');
+    expect(analysis.stack.backend).toEqual([]);
   });
 
   it('matches a .NET package on its prefix, not its full name', async () => {

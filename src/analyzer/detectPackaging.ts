@@ -65,7 +65,17 @@ const DOCS_GENERATORS = [
  */
 export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www)\//i;
 
-const FRONTEND_FILE = /\.(tsx|jsx|vue|svelte|astro)$/;
+/**
+ * `.html` belongs here because the front-end fact counts it.
+ *
+ * The front-end detector falls back to "a page is a front end" and counts `.html`
+ * files, so a library whose only pages are its documentation comes out with a front
+ * end. This test — is every front-end file under a docs directory — looked at
+ * framework extensions only, so it could not see those pages and could not answer
+ * yes. Moq's documentation is plain HTML under `docs/`, and Moq was profiled as a
+ * static site: a mocking library with 243 C# files, judged on its Jekyll theme.
+ */
+const FRONTEND_FILE = /\.(tsx|jsx|vue|svelte|astro|html?)$/;
 
 
 /**
@@ -195,7 +205,8 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
   }
 
   const hasManifest = ctx.packageJson !== null
-    || all.some((f) => /(^|\/)(pyproject\.toml|setup\.py|go\.mod|Cargo\.toml|composer\.json|\w+\.gemspec)$/i.test(f));
+    || all.some((f) => /(^|\/)(pyproject\.toml|setup\.py|go\.mod|Cargo\.toml|composer\.json|\w+\.gemspec)$/i.test(f))
+    || all.some((f) => /\.(csproj|fsproj|vbproj)$/i.test(f));
 
   /**
    * A name and a version. Without them nothing can depend on this, whatever else it
@@ -205,13 +216,50 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
   const described = typeof pkg.description === 'string' && (pkg.description as string).length > 0;
   const sourced = pkg.repository !== undefined || pkg.homepage !== undefined;
 
-  const entrypointCount = nodeEntrypoints.length + (pythonEntrypoints ? 1 : 0);
+  /**
+   * The other ecosystems' way of saying "something else may depend on this".
+   *
+   * Both facts were read from `package.json` and Python packaging alone, so no
+   * library written in anything else could reach the `library` profile. Moq — a
+   * mocking library of 243 C# files, `<PackageId>Moq</PackageId>` and
+   * `<IsPackable>True</IsPackable>` in its csproj — was judged a client application
+   * and asked at `high` for state durability, asset delivery and browser crash
+   * reporting. tokio could not be classified at all.
+   *
+   * Each is the declaration its own toolchain requires to publish: a csproj that
+   * names a package id, a Cargo manifest with a `[package]` name and version beside a
+   * `src/lib.rs`. A crate that says `publish = false` is saying the opposite, and is
+   * not counted.
+   */
+  let dotnetPackageId = false;
+  for (const file of all.filter((f) => /\.(csproj|fsproj|vbproj)$/i.test(f)).slice(0, 12)) {
+    const raw = (await readTextFileSafe(ctx.root, file)) ?? '';
+    if (/<PackageId>|<IsPackable>\s*true\s*<\/IsPackable>|<GeneratePackageOnBuild>\s*true/i.test(raw)) {
+      dotnetPackageId = true;
+    }
+  }
+
+  let rustCrate = false;
+  for (const file of all.filter((f) => /(^|\/)Cargo\.toml$/.test(f)).slice(0, 8)) {
+    const raw = (await readTextFileSafe(ctx.root, file)) ?? '';
+    if (!/^\s*\[package\]/m.test(raw)) continue;
+    if (/^\s*publish\s*=\s*false/m.test(raw)) continue;
+    if (!/^\s*name\s*=/m.test(raw) || !/^\s*version\s*=/m.test(raw)) continue;
+
+    const crateRoot = file.replace(/Cargo\.toml$/, '');
+    if (all.some((f) => f === `${crateRoot}src/lib.rs`)) rustCrate = true;
+  }
+
+  const entrypointCount = nodeEntrypoints.length
+    + (pythonEntrypoints ? 1 : 0)
+    + (dotnetPackageId ? 1 : 0)
+    + (rustCrate ? 1 : 0);
 
   return [
     {
       key: 'packaging.manifest',
       present: hasManifest,
-      complete: hasManifest && (named || pythonEntrypoints),
+      complete: hasManifest && (named || pythonEntrypoints || dotnetPackageId || rustCrate),
       evidence: hasManifest
         ? [
             publishedMember
@@ -228,9 +276,11 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
       evidence: [
         ...nodeEntrypoints.map((key) => ({ type: 'note' as const, value: `package.json declares "${key}"` })),
         ...(pythonEntrypoints ? [{ type: 'note' as const, value: 'a Python package or console script declaration' }] : []),
+        ...(dotnetPackageId ? [{ type: 'note' as const, value: 'a project that declares a NuGet package id' }] : []),
+        ...(rustCrate ? [{ type: 'note' as const, value: 'a Cargo package with a library crate root' }] : []),
         ...(hasTypes ? [{ type: 'note' as const, value: 'TypeScript types are declared' }] : []),
       ],
-      details: { nodeEntrypoints, hasTypes, pythonEntrypoints },
+      details: { nodeEntrypoints, hasTypes, pythonEntrypoints, dotnetPackageId, rustCrate },
     },
     {
       key: 'packaging.license',

@@ -206,11 +206,29 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
   // identified as games by name and then called unreadable in the same report.
   const gameEngineDetected = analysis.detectors['game.engine']?.present === true;
 
+  /**
+   * A library is not an unidentified repository.
+   *
+   * The three lists describe an application, and a package has none of them, so
+   * "nothing identified" was true of every library — and it is what makes a report
+   * inconclusive. The `dotnet-library` fixture crossed that line the moment the "a
+   * .csproj is a backend" fallback was removed in the same release: a library with a
+   * NuGet manifest, read correctly, reported as a repository this analyzer could not
+   * make sense of.
+   *
+   * A package manager this analyzer parsed, beside a language it read, identifies a
+   * repository as surely as a web framework does. Loose scripts with no manifest
+   * still answer no.
+   */
+  const packagedInAKnownEcosystem =
+    analysis.stack.packageManager !== 'unknown' && analysis.stack.languages.length > 0;
+
   const stackDetected = analysis.stack.frontend.length > 0
     || analysis.stack.backend.length > 0
     || analysis.stack.databases.length > 0
     || mobileDetected
-    || gameEngineDetected;
+    || gameEngineDetected
+    || packagedInAKnownEcosystem;
   /**
    * Coverage counts the expectations too, not only the observed rules.
    *

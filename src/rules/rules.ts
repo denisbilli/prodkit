@@ -197,8 +197,27 @@ export const rules: Rule[] = [
     category: 'stack',
     severity: 'low',
     evaluate: ({ analysis }) => {
+      /**
+       * A library has no front end, no backend and no database, and it is not
+       * unidentifiable.
+       *
+       * The three lists are what an application is made of, and asking only about
+       * them made every library "generic or unknown to ProdKit" — which on tokio, a
+       * repository of 505 Rust files with a Cargo manifest, was enough to leave the
+       * whole report inconclusive. Removing the "a .csproj is a backend" fallback in
+       * the same release made the `dotnet-library` fixture do the same, which is how
+       * this surfaced.
+       *
+       * What this repository is built with is a fingerprint too: a package manager
+       * this analyzer actually parsed, and a language it actually read. A directory
+       * of loose scripts with no manifest still answers unknown.
+       */
+      const named = analysis.stack.packageManager !== 'unknown' && analysis.stack.languages.length > 0;
       const hasStack =
-        analysis.stack.frontend.length > 0 || analysis.stack.backend.length > 0 || analysis.stack.databases.length > 0;
+        analysis.stack.frontend.length > 0
+        || analysis.stack.backend.length > 0
+        || analysis.stack.databases.length > 0
+        || named;
       const status: FindingStatus = hasStack ? 'passed' : 'unknown';
       return mkFinding({
         id: 'stack.detected',
@@ -206,14 +225,31 @@ export const rules: Rule[] = [
         category: 'stack',
         status,
         severity: sevForStatus(status, 'low'),
-        description: hasStack ? 'ProdKit identified known stack signals.' : 'Stack is generic or unknown to ProdKit.',
+        description: hasStack
+          ? 'ProdKit identified known stack signals.'
+          : 'Stack is generic or unknown to ProdKit.',
         recommendation: hasStack
           ? 'No action required.'
           : 'Add explicit framework manifests or keep this as generic app baseline.',
+        /**
+         * A finding that passes has to point at something.
+         *
+         * When the three stack lists are empty the arrays below are empty too, so
+         * letting a package manager satisfy this check produced twenty passing
+         * findings with nothing under them — which is the one thing
+         * `everyFindingSaysWhatItLookedFor` exists to stop. The manifest and the
+         * language are what was read, so they are what is cited.
+         */
         evidence: [
           ...analysis.detectors['stack.frontend']?.evidence ?? [],
           ...analysis.detectors['stack.backend']?.evidence ?? [],
           ...analysis.detectors['stack.database']?.evidence ?? [],
+          ...(named
+            ? [{
+              type: 'note' as const,
+              value: `a ${analysis.stack.packageManager} manifest and ${analysis.stack.languages.join(', ')} sources`,
+            }]
+            : []),
         ],
       });
     },
