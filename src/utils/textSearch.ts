@@ -28,6 +28,35 @@ export interface TextMatch {
  */
 const PATTERN_DECLARATION = /^(?:const\s+\w+(?:\s*:[^=]+)?\s*=\s*)?\/(?:[^/\\]|\\.)+\/[gimsuy]*\s*[,;]?$/;
 /**
+ * A constant that spells its own name.
+ *
+ * photoprism keeps `AccessControlAllowOrigin = "Access-Control-Allow-Origin"` in
+ * `pkg/http/header/cors.go`, beside three more of the same, and that table was the
+ * whole evidence for its cross-origin finding — while
+ * `c.Header(header.AccessControlAllowOrigin, header.Any)` in `start.go` and
+ * `static.go`, the lines that actually open it, went uncited.
+ *
+ * A line whose value is its own identifier written out is a name for something, not a
+ * use of it. It is the third member of a family this file already has: a regex in a
+ * table is not a search, a name given a type is not a decision, and a header constant
+ * is not a header.
+ *
+ * Compared after normalising case and separators, because that is the only difference
+ * between the two halves — `ACCESS_CONTROL_ALLOW_ORIGIN`, `AccessControlAllowOrigin`
+ * and `"access-control-allow-origin"` are one string spelled three ways. A trailing
+ * comment is dropped first; Go puts the documentation link on the same line.
+ */
+function spellsItsOwnName(trimmed: string): boolean {
+  const withoutComment = trimmed.replace(/\s*(\/\/|#).*$/, '').replace(/[,;]\s*$/, '');
+  const assignment = /^(?:const|let|var|final|static|public|private)?\s*([A-Za-z_][\w.]*)\s*(?::\s*[\w<>[\].]+)?\s*=\s*(['"`])([^'"`]+)\2$/.exec(withoutComment);
+  if (!assignment) return false;
+
+  const plain = (value: string) => value.toLowerCase().replace(/[-_.\s]/g, '');
+
+  return plain(assignment[1]) === plain(assignment[3]);
+}
+
+/**
  * A name given a type, rather than a value.
  *
  * pocketbase's report cited three lines for its cross-origin policy: `AllowedOrigins
@@ -99,7 +128,7 @@ function declaresAType(trimmed: string): boolean {
 function declaresRatherThanDoes(line: string): boolean {
   const trimmed = line.trim();
 
-  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed) || declaresAType(trimmed);
+  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed) || declaresAType(trimmed) || spellsItsOwnName(trimmed);
 }
 
 /**

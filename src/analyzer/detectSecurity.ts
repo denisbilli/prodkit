@@ -10,7 +10,21 @@ import { wentUnasked } from './readingDepth';
 import { isDevelopmentOnlyFile } from './developmentOnly';
 
 /** Lines that decide which origins may call this server. */
-const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /ALLOWED_ORIGINS/, /allowedOrigins/i];
+/**
+ * The header, spelled the way each language spells it.
+ *
+ * photoprism refers to its headers by the constants it declared for them —
+ * `c.Header(header.AccessControlAllowOrigin, header.Any)` in `start.go` and
+ * `static.go`, which is where it opens itself — and those lines carry no hyphens, so
+ * a pattern written as the wire name could not see any of them. Excluding the
+ * constant table without this took the project from a right verdict on the wrong
+ * evidence to no verdict at all, which is worse.
+ *
+ * The camel spelling is still the protocol's name: Go, Java and C# write
+ * `AccessControlAllowOrigin` because that is what their conventions do to
+ * `Access-Control-Allow-Origin`. It is not the author's word either way.
+ */
+const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /\bAccessControlAllowOrigin\b/, /ALLOWED_ORIGINS/, /allowedOrigins/i];
 
 /** A header name used as a key into a headers object: a lookup, not a decision. */
 const READS_A_HEADER = /\[\s*(['"`])[^'"`]+\1\s*\](?!\s*=[^=])/;
