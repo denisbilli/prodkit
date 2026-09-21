@@ -158,6 +158,26 @@ function layoutPartOf(file: string): string {
   return root ? file.slice(0, root.index + root[0].length) : file;
 }
 
+/**
+ * Go names its tests by file, never by directory.
+ *
+ * `_test.go` is the suffix the toolchain compiles separately; a directory called
+ * `mock`, `testing` or `fixtures` is just a package. testify's own `mock/mock.go` —
+ * half of what that library is for — was removed by the rule that drops `mocks/`, and
+ * the analyzer saw 38 of its Go files with the two biggest missing.
+ *
+ * One directory convention is left here, and it is the toolchain's: a directory whose
+ * name begins with `_` or `.` is skipped when building, which is why testify keeps
+ * `_codegen` and `_readme-gofmt` under those names.
+ *
+ * `vendor/` and `testdata/` are not repeated: the file scanner never hands them over
+ * in the first place. Both were written here and both survived being deleted in a
+ * mutation run, which is how the duplication came to light.
+ */
+function isGoToolchainExclusion(file: string): boolean {
+  return /(^|\/)[_.][^/]+\//.test(file);
+}
+
 function isTestOrExamplePath(file: string): boolean {
   // `__mocks__` was missing, and a mock is the most misleading file in a repository:
   // `application_fee_percent: null` inside a Stripe fixture made an open-source CRM read
@@ -165,6 +185,12 @@ function isTestOrExamplePath(file: string): boolean {
   // `fixtures` was listed and `fixture` was not, so `extra/fixture/authsources.php`
   // made PHP one of the languages of an Elixir analytics product — and of cal.com,
   // which is TypeScript.
+  /**
+   * A Go file answers to Go's conventions and to none of the directory rules below:
+   * every one of those names is a package name there.
+   */
+  if (/\.go$/.test(file)) return isGoToolchainExclusion(file) || /_test\.go$/.test(file);
+
   const layout = layoutPartOf(file);
 
   return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures?|frontend-example)(\/|$)/i.test(layout)

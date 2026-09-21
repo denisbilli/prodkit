@@ -230,3 +230,51 @@ describe('the health endpoint a dependency publishes', () => {
     expect(analysis.detectors['observability.core']?.details?.healthEndpoint).toBe(false);
   });
 });
+
+/**
+ * Go names its tests by file, never by directory.
+ *
+ * `_test.go` is the suffix the toolchain compiles separately; a directory called
+ * `mock`, `testing` or `fixtures` is a package name. testify's own `mock/mock.go` —
+ * half of what that library is for — was removed by the rule that drops `mocks/`,
+ * and the analyzer saw 38 of its Go files with the two biggest missing.
+ *
+ * Three directory conventions survive because all three are the toolchain's own:
+ * `vendor/` holds copied dependencies, `testdata/` is ignored by the go command by
+ * definition, and a directory whose name starts with `_` or `.` is skipped when
+ * building — testify keeps `_codegen` exactly so that it is.
+ */
+describe('a Go package name is not a layout either', () => {
+  it('reads a package called mock', async () => {
+    const analysis = await analyzeProject(fixture('go-mock-package'));
+
+    expect(analysis.files.source).toContain('mock/mock.go');
+  });
+
+  it('reads a package called testing', async () => {
+    const analysis = await analyzeProject(fixture('go-mock-package'));
+
+    expect(analysis.files.source).toContain('internal/testing/harness.go');
+  });
+
+  /**
+   * `testdata/` and `vendor/` are held out by the file scanner, not here — both were
+   * written into the Go rule as well and both survived deletion in a mutation run,
+   * which is how the duplication was found. The assertion stays because the
+   * behaviour matters; the rule that used to duplicate it is gone.
+   */
+  it('still removes what the go command itself ignores', async () => {
+    const analysis = await analyzeProject(fixture('go-mock-package'));
+    const go = analysis.files.source.filter((f) => f.endsWith('.go'));
+
+    expect(go.some((f) => f.startsWith('testdata/'))).toBe(false);
+    expect(go.some((f) => f.startsWith('_scratch/'))).toBe(false);
+    expect(go.some((f) => f.startsWith('vendor/'))).toBe(false);
+  });
+
+  it('still removes a _test.go file', async () => {
+    const analysis = await analyzeProject(fixture('go-mock-package'));
+
+    expect(analysis.files.source).not.toContain('mock/mock_test.go');
+  });
+});
