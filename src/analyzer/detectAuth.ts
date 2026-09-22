@@ -482,6 +482,39 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * of any kind, was classified as a B2B SaaS with high confidence on the strength of
    * `const teamId = 'W7LPPWA48L'` in its notarization script.
    */
+  /**
+   * Measured and rejected: a structural anchor for the tenant's name.
+   *
+   * Every word below is one the author chose, which is the thing this analyzer tries
+   * not to depend on. An Italian product whose column is `aziendaId`, carried in the
+   * token and present in the `where` of every Prisma query, is as invisible here as an
+   * English one that calls its tenant `clientId`. So a structural signal was tried
+   * twice, against five real repositories — three multi-tenant (documenso, plane,
+   * twenty) and two not (bruno, excalidraw).
+   *
+   * An identifier that is both put into a signed token and used as a filter key:
+   * zero matches in all five, and zero across the fixture corpus. Real code builds the
+   * token payload over several lines, and a line-at-a-time search never sees both.
+   *
+   * The identifier that narrows the most queries: it is the product's main entity, not
+   * its tenant. `envelope` (40 files) beats `team` and `organisation` in documenso;
+   * `project` (66) beats `workspace` in plane. Only twenty ranks its tenant first.
+   *
+   * The share of filter lines where an identifier appears beside another one — a
+   * tenant narrows a query that is already about something else — does no better:
+   * `organisation` scores 0.34 in documenso, below `envelope` at 0.81, and
+   * `workspace` does not reach twenty's top six.
+   *
+   * Two of the five repositories separate cleanly, and both are the negative controls:
+   * bruno and excalidraw produce nothing at all. That distinguishes "filters by
+   * something" from "filters by nothing" — it does not name the tenant, which is what
+   * this capability has to cite.
+   *
+   * Blindness is not the answer either. A repository with authentication, an ORM and
+   * none of these words is usually single-tenant, and `missing` is the right verdict
+   * for it. Withdrawing there would turn hundreds of correct answers into no answer to
+   * rescue the few written in another language.
+   */
   const STRONG_TENANCY = [/organizationId/i, /organization_id/i, /tenantId/i, /tenant_id/i];
   const WEAK_TENANCY = [/workspaceId/i, /workspace_id/i, /companyId/i, /teamId/i, /team_id/i];
 
