@@ -115,11 +115,29 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
     case 'gdpr.consent': {
       return detector(analysis, 'gdpr.consent.route')?.present ? 'present' : 'missing';
     }
+    /**
+     * Article 20 and article 17 are both routes, and both were read by their English
+     * names.
+     *
+     * `exportUserData`, `UserExport`, `erasure`, `"delete account"` — a gestionale
+     * whose route is `POST /cancella-account` has none of them, and was told at
+     * `high` that it offers neither. The one anchor that survives translation is a
+     * `DELETE` on `/account` or `/users/me`, which is HTTP's verb and a conventional
+     * path, and it is already read.
+     *
+     * Where even that did not fire and no route name was ever read in this project,
+     * these are the same unasked question the password reset is: the search could not
+     * reach a vocabulary it does not know.
+     */
     case 'gdpr.export': {
-      return detector(analysis, 'gdpr.export.route')?.present ? 'present' : 'missing';
+      if (detector(analysis, 'gdpr.export.route')?.present) return 'present';
+
+      return routesWentUnread(analysis) ? 'unknown' : 'missing';
     }
     case 'gdpr.erasure': {
-      return detector(analysis, 'gdpr.erasure.route')?.present ? 'present' : 'missing';
+      if (detector(analysis, 'gdpr.erasure.route')?.present) return 'present';
+
+      return routesWentUnread(analysis) ? 'unknown' : 'missing';
     }
     case 'gdpr.retention': {
       return detector(analysis, 'gdpr.retention.job')?.present ? 'present' : 'missing';

@@ -9,12 +9,39 @@ function toEvidence(matches: Array<{ snippet: string; file: string; line: number
 }
 
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
-  const consent = await searchInFiles(
-    ctx.root,
-    ctx.files.source,
-    [/cookie[-_ ]?consent/i, /consentGiven/i, /privacyConsent/i, /gdprConsent/i],
-    20
-  );
+  /**
+   * The consent vendors, who name themselves.
+   *
+   * `cookie-consent`, `consentGiven` and `gdprConsent` are four spellings of one
+   * English word, and a site whose banner says `consensoCookie` has none of them —
+   * the same failure the password reset had, in a capability where the whole audience
+   * is European and half of it does not write in English.
+   *
+   * What the audience does have is a vendor. Iubenda, Cookiebot, OneTrust,
+   * Usercentrics, CookieHub and Klaro all publish a banner you embed, and most sites
+   * embed the script rather than install a package — so the domain the script is
+   * fetched from is the anchor, beside the package for the ones that ship on npm.
+   * `cdn.iubenda.com` is Iubenda's; nobody else's site serves from it.
+   */
+  const CONSENT_VENDORS = [
+    /cdn\.iubenda\.com|iubenda\.com\/(?:privacy-policy|cookie-policy)/i,
+    /consent\.cookiebot\.com|cookiebot/i,
+    /cdn\.cookielaw\.org|onetrust|OptanonWrapper/i,
+    /app\.usercentrics\.eu|usercentrics/i,
+    /cookiehub|cdn\.cookiehub\.eu/i,
+    /vanilla-cookieconsent|\bklaro\b|tarteaucitron|osano|termly/i,
+    /@axeptio|axeptio\.eu/i,
+  ];
+
+  const consent = [
+    ...await searchInFiles(
+      ctx.root,
+      ctx.files.source,
+      [/cookie[-_ ]?consent/i, /consentGiven/i, /privacyConsent/i, /gdprConsent/i],
+      20
+    ),
+    ...await searchInFiles(ctx.root, [...ctx.files.source, ...ctx.files.all.filter((f) => /\.html?$/i.test(f))], CONSENT_VENDORS, 10),
+  ];
   /**
    * The same duty, in the words each ecosystem actually uses.
    *
@@ -129,7 +156,7 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
    * produced it: these are the same terms the patterns above match.
    */
   const TERMS: Record<string, [what: string, terms: string[]]> = {
-    consent: ['a consent record', ['cookie-consent', 'consentGiven', 'privacyConsent', 'gdprConsent']],
+    consent: ['a consent record', ['cookie-consent', 'consentGiven', 'privacyConsent', 'gdprConsent', 'Iubenda, Cookiebot, OneTrust, Usercentrics, CookieHub, Klaro or Axeptio']],
     export: ['an export of personal data', ['/gdpr/export', 'exportUserData', 'personalDataExport', 'dataSubject', 'rightToAccess', '"data portability"']],
     erasure: ['an erasure flow', ['erasure', '"delete account"', '"right to be forgotten"', '"delete user data"', '"delete personal data"']],
     retention: ['a retention or purge policy', ['gdpr/privacy near retention/purge/delete', 'retention/purge/delete near personal data', '"delete personal data older than"']],
