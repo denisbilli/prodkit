@@ -1,0 +1,11 @@
+{
+  "note": "Real repositories, cloned shallow, measured, and deleted again. The fixture corpus cannot see a pattern that no fixture happens to write: `destination:\\s*\\w` went in at 1.27.0 with 0 changes across 234 fixtures and inferred three B2B products as marketplaces, because no fixture writes a Next.js redirect. These are the counterweight. Sources are deleted after each run.",
+  "repos": [
+    { "repo": "documenso/documenso", "is": "document signing" },
+    { "repo": "makeplane/plane", "is": "project management" },
+    { "repo": "calcom/cal.com", "is": "scheduling, uses Stripe Connect" },
+    { "repo": "nocodb/nocodb", "is": "no-code database" },
+    { "repo": "usebruno/bruno", "is": "desktop API client, no accounts" },
+    { "repo": "excalidraw/excalidraw", "is": "drawing canvas" }
+  ]
+}

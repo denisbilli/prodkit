@@ -114,6 +114,27 @@ Optional lint:
 npm run lint
 ```
 
+### Checking a detector against real repositories
+
+The fixture corpus only contains what somebody wrote into it, so a pattern broad
+enough to match ordinary code passes it untouched. One did: it changed nothing across
+234 fixtures and inferred three real B2B products as marketplaces, because no fixture
+happens to write a Next.js redirect.
+
+`npm run wild` clones the repositories listed in `scripts/wild-repos.json`, records
+the profile it infers and the status of every capability, compares that against
+`scripts/wild-baseline.json`, and deletes the sources again. It needs the network, so
+it is not part of CI — run it before releasing a change to a detector.
+
+```bash
+npm run wild            # compare against the baseline
+npm run wild -- --write # record current behaviour as the baseline
+```
+
+A change it reports is not automatically a regression; it is a change that has to be
+explained before it ships. Only the verdicts are kept in the repository — no cloned
+source is retained.
+
 ## Commands
 
 Diagnostic command:

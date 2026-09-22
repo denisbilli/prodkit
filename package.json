@@ -1,6 +1,6 @@
 {
   "name": "@produtype/core",
-  "version": "1.28.2",
+  "version": "1.28.3",
   "description": "Deterministic CLI and library that analyzes a web application repository and reports how far it is from production-ready for the kind of product it is meant to be.",
   "license": "MIT",
   "bin": {
@@ -33,6 +33,7 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "wild": "npm run build && node scripts/wild-check.mjs",
     "lint": "eslint \"src/**/*.ts\"",
     "docs:stacks": "npm run build && node scripts/sync-readme-stacks.mjs",
     "prepare": "npm run build",
