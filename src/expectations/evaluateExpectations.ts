@@ -12,6 +12,7 @@ import type {
   ProductProfile,
 } from './types';
 import { CAPABILITIES, type CapabilityId, getProductProfile } from './productProfiles';
+import { shipsAsADesktopBinary } from './shipsAsADesktopBinary';
 import type { EvidenceQuality, FindingConfidence } from '../report/types';
 
 /**
@@ -668,41 +669,14 @@ export function evaluateExpectedCapabilities(args: {
   };
   const authDetected = detector(args.analysis, 'auth.core')?.present === true;
 
+  const isADesktopBinary = shipsAsADesktopBinary(args.analysis);
+
   /**
-   * An application that ships as a desktop binary has no public endpoint.
-   *
-   * `client-app` covers two things that are not alike: a single-page application
-   * talking to a server somebody runs, and a program people install. The profile asks
-   * both of them for a rate limit, a CORS policy, a health endpoint and a way to export
-   * and erase personal data. For the second, none of those questions has a subject —
-   * there is no origin to allow, no request to limit, and no user table to export.
-   *
-   * Measured on `usebruno/bruno`, a desktop API client with no accounts of any kind:
-   * four capabilities reported as missing or partial, each of them an instruction to
-   * build something the product has no place to put.
-   *
-   * `stack.backend` cannot decide it. Bruno depends on express — it runs one in-process
-   * to proxy the requests its user composes — so "no backend" is false of exactly the
-   * repository this is about.
-   *
-   * Electron and Tauri can. They are the two ways a web stack becomes a desktop binary,
-   * and neither is a word anybody chose: a `package.json` naming one says the product is
-   * installed rather than served. `deployment.readiness` deliberately stays — a desktop
-   * app still has a release pipeline, and signing and notarising it is the harder half.
-   *
-   * Electron on its own is not enough, and the corpus said so the first time this ran.
-   * `monorepo-with-frontend-and-backend-subfolders` has an `electron` workspace beside
-   * an express backend on postgres and redis, and lost its rate limit and CORS
-   * requirements to this rule. A product that keeps a shared database has users to
-   * export and an origin to protect; the desktop client is one of its faces, not the
-   * whole of it. A server-side datastore is the thing that tells the two apart.
+   * A question with no subject is not a gap. `client-app` covers both a single-page
+   * application talking to a server somebody runs and a program people install, and for
+   * the second there is no origin to allow, no request to limit and no user table to
+   * export.
    */
-  const shipsAsADesktopBinary = [
-    args.analysis.stack,
-    ...args.analysis.workspaceStacks,
-  ].some((stack) => stack.frontend.includes('electron') || stack.frontend.includes('tauri'))
-    && args.analysis.stack.databases.length === 0
-    && args.analysis.workspaceStacks.every((stack) => stack.databases.length === 0);
   const HAS_NO_SUBJECT_ON_A_DESKTOP = new Set<string>([
     'security.rate-limit',
     'security.cors',
@@ -716,7 +690,7 @@ export function evaluateExpectedCapabilities(args: {
     if (cap.id === 'gdpr.baseline' && profile.id === 'internal-tool' && !authDetected) {
       effectiveImportance = 'not_applicable';
     }
-    if (profile.id === 'client-app' && shipsAsADesktopBinary && HAS_NO_SUBJECT_ON_A_DESKTOP.has(cap.id)) {
+    if (profile.id === 'client-app' && isADesktopBinary && HAS_NO_SUBJECT_ON_A_DESKTOP.has(cap.id)) {
       effectiveImportance = 'not_applicable';
     }
 

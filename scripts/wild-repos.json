@@ -31,7 +31,7 @@
     },
     {
       "repo": "gotify/server",
-      "is": "Go notification server; the Go logging and health rules were written for it. Open: inferred client-app. Its authentication is now seen \u2014 bcrypt.GenerateFromPassword in auth/password/password.go \u2014 but client-app still wins on `clientLogic`, because the React admin SPA holds state in the browser and `accounts to manage` only weighs -1 against it. Changing those weights moves every profile, so it needs its own measurement, not a nudge here."
+      "is": "Go notification server; the Go logging and health rules were written for it, and it is what moved `accounts to manage` from -1 to -3"
     },
     {
       "repo": "dani-garcia/vaultwarden",

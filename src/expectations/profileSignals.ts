@@ -1,4 +1,5 @@
 import type { ProjectAnalysis } from '../analyzer/types';
+import { shipsAsADesktopBinary } from './shipsAsADesktopBinary';
 import type { ProductProfile } from './types';
 import { DOCS_DIRECTORIES } from '../analyzer/detectPackaging';
 
@@ -71,6 +72,11 @@ export interface ProfileFacts {
   /** Somewhere for a consumer to import: main, module, exports, bin, a console script. */
   entrypoints: boolean;
   packagedLicense: boolean;
+  /**
+   * Installed rather than served: an Electron or Tauri manifest, and no datastore of
+   * its own. See `shipsAsADesktopBinary`.
+   */
+  desktopBinary: boolean;
   tests: boolean;
   gameSignals: number;
   /** Ships to a phone: Flutter, React Native, or an iOS/Android project in the tree. */
@@ -136,6 +142,7 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
     documentationSite: present('docs.site'),
     productBackend: hasProductBackend(analysis),
     entrypoints: present('packaging.entrypoints'),
+    desktopBinary: shipsAsADesktopBinary(analysis),
     packagedLicense: present('packaging.license'),
     tests: present('quality.tests'),
     gameSignals: Number(analysis.detectors['game.engine']?.details?.supportingSignals ?? 0),
@@ -217,7 +224,16 @@ interface ProfileRule {
 const RULES: ProfileRule[] = [
   {
     profile: 'static-site',
-    admissible: (f) => f.frontend && !f.backend && !f.database && !f.auth,
+    /**
+     * A site is served. A binary is installed.
+     *
+     * `electron-editor` — three source files, `electron` and `electron-builder`, a
+     * `dist` script — has a front end, no backend, no database and no sign-in, which is
+     * every condition this profile asks for, and came out a brochure site with
+     * `client-app` as the runner-up. Nothing that ships through `electron-builder` is a
+     * static site, however little of it there is.
+     */
+    admissible: (f) => f.frontend && !f.backend && !f.database && !f.auth && !f.desktopBinary,
     signals: [
       { identifies: true, label: 'a front end with no backend, database or sign-in', weight: 3, holds: () => true },
       // What stopped a factory simulator being called a brochure site.
@@ -252,7 +268,15 @@ const RULES: ProfileRule[] = [
         identifies: true,
         label: 'an application in its own right, with nothing to sign in to',
         weight: 3,
+        /**
+         * A third reading of the same identity, for the same reason the other two share
+         * one signal: a desktop binary is a client, and saying so twice would halve the
+         * confidence of every repository that matched the first two. Measured — adding
+         * it as its own identifying signal moved nine fixtures from high to medium
+         * without changing a single verdict.
+         */
         holds: (f) => f.clientLogic
+          || f.desktopBinary
           || (f.frontend && f.backend && !f.auth && !f.billing && !f.tenancy && !f.callsAModel),
       },
       { label: 'enough code to be an application', weight: 1, holds: (f) => f.sourceFiles > 12 },
@@ -273,7 +297,26 @@ const RULES: ProfileRule[] = [
        * raised its score from 59 to 75.
        */
       { identifies: true, label: 'a model called from its own backend', weight: -3, holds: (f) => f.callsAModel && f.backend },
-      { label: 'accounts to manage', weight: -1, holds: (f) => f.auth },
+      /**
+       * An account somebody else's server holds is not this product's to manage.
+       *
+       * The profile's own description is "a tool people use, without accounts to manage
+       * or subscriptions to sell", and authentication used to weigh only -1 against it —
+       * a nudge, where subscriptions and tenant boundaries are -3. `gotify/server`, a Go
+       * notification service with users, tokens and a database, stayed `client-app` on
+       * the strength of its React admin console holding state in the browser.
+       *
+       * At -3 gotify becomes the consumer application it is, and `usebruno/bruno` broke:
+       * it declares `jsonwebtoken`, `jose` and `cookie-parser` and uses them in
+       * `packages/bruno-js/src/sandbox/quickjs/shims/lib/jwt.js` — a shim that hands JWT
+       * to the scripts its *user* writes inside a request. Bruno authenticates nobody.
+       *
+       * `desktopBinary` is what separates them, and it is the same fact this file's
+       * neighbour already uses to stop asking a desktop application for a CORS policy.
+       * A program that is installed rather than served has no accounts of its own to
+       * manage, whatever its dependency list happens to contain.
+       */
+      { label: 'accounts to manage', weight: -3, holds: (f) => f.auth && !f.desktopBinary },
     ],
   },
   {
@@ -440,7 +483,14 @@ const RULES: ProfileRule[] = [
      * Supabase's rather than their own. Nothing about what the product is depends on
      * where the server is hosted.
      */
-    admissible: (f) => f.auth && (f.backend || f.managedBackend),
+    /**
+     * And a program people install is not a consumer application, whatever it depends
+     * on. `usebruno/bruno` declares `jsonwebtoken`, `jose` and `cookie-parser` and hands
+     * them to the scripts its *user* writes inside a request; it signs nobody in. The
+     * same exclusion `static-site` carries, for the same reason: this profile is about
+     * a product served to people who have accounts on it.
+     */
+    admissible: (f) => f.auth && (f.backend || f.managedBackend) && !f.desktopBinary,
     signals: [
       { identifies: true, label: 'accounts on a backend', weight: 3, holds: () => true },
       { label: 'a front end', weight: 1, holds: (f) => f.frontend },

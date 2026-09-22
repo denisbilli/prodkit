@@ -64,3 +64,40 @@ describe('the desktop client has no origin', () => {
     expect(status.get('deployment.readiness')).not.toBe('not_applicable');
   });
 });
+
+/**
+ * The same fact, deciding which profile a desktop application gets at all.
+ *
+ * Installed-rather-than-served is a third reading of what `client-app` identifies,
+ * folded into the signal that already carries two — a separate identifying signal for
+ * it moved nine fixtures from high confidence to medium without changing one verdict,
+ * which is the trap the comment beside that signal already describes.
+ */
+describe('installed rather than served', () => {
+  const inferred = async (name: string) => {
+    const report = buildReport(await analyzeProject(fixture(name)), { profile: 'auto' });
+    return report.productProfile?.inferredProfile;
+  };
+
+  /**
+   * `electron-editor` has a front end, no backend, no database and no sign-in — every
+   * condition `static-site` asks for — and came out a brochure site. Nothing that ships
+   * through `electron-builder` is a static site, however little of it there is.
+   */
+  it('is not a static site', async () => {
+    expect(await inferred('electron-editor')).toBe('client-app');
+  });
+
+  /**
+   * And it protects a desktop client from being read as a consumer application when its
+   * dependency list mentions authentication. `usebruno/bruno` declares `jsonwebtoken`,
+   * `jose` and `cookie-parser` and uses them in a shim that hands JWT to the scripts its
+   * *user* writes inside a request; it authenticates nobody. Raising `accounts to
+   * manage` to -3 — which is what stops a Go notification server with users and a
+   * database being called a client application — took bruno with it until this fact
+   * held it back.
+   */
+  it('keeps a desktop client out of the consumer profile', async () => {
+    expect(await inferred('desktop-client-that-hands-out-jwt')).toBe('client-app');
+  });
+});
