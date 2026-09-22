@@ -222,6 +222,19 @@ function isTestOrExamplePath(file: string): boolean {
      * and it says which build the file is part of.
      */
     || /(^|\/)config\/(test|dev)\.exs$/i.test(file)
+    /**
+     * Gradle's source sets, which name the build they belong to.
+     *
+     * `src/androidTest/` is instrumentation tests and `src/test/` is unit tests;
+     * neither is compiled into the shipped application, and `src/main/` is. davx5
+     * keeps an `AndroidManifest.xml` in `core/src/androidTest/` declaring three
+     * permissions its tests need, and the report opened its permission finding with
+     * that file — a test's manifest offered as the app's permission surface.
+     *
+     * The same argument as `_test.go` and `config/test.exs`: the directory name is
+     * the toolchain's, not the author's, and it says which build the file is part of.
+     */
+    || /(^|\/)src\/(androidTest|test)\//i.test(file)
     || /(^|\/)test[-_][^/]+\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     /**
      * The other half of the convention.

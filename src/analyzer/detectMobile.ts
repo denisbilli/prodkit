@@ -255,7 +255,21 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     }
   }
 
-  for (const file of androidFiles.filter((f) => /AndroidManifest\.xml$/i.test(f))) {
+  /**
+   * Gradle names the source set a file belongs to, and `androidTest` is not shipped.
+   *
+   * davx5 keeps an `AndroidManifest.xml` in `core/src/androidTest/` declaring the
+   * three permissions its instrumentation tests need, and the permission finding
+   * opened with that file: a test's manifest offered as the application's permission
+   * surface. `src/main/` is what goes into the APK.
+   *
+   * Filtered here rather than in the path rule that excludes `_test.go` and
+   * `config/test.exs`, because these manifests are read from the whole file list and
+   * never pass through it.
+   */
+  const SHIPPED_SOURCE_SET = (file: string): boolean => !/(^|\/)src\/(androidTest|test)\//i.test(file);
+
+  for (const file of androidFiles.filter((f) => /AndroidManifest\.xml$/i.test(f) && SHIPPED_SOURCE_SET(f))) {
     const text = (await readTextFileSafe(ctx.root, file)) ?? '';
     const declared = [...text.matchAll(/<uses-permission[^>]*android:name="([^"]+)"/g)].map(([, name]) => name);
 
@@ -281,6 +295,24 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
       /request\(\)\s*;?\s*\/\/\s*permission/,
       /PermissionsAndroid\.request/,
       /requestPermissionsAsync/,
+      /**
+       * How Android asks for a permission now, in the two libraries Google publishes.
+       *
+       * davx5 shows a switch per permission and calls
+       * `state::launchMultiplePermissionRequest` when somebody turns one on —
+       * Accompanist's API, which is asking at the moment of use as plainly as it can
+       * be asked. It was told at `high` that it gives no reason for any of the twelve
+       * permissions it declares.
+       *
+       * `ActivityResultContracts.RequestPermission` is the AndroidX contract that
+       * replaced `ActivityCompat.requestPermissions`, and
+       * `rememberMultiplePermissionsState` is Accompanist's. Both names belong to
+       * Google; what the launcher is called afterwards belongs to the author, which
+       * is why the pattern stops at the contract.
+       */
+      /ActivityResultContracts\.RequestMultiplePermissions|ActivityResultContracts\.RequestPermission\b/,
+      /remember(?:Multiple)?Permissions?State\s*\(/,
+      /launch(?:Multiple)?Permissions?Request\b/,
     ],
     3,
   );
