@@ -26,4 +26,16 @@ describe('the row that belongs to somebody', () => {
 
     expect(analysis.detectors['authz.resourceLevel']?.present).toBe(true);
   });
+
+  /**
+   * And where the convention capitalises. `gotify/server` guards every message and
+   * client route with `app.UserID == auth.GetUserID(ctx)` and was told the same thing:
+   * Go, C# and Java write `UserID` or `UserId`, which the snake_case pattern does not
+   * match, and JavaScript's `userId ===` needs three equals signs.
+   */
+  it('reads it where the convention capitalises', async () => {
+    const analysis = await analyzeProject(fixture('go-server-that-hashes-passwords'));
+
+    expect(analysis.detectors['authz.resourceLevel']?.present).toBe(true);
+  });
 });

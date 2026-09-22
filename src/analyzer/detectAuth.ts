@@ -503,6 +503,19 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        * in Ruby, which is why the pattern above could not see it.
        */
       /\b\w*_user_id\s*[=!]==?\s*\S/,
+      /**
+       * The same comparison where the convention capitalises.
+       *
+       * `gotify/server` guards every message and client route with
+       * `app.UserID == auth.GetUserID(ctx)` and `client.UserID != user.ID`, and was told
+       * it has no per-record authorization. Go, C# and Java name the field `UserID` or
+       * `UserId`, so the snake_case pattern above sees none of it, and the JavaScript
+       * `userId ===` needs three equals signs.
+       *
+       * The right-hand side must be something: `if userID == ""` and `if UserId == nil`
+       * are validating an argument, not checking who owns a row.
+       */
+      /\b\w*User[Ii][Dd]\s*[=!]==?\s*(?!["'`]{2}|nil\b|null\b|undefined\b|0\b|-1\b)\S/,
       /\bpolicy_scope\b|\bauthorize\s+@/,
       /\bload_and_authorize_resource\b|\bcan\?\s*[:(]/,
     ],
