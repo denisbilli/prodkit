@@ -28,6 +28,29 @@ export interface TextMatch {
  */
 const PATTERN_DECLARATION = /^(?:const\s+\w+(?:\s*:[^=]+)?\s*=\s*)?\/(?:[^/\\]|\\.)+\/[gimsuy]*\s*[,;]?$/;
 /**
+ * A header name on a line of its own says which header, not what value.
+ *
+ * saleor's ASGI handler writes the response headers as a list of tuples, so
+ * `b"access-control-allow-origin",` sits alone on line 50 and the origin it will
+ * carry is on line 51. Saleor only appends that pair when the caller's origin matched
+ * its allowlist, and answers 400 when it did not — a strict policy, reported at
+ * `high` as one with no restrictions, on the strength of a line that cannot show a
+ * policy because there is no value on it.
+ *
+ * The bare-string-in-a-list rule this file already records stays intact:
+ * `'django.contrib.auth',` in an INSTALLED_APPS array *is* the behaviour. A header
+ * name is not, for the reason above — it names the slot, and the slot is filled
+ * somewhere else.
+ */
+const LONE_HEADER_NAME = /^[bru]?(['"`])([^'"`]+)\1\s*,?$/i;
+
+function isALoneHeaderName(trimmed: string): boolean {
+  const literal = LONE_HEADER_NAME.exec(trimmed);
+
+  return literal !== null && HTTP_HEADER_NAME.test(literal[2].replace(/\b[a-z]/g, (c) => c.toUpperCase()));
+}
+
+/**
  * An entry that says what something is called.
  *
  * appwrite ships a catalogue of function templates, and one line of it is
@@ -178,7 +201,7 @@ function declaresAType(trimmed: string): boolean {
 function declaresRatherThanDoes(line: string): boolean {
   const trimmed = line.trim();
 
-  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed) || declaresAType(trimmed) || spellsItsOwnName(trimmed) || NAMES_SOMETHING.test(trimmed);
+  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed) || declaresAType(trimmed) || spellsItsOwnName(trimmed) || NAMES_SOMETHING.test(trimmed) || isALoneHeaderName(trimmed);
 }
 
 /**
