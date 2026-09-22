@@ -36,11 +36,28 @@ import { evidenceOrSearch } from './absenceEvidence';
  * It is the anchor the payout capability beside this one already uses, and the reason
  * an Italian marketplace was reported as having a payout but no seller.
  */
+/**
+ * Every pattern here has to be one nothing else writes.
+ *
+ * The first draft included `destination:\s*\w` — Stripe's transfer destination — and
+ * `accounts.create(` with nothing in front of it. Measured against real products:
+ * `destination:` is a Next.js redirect (`{ redirect: { destination, permanent } }`) and
+ * a drag-and-drop drop target (`handleOnDrop: (source, destination)`). cal.com matched
+ * it 14 times, plane 9, and all three of cal.com, plane and documenso were inferred as
+ * marketplaces at 1.28.1 where 1.26.2 had them as B2B SaaS — a whole profile wrong, so
+ * every expectation under it wrong too.
+ *
+ * The fixture corpus reported no change, because no fixture writes a Next.js redirect.
+ * A pattern this broad is not measurable against fixtures; it needed the real thing.
+ *
+ * What survives names Stripe explicitly or is snake_case out of Stripe's own API,
+ * which nothing else has a reason to spell.
+ */
 const CONNECTED_ACCOUNT = [
-  /\baccounts\.create\s*\(/,
-  /\bstripe\.accounts\b/i,
+  /\bstripe\.accounts\.create\s*\(/i,
+  /\baccounts\.create\s*\(\s*\{[^}]*\btype:\s*["'`](?:express|standard|custom)["'`]/i,
   /['"`]account\.updated['"`]|['"`]account\.application\./,
-  /\bdestination_account\b|destination:\s*\w/,
+  /\bdestination_account\b/,
   /\bconnected_?account/i,
 ];
 

@@ -53,3 +53,23 @@ describe('the marketplace in another language', () => {
     expect(await statusOf('marketplace-that-names-its-sides', 'marketplace.dispute')).toBe('missing');
   });
 });
+
+/**
+ * And a word Stripe uses is not a Stripe call.
+ *
+ * The connected-account anchor first included `destination:` — Stripe's transfer
+ * destination — which is also a Next.js redirect and a drag-and-drop drop target.
+ * cal.com matched it 14 times and plane 9, and both, with documenso, were inferred as
+ * marketplaces where the release before had them as B2B SaaS: the whole profile wrong,
+ * and every expectation under it with it.
+ *
+ * No fixture writes a Next.js redirect, so the corpus reported no change. This one
+ * does.
+ */
+describe('a redirect is not a payout', () => {
+  it('does not read a marketplace out of a redirect and a kanban column', async () => {
+    const report = buildReport(await analyzeProject(fixture('redirect-is-not-a-payout')), { profile: 'auto' });
+
+    expect(report.productProfile?.inferredProfile).not.toBe('marketplace');
+  });
+});
