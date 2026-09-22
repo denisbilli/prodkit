@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Signals specific to products that call a model provider.
@@ -46,7 +47,7 @@ async function detectCostControl(ctx: DetectContext): Promise<DetectorResult> {
     key: 'ai.costControl',
     // Only meaningful for a product that actually calls a model.
     present: deps.length > 0 && hits.length > 0,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'a ceiling on what inference can cost', ['max_tokens', 'quota', 'credits', 'token_budget', 'usage_limit', 'spend_limit']),
     details: {
       modelDependency: deps.length > 0,
       costSignals: hits.length,
@@ -61,7 +62,21 @@ async function detectPromptSafety(ctx: DetectContext): Promise<DetectorResult> {
 
   const validationDeps = hasAnyDep(ctx, ['zod', 'joi', 'yup', 'ajv', 'class-validator']);
   const validationPyDeps = hasAnyPyDep(ctx, ['pydantic', 'marshmallow', 'cerberus']);
-  for (const dep of [...validationDeps, ...validationPyDeps]) {
+  /**
+   * A library whose entire purpose is this question.
+   *
+   * The rest of this detector looks for English words — `sanitiz`, `guardrail`,
+   * `moderation`, `prompt_injection` — which is how an Italian assistant that
+   * classifies every incoming question with a second model call and truncates it to
+   * 2000 characters was reported as sending unvalidated input to a model.
+   *
+   * These names are not words. NVIDIA, Guardrails AI, Protect AI and Microsoft chose
+   * them, and a `requirements.txt` naming one says what the repository does in any
+   * language its author happens to write in.
+   */
+  const guardrailDeps = hasAnyDep(ctx, ['llm-guard', '@guardrails-ai/core', 'rebuff']);
+  const guardrailPyDeps = hasAnyPyDep(ctx, ['nemoguardrails', 'guardrails-ai', 'llm-guard', 'rebuff', 'presidio-analyzer']);
+  for (const dep of [...validationDeps, ...validationPyDeps, ...guardrailDeps, ...guardrailPyDeps]) {
     evidence.push({ type: 'dependency', value: dep });
   }
 
@@ -73,15 +88,17 @@ async function detectPromptSafety(ctx: DetectContext): Promise<DetectorResult> {
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 
-  const hasValidation = validationDeps.length + validationPyDeps.length > 0;
+  const hasGuardrails = guardrailDeps.length + guardrailPyDeps.length > 0;
+  const hasValidation = validationDeps.length + validationPyDeps.length > 0 || hasGuardrails;
 
   return {
     key: 'ai.promptSafety',
     present: deps.length > 0 && (hits.length > 0 || hasValidation),
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'anything between the user and the model', ['zod', 'pydantic', 'llm-guard', 'nemoguardrails', 'moderation', 'sanitize', 'prompt_injection']),
     details: {
       modelDependency: deps.length > 0,
       inputValidation: hasValidation,
+      guardrailLibrary: hasGuardrails,
       safetySignals: hits.length,
     },
   };
