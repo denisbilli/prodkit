@@ -1,0 +1,9 @@
+services:
+  server:
+    image: photo-server:latest
+    ports:
+      - "3000:3000"
+    healthcheck:
+      disable: false
+  database:
+    image: postgres:16

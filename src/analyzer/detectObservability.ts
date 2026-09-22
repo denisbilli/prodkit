@@ -4,6 +4,7 @@ import { hasAnyDep, hasAnyElixirDep, hasAnyGradleDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
 import { readPackageValueUses } from './structural/valuesFromPackage';
+import { readTextFileSafe } from '../utils/readTextFileSafe';
 
 /**
  * Logging packages, which the ecosystem names and the author does not.
@@ -87,7 +88,45 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const actuator = hasAnyGradleDep(ctx, ['spring-boot-starter-actuator']);
   for (const dep of actuator) evidence.push({ type: 'dependency', value: dep, claim: 'health' });
 
-  const hasHealth = healthFiles.length > 0
+  /**
+   * The probe a platform declares, which is the operator's half of the same answer.
+   *
+   * immich declares `healthcheck:` for its services in all four of its compose files
+   * and was told it has no health endpoint. Something is being probed — that is what
+   * the key means — and the endpoint it probes is inside the image, where no text
+   * search here will find it.
+   *
+   * `HEALTHCHECK` is Docker's instruction, `healthcheck:` is compose's key, and
+   * `livenessProbe:` and `readinessProbe:` are Kubernetes' field names. None is the
+   * author's word, and each one is a statement that this service answers a health
+   * question.
+   *
+   * `disable: true` is the one that says the opposite — compose's way of switching
+   * off an image's own check — so a block carrying it is not counted.
+   */
+  const deploymentManifests = ctx.files.all.filter((file) =>
+    /(^|\/)(docker-compose[\w.-]*\.ya?ml|compose[\w.-]*\.ya?ml|Dockerfile[\w.-]*)$/.test(file)
+    || /(^|\/)(k8s|kubernetes|helm|deploy|charts)\/.*\.ya?ml$/i.test(file),
+  ).slice(0, 12);
+
+  const declaredProbes: DetectorEvidence[] = [];
+  for (const file of deploymentManifests) {
+    const text = (await readTextFileSafe(ctx.root, file)) ?? '';
+    const lines = text.split(/\r?\n/);
+
+    for (let i = 0; i < lines.length; i++) {
+      if (!/^\s*(?:HEALTHCHECK\s|healthcheck\s*:|livenessProbe\s*:|readinessProbe\s*:)/.test(lines[i])) continue;
+      /** compose writes `healthcheck:` then `disable: true` to switch the image's own off. */
+      if (lines.slice(i + 1, i + 3).some((line) => /^\s*disable\s*:\s*true/.test(line))) continue;
+
+      declaredProbes.push({ type: 'snippet', value: lines[i].trim().slice(0, 200), file, line: i + 1, claim: 'health' });
+      break;
+    }
+  }
+  for (const probe of declaredProbes.slice(0, 3)) evidence.push(probe);
+
+  const hasHealth = declaredProbes.length > 0
+    || healthFiles.length > 0
     || actuator.length > 0
     || hits.some((h) => /\/(health|healthz|readyz|livez|alive)\b/i.test(h.snippet));
   const hasReqId = hits.some((h) => /x-request-id|correlation-id/i.test(h.snippet));
@@ -168,7 +207,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hasAnyLogging = hasStructuredLogging || plainLogging.length > 0;
 
   if (!hasHealth) {
-    evidence.push(...searchedFor('a health endpoint', ['/health', '/healthz', '/readyz', 'a health, healthz, readyz, liveness or readiness route file'], 'health'));
+    evidence.push(...searchedFor('a health endpoint', ['/health', '/healthz', '/readyz', 'a health, healthz, readyz, liveness or readiness route file', 'a HEALTHCHECK, a compose healthcheck or a Kubernetes liveness probe'], 'health'));
   }
   if (!hasAnyLogging) {
     evidence.push(...searchedFor('logging', ['winston', 'pino', 'morgan', 'bunyan', 'Monolog', 'slog', 'zap', 'logrus', 'slf4j', 'Rails.logger', 'tracing::', 'logger.info/warn/error/debug', 'Logger.info', 'error_log(', 'JSON.stringify with a level field'], 'logging'));
