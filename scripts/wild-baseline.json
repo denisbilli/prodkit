@@ -50,7 +50,7 @@
       "billing.webhook-integrity": "not_applicable",
       "security.headers": "present",
       "security.cors": "present",
-      "security.rate-limit": "missing",
+      "security.rate-limit": "present",
       "uploads.protection": "not_applicable",
       "observability.health": "present",
       "observability.logging": "partial",

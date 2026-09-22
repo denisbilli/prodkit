@@ -424,6 +424,22 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
       /['"`]Retry-After['"`]\s*[,:]/i,
       /setHeader\(\s*['"`]Retry-After/i,
       /**
+       * Django REST Framework's, which is a settings key and a class path.
+       *
+       * plane throttles every anonymous caller —
+       * `"DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.AnonRateThrottle",)`
+       * in `plane/settings/common.py`, with the rates beside it — and was told at
+       * `high` that it has no rate limiting at all. The Python entry on the dependency
+       * list is `django-ratelimit`, `slowapi` or `flask-limiter`, and DRF is none of
+       * those: its throttling ships inside the framework, so there is no package to
+       * declare.
+       *
+       * `djangorestframework` on the dependency list would not do either — installing
+       * DRF says nothing about whether anything is throttled. The settings key is the
+       * switch, and DRF chose its name.
+       */
+      /DEFAULT_THROTTLE_CLASSES|DEFAULT_THROTTLE_RATES|rest_framework\.throttling|\bthrottle_classes\s*=/,
+      /**
        * The same refusal, spelled the way each platform spells it.
        *
        * Every shape above is JavaScript or Python, so a service that throttles in any
