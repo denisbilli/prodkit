@@ -52,6 +52,39 @@ describe('the route, in every spelling', () => {
    * Imports are good evidence elsewhere and are untouched there; this is the search
    * for a *route*, and a module specifier is never one.
    */
+  /**
+   * Go names its logging in go.mod, and zerolog builds the entry instead of
+   * formatting it. `log.Error().Err(err).Msg("Error updating last used")` is how
+   * gotify logs every line of its server, and every shape the detector knew expects
+   * the level to take the message. gotify's logging was being read from
+   * `console.error` in its React admin instead — the frontend describing a failed
+   * delete, offered as how the server records what happened. gotify goes from 61 to
+   * 63.
+   */
+  it('reads a Go project that logs in a chain', async () => {
+    const found = await finding('go-logs-in-a-chain', 'observability.logging');
+
+    expect(found?.status).toBe('passed');
+    expect(found?.evidence.some((e) => String(e.value).includes('.Msg('))).toBe(true);
+  });
+
+  /**
+   * And the manifest, for the same reason the whole project exists: the receiver of
+   * that chain is a name its author invented. `shout := zerolog.New(...)` then
+   * `shout.Info().Msg(...)` is the same logging under a name no pattern can guess,
+   * and `rs/zerolog` in go.mod is not.
+   *
+   * The first version of this test did not have that case, and removing the manifest
+   * branch changed nothing — the chained shape answered for both. This fixture is
+   * what makes the branch mean something.
+   */
+  it('reads a Go logger bound to a name of its own', async () => {
+    const found = await finding('go-logger-under-another-name', 'observability.logging');
+
+    expect(found?.status).toBe('passed');
+    expect(found?.evidence.some((e) => String(e.value) === 'rs/zerolog')).toBe(true);
+  });
+
   it('does not read an imported type called Health as a health endpoint', async () => {
     const found = await finding('health-is-a-type-not-a-route', 'observability.health');
 

@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGradleDep } from './detectContext';
+import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGoDep, hasAnyGradleDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
 import { readPackageValueUses } from './structural/valuesFromPackage';
@@ -63,10 +63,18 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
    */
   const DOTNET_LOGGING_PACKAGES = ['NLog', 'NLog.Extensions.Logging', 'Serilog', 'Serilog.AspNetCore', 'Microsoft.Extensions.Logging', 'log4net'];
 
+  /**
+   * Go names its logging in go.mod, and the same argument as .NET applies: the module
+   * path is the ecosystem's, and a project that imports zerolog logs structurally
+   * whatever it calls its own logger.
+   */
+  const GO_LOGGING_PACKAGES = ['rs/zerolog', 'sirupsen/logrus', 'go.uber.org/zap', 'uber-go/zap', 'phuslu/log'];
+
   const logDeps = [
     ...hasAnyDep(ctx, LOGGING_PACKAGES),
     ...hasAnyElixirDep(ctx, ELIXIR_LOGGING_PACKAGES),
     ...hasAnyDotnetDep(ctx, DOTNET_LOGGING_PACKAGES),
+    ...hasAnyGoDep(ctx, GO_LOGGING_PACKAGES),
   ];
   const sentryDeps = hasAnyDep(ctx, ['@sentry/node', 'sentry-sdk']);
   for (const d of logDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
@@ -197,6 +205,19 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
        */
       /Monolog\\Logger|LoggerInterface|->(info|warning|error|debug)\(/,
       /\bslog\.(Info|Warn|Error|Debug)\(|\bzap\.|\blogrus\.|\blog\.Printf\(/,
+      /**
+       * zerolog builds the entry instead of formatting it.
+       *
+       * `log.Error().Err(err).Msg("Error updating last used")` is how gotify logs
+       * every line of its Go server, and none of the shapes beside this one is a
+       * chain: they all expect the level to take the message. gotify's logging was
+       * read from `console.error` in its React admin instead — the frontend
+       * describing a failed delete, offered as how the server records what happened.
+       *
+       * `.Msg(` and `.Msgf(` after a level are zerolog's and zap's sugared API both,
+       * and neither is a name the author chose.
+       */
+      /\b(?:log|logger)\.(?:Info|Warn|Warning|Error|Debug|Fatal|Trace)\(\)(?:\.\w+\([^)]*\))*\.Msgf?\(/,
       /LoggerFactory\.getLogger|org\.slf4j/,
       /Rails\.logger/,
       /\btracing::(info|warn|error|debug)!|\blog::(info|warn|error)!/,
