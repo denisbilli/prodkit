@@ -69,6 +69,25 @@ const JOB_DECLARATIONS = [
   /defineJob\s*\(/,
   /\bschedule\.every\s*\(/,
   /add_periodic_task\s*\(/,
+  /**
+   * A row claimed so that no other worker takes it.
+   *
+   * `open-webui/open-webui` runs automations and chat timers from a scheduler loop that
+   * claims due rows — `select(...).with_for_update(skip_locked=True)`, marks them
+   * running, and executes them — with no queue package, no decorator and no worker in
+   * compose. Its own lifespan starts the loop, so the process is the web server. It was
+   * reported as having no background work at all.
+   *
+   * `SKIP LOCKED` is the database's, not the author's, and it has one use: several
+   * consumers taking rows from the same table without taking the same row. That is a
+   * queue, however it is named. The SQL clause, and the spelling each ORM gives it —
+   * SQLAlchemy's and Django's `skip_locked=True`, knex's `.skipLocked()`, ent's and
+   * GORM's `SkipLocked`.
+   */
+  /FOR\s+UPDATE\s+SKIP\s+LOCKED/i,
+  /\bskip_locked\s*=\s*True\b/,
+  /\.skipLocked\s*\(/,
+  /\bSkipLocked\b/,
 ];
 
 /**

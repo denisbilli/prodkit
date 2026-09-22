@@ -195,7 +195,7 @@
       "observability.health": "present",
       "observability.logging": "present",
       "audit.baseline": "partial",
-      "jobs.background": "missing",
+      "jobs.background": "present",
       "ai.cost-control": "present",
       "ai.prompt-safety": "present",
       "deployment.readiness": "partial",
