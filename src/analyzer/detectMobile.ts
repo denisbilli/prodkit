@@ -341,6 +341,25 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
       /ActivityResultContracts\.RequestMultiplePermissions|ActivityResultContracts\.RequestPermission\b/,
       /remember(?:Multiple)?Permissions?State\s*\(/,
       /launch(?:Multiple)?Permissions?Request\b/,
+      /**
+       * A third library, added once there was a repository keeping it measured.
+       *
+       * `gotify/android` asks for `POST_NOTIFICATIONS` through QuickPermissions-Kotlin:
+       * `runWithPermissions(Manifest.permission.POST_NOTIFICATIONS, options = ...)`,
+       * where the options carry `handleRationale`, `rationaleMethod` and
+       * `permanentDeniedMethod`. That is asking at the moment of use with a reason
+       * attached, which is the whole of what this signal is for, and it was reported as
+       * giving no reason for any of the eight permissions it declares.
+       *
+       * This was measured before and deliberately left out: one library in one
+       * repository is a rule nothing keeps honest. What changed is that the repository
+       * is now in `npm run wild`, so the rule is measured on every release rather than
+       * remembered from one afternoon.
+       *
+       * `runWithPermissions` and `QuickPermissionsOptions` are the library's names, not
+       * the author's, which is the same footing as Accompanist's and AndroidX's above.
+       */
+      /\brunWithPermissions\s*\(|\bQuickPermissionsOptions\s*\(/,
     ],
     3,
   );

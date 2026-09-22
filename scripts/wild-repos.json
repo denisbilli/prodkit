@@ -48,6 +48,18 @@
     {
       "repo": "netbox-community/netbox",
       "is": "Django infrastructure database; a second Django shape beside plane"
+    },
+    {
+      "repo": "Radarr/Radarr",
+      "is": ".NET; the NLog/CLEF logging rule was written for it, and nothing else here is C#"
+    },
+    {
+      "repo": "plausible/analytics",
+      "is": "Elixir/Phoenix; the bcrypt_elixir, guardian and mix-deps rules were written for it"
+    },
+    {
+      "repo": "gotify/android",
+      "is": "Kotlin/Android; the mobile profile and the permission-contract rules have nothing else to run against"
     }
   ]
 }

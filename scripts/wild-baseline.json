@@ -345,5 +345,84 @@
       "deployment.readiness": "present",
       "deployment.docker": "missing"
     }
+  },
+  "Radarr": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "missing",
+      "b2c.onboarding": "partial",
+      "b2c.notifications": "partial",
+      "authz.ownership": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "partial",
+      "security.rate-limit": "present",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "partial",
+      "deployment.docker": "missing"
+    }
+  },
+  "analytics": {
+    "inferredProfile": "b2b-saas",
+    "inferenceConfidence": "medium",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "auth.api-keys": "present",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "present",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "present",
+      "security.cors": "partial",
+      "security.rate-limit": "present",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "present",
+      "deployment.docker": "partial"
+    }
+  },
+  "android": {
+    "inferredProfile": "mobile-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "mobile.permissions": "present",
+      "mobile.credential-storage": "missing",
+      "mobile.offline": "missing",
+      "mobile.forced-update": "missing",
+      "mobile.privacy-declaration": "unknown",
+      "app.state-durability": "missing",
+      "client.error-reporting": "partial",
+      "app.asset-delivery": "missing",
+      "auth.baseline": "present",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "security.rate-limit": "missing",
+      "uploads.protection": "not_applicable",
+      "observability.logging": "partial",
+      "deployment.readiness": "partial"
+    }
   }
 }
