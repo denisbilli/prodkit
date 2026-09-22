@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyElixirDep, hasAnyGradleDep } from './detectContext';
+import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGradleDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
 import { readPackageValueUses } from './structural/valuesFromPackage';
@@ -35,9 +35,39 @@ const LOGGING_PACKAGES = [
 /** Elixir reaches for a backend rather than a logger: Logger itself is in OTP. */
 const ELIXIR_LOGGING_PACKAGES = ['logger_json', 'logger_file_backend', 'sentry'];
 
+/**
+ * The route, in every spelling somebody writes it.
+ *
+ * `\/(health|healthz|readyz|livez|alive)\b` does not match `/healthcheck`: after
+ * `health` comes a `c`, and the boundary fails. Netflix's dispatch declares
+ * `@api_router.get("/healthcheck")` and was told it has no health endpoint — the
+ * plainest spelling there is, missed by the pattern meant to find it.
+ *
+ * This does not disturb the decision recorded below about Dropwizard. That one is
+ * about an endpoint the *framework* publishes, which no Dropwizard application writes
+ * in its own source; a line like dispatch's is somebody declaring the route
+ * themselves.
+ */
+const HEALTH_ROUTE = /\/(health|healthz|healthcheck|health[-_]check|readyz|livez|alive)\b/i;
+
 export async function detectObservability(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
-  const logDeps = [...hasAnyDep(ctx, LOGGING_PACKAGES), ...hasAnyElixirDep(ctx, ELIXIR_LOGGING_PACKAGES)];
+  /**
+   * .NET names its logging in the project file and nothing here was reading it.
+   *
+   * Radarr declares `NLog`, `NLog.Extensions.Logging` and
+   * `NLog.Layouts.ClefJsonLayout` — CLEF being the compact JSON event format — and
+   * was reported as logging something but not structurally. The npm list has had
+   * winston and pino since the beginning and treats the dependency alone as enough;
+   * these are the same statement in another manifest.
+   */
+  const DOTNET_LOGGING_PACKAGES = ['NLog', 'NLog.Extensions.Logging', 'Serilog', 'Serilog.AspNetCore', 'Microsoft.Extensions.Logging', 'log4net'];
+
+  const logDeps = [
+    ...hasAnyDep(ctx, LOGGING_PACKAGES),
+    ...hasAnyElixirDep(ctx, ELIXIR_LOGGING_PACKAGES),
+    ...hasAnyDotnetDep(ctx, DOTNET_LOGGING_PACKAGES),
+  ];
   const sentryDeps = hasAnyDep(ctx, ['@sentry/node', 'sentry-sdk']);
   for (const d of logDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
   for (const d of sentryDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
@@ -45,7 +75,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/\/(health|healthz|readyz|livez|alive)\b/i, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
+    [HEALTH_ROUTE, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
     25
   );
   /**
@@ -56,7 +86,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
    * is what the line is evidence of.
    */
   for (const m of hits) {
-    const claim = /\/(health|healthz|readyz|livez|alive)\b/i.test(m.snippet)
+    const claim = HEALTH_ROUTE.test(m.snippet)
       ? 'health'
       : /x-request-id|correlation-id/i.test(m.snippet)
         ? 'request-id'
@@ -128,7 +158,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hasHealth = declaredProbes.length > 0
     || healthFiles.length > 0
     || actuator.length > 0
-    || hits.some((h) => /\/(health|healthz|readyz|livez|alive)\b/i.test(h.snippet));
+    || hits.some((h) => HEALTH_ROUTE.test(h.snippet));
   const hasReqId = hits.some((h) => /x-request-id|correlation-id/i.test(h.snippet));
 
   // Structured logging without a logging library is still structured logging. What
