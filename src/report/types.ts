@@ -115,8 +115,14 @@ export interface ReportDiagnostics {
    * Withdrawing the claim silently would be its own failure: the reader of a project
    * whose routes are `/accedi` and `/recupero-password` would see four questions
    * simply absent, with nothing saying why. This is what the report says instead.
+   *
+   * Optional because this interface is a published type and somebody else builds
+   * values of it. Adding a required field to it is a breaking change however small
+   * the field is, and 1.26.1 shipped one in a patch release: produtype.dev stopped
+   * compiling on the fixture it builds for its own tests. `buildReport` always sets
+   * it; the question mark is for everyone who does not.
    */
-  routeNamesUnread: boolean;
+  routeNamesUnread?: boolean;
   /**
    * Whether the optional TypeScript compiler was loaded for this reading.
    *
