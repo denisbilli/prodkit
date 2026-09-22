@@ -902,11 +902,27 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     const text = await readTextFileSafe(ctx.root, file);
     if (!text) continue;
 
+    /**
+     * The key has to be there, and "not found" is not "wide open".
+     *
+     * This read a missing `allowed_origins` as the permissive case, which is
+     * blindness turned into the loudest verdict there is. appwrite is not a Laravel
+     * application — it keeps its own `app/config/cors.php` holding methods and
+     * headers, with origins decided in `src/Appwrite/Network/Cors.php`, where they
+     * are matched by hostname and echoed back one at a time, never as a wildcard.
+     * The path matched, the key did not, and a product with a careful allowlist was
+     * reported at `high` as having opened itself to everybody.
+     *
+     * Laravel publishes that key with the file, so a `config/cors.php` without it is
+     * somebody else's file at the same path. This branch now says nothing about it.
+     */
     const origins = /'allowed_origins'\s*=>\s*\[([^\]]*)\]/.exec(text);
-    const line = origins ? text.slice(0, origins.index).split('\n').length : 1;
-    const hit: CorsHit = { file, line, snippet: (origins?.[0] ?? "config/cors.php").replace(/\s+/g, ' ').trim().slice(0, 200) };
+    if (!origins) continue;
 
-    if (!origins || /^\s*'\*'\s*,?\s*$/.test(origins[1])) corsLoose.push(hit);
+    const line = text.slice(0, origins.index).split('\n').length;
+    const hit: CorsHit = { file, line, snippet: origins[0].replace(/\s+/g, ' ').trim().slice(0, 200) };
+
+    if (/^\s*'\*'\s*,?\s*$/.test(origins[1])) corsLoose.push(hit);
     else corsStrict.push(hit);
     break;
   }

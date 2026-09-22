@@ -1,0 +1,7 @@
+{
+  "name": "acme/console",
+  "require": {
+    "php": "^8.3",
+    "utopia-php/framework": "^1.0"
+  }
+}

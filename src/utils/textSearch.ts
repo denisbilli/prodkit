@@ -28,6 +28,25 @@ export interface TextMatch {
  */
 const PATTERN_DECLARATION = /^(?:const\s+\w+(?:\s*:[^=]+)?\s*=\s*)?\/(?:[^/\\]|\\.)+\/[gimsuy]*\s*[,;]?$/;
 /**
+ * An entry that says what something is called.
+ *
+ * appwrite ships a catalogue of function templates, and one line of it is
+ * `'name' => 'ALLOWED_ORIGINS',` — an environment variable *the user's* function may
+ * set, described in a table beside its placeholder and its help text. After the other
+ * two citations were withdrawn it was carrying appwrite's whole `high` cross-origin
+ * finding on its own, about a product whose real policy matches origins by hostname
+ * and never answers with a wildcard.
+ *
+ * A string bound to `name`, `key`, `label` or `id` is what a thing is called. That is
+ * not the same as a bare string in a list, which this file deliberately still reads —
+ * `'django.contrib.auth',` in an INSTALLED_APPS array *is* the behaviour, and the
+ * measurement that established it cost a real Django project eight points for being
+ * legible. The difference is the key: one line says "this is called X", the other says
+ * "X".
+ */
+const NAMES_SOMETHING = /^["']?(?:name|key|label|id|title|field|env|variable)["']?\s*(?:=>|:)\s*["'`][^"'`]+["'`],?$/i;
+
+/**
  * A constant that spells its own name.
  *
  * photoprism keeps `AccessControlAllowOrigin = "Access-Control-Allow-Origin"` in
@@ -159,7 +178,7 @@ function declaresAType(trimmed: string): boolean {
 function declaresRatherThanDoes(line: string): boolean {
   const trimmed = line.trim();
 
-  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed) || declaresAType(trimmed) || spellsItsOwnName(trimmed);
+  return COMMENT_LINE.test(trimmed) || PATTERN_DECLARATION.test(trimmed) || declaresAType(trimmed) || spellsItsOwnName(trimmed) || NAMES_SOMETHING.test(trimmed);
 }
 
 /**
