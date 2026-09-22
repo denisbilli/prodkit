@@ -284,6 +284,34 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     }
   }
 
+  /**
+   * Xcode has generated the Info.plist from build settings since version 13.
+   *
+   * damus declares five purpose strings and its `Info.plist` holds none of them:
+   * they are `INFOPLIST_KEY_NSCameraUsageDescription` and its four siblings in
+   * `project.pbxproj`, and again in `de.lproj/InfoPlist.strings` for every language
+   * it ships. The report told a careful application, at `high`, that it gives no
+   * reason for any permission it asks for.
+   *
+   * `INFOPLIST_KEY_` is Xcode's prefix and `InfoPlist.strings` is Apple's
+   * localisation file; the sentence after the equals sign is the author's. An empty
+   * one is treated the same way as an empty `<string>` in the plist — it passes the
+   * compiler and fails review.
+   */
+  for (const file of ctx.files.all.filter((f) => /project\.pbxproj$|(^|\/)InfoPlist\.strings$/i.test(f)).slice(0, 8)) {
+    const text = (await readTextFileSafe(ctx.root, file)) ?? '';
+    const declared = [...text.matchAll(/(?:INFOPLIST_KEY_)?"?(NS\w*UsageDescription)"?\s*=\s*"([^"]*)"/g)];
+    const explained = declared.filter(([, , reason]) => reason.trim().length > 0);
+    if (!explained.length) continue;
+
+    permissionsExplained = true;
+    permissionEvidence.push({
+      type: 'file',
+      value: `${explained.length} permission${explained.length === 1 ? '' : 's'} with a reason in ${file}`,
+      file,
+    });
+  }
+
   const runtimeRequests = await searchInFiles(
     ctx.root,
     ctx.files.source,
@@ -365,6 +393,23 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
 
   const platformStores = localStores.uses;
 
+  /**
+   * Watching the network is not storing anything, and it was the citation under
+   * "no local database".
+   *
+   * `NWPathMonitor`, `NetInfo` and `navigator.onLine` tell an application whether it
+   * is connected. They were pushed into this evidence list while counting for nothing
+   * in the verdict, so damus — which was found to have no store this can read — was
+   * shown `let network_monitor = NWPathMonitor()` as the reason. A line answering one
+   * question, offered as the evidence for another.
+   *
+   * Where a store *is* found they belong: knowing you are offline is part of working
+   * offline. Where none is, the search that came up empty is the honest evidence, and
+   * a reader who keeps their notes in something this cannot read can see what was
+   * looked for and say so.
+   */
+  const hasALocalStore = offlineDeps.length > 0 || platformStores.length > 0;
+
   const offlineEvidence: DetectorEvidence[] = [
     ...offlineDeps.map<DetectorEvidence>((dep) => ({ type: 'dependency', value: dep })),
     ...platformStores.map<DetectorEvidence>((match) => ({
@@ -373,7 +418,7 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
       file: match.file,
       line: match.line,
     })),
-    ...connectivityChecks.map<DetectorEvidence>((match) => ({
+    ...(hasALocalStore ? connectivityChecks : []).map<DetectorEvidence>((match) => ({
       type: 'snippet',
       value: match.snippet,
       file: match.file,
@@ -427,7 +472,7 @@ export async function detectMobile(ctx: DetectContext): Promise<DetectorResult[]
     },
     {
       key: 'mobile.offline',
-      present: offlineDeps.length > 0 || platformStores.length > 0,
+      present: hasALocalStore,
       evidence: evidenceOrSearch(offlineEvidence, 'a local database the app can read with no network', ['sqflite', 'drift', 'hive', 'isar', 'objectbox', 'realm', 'androidx.room', 'sqldelight', 'grdb.swift', 'sqlite.swift', 'NSManagedObjectContext', 'SQLiteOpenHelper', 'getWritableDatabase(']),
     },
     {

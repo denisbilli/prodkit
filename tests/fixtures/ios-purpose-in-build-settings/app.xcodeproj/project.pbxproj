@@ -1,0 +1,9 @@
+// !$*UTF8*$!
+{
+	buildSettings = {
+		INFOPLIST_FILE = app/Info.plist;
+		INFOPLIST_KEY_NSCameraUsageDescription = "Notes needs your camera to attach photos to a note.";
+		INFOPLIST_KEY_NSFaceIDUsageDescription = "Local authentication to unlock your private key.";
+		PRODUCT_BUNDLE_IDENTIFIER = com.acme.notes;
+	};
+}
