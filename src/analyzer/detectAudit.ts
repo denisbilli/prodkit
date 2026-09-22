@@ -76,7 +76,7 @@ const AUDIT_WRITE = [
  * events table. Across 247 fixtures it matches nothing at all, which is the other half
  * of the measurement: no fixture writes this shape by accident.
  */
-const ACTOR_COLUMN = /\b(act_?user\w*|actor\w*|performed_by\w*|changed_by\w*|modified_by\w*|acting_user\w*)\b/i;
+const ACTOR_COLUMN = /\b(act_?user\w*|actor\w*|performed_by\w*|changed_by\w*|modified_by\w*|acting_user\w*|moderator\w*)\b/i;
 const CALLER_IP_COLUMN = /\b(ip_?address|remote_?addr|client_?ip)\b/i;
 const WHEN_COLUMN = /\b\w*_?(date|at|time|timestamp)\b/i;
 
@@ -103,32 +103,74 @@ const WITHIN_ONE_RECORD = 8;
 const BEFORE_STATE = /(?<!\.)\b(?:pre_?change_?|before_?change_?|old_|before_)(?:data|values|snapshot|attributes)\b/i;
 const AFTER_STATE = /\b(?:post_?change_?|after_?change_?|new_|after_)(?:data|values|snapshot|attributes)\b/i;
 
+/**
+ * Who acted, what they did, and why.
+ *
+ * `lobsters/lobsters` publishes its moderation log: `moderations` keeps
+ * `moderator_user_id`, `action`, `reason` and `created_at`, and every moderator action
+ * writes a row through `Moderation.new` or `Moderation.create`. No IP, no before and after,
+ * nothing called audit, so a site whose public mod log is part of how it governs itself
+ * was reported with no trail.
+ *
+ * A reason beside an action and an actor is the third shape. An activity feed keeps an
+ * actor, a verb and a time too — "Ana starred your story" — and does not keep why; a
+ * record that has to say why somebody acted is kept to answer for it.
+ */
+const ACTION_COLUMN = /\baction\b/i;
+/**
+ * And `reason` declared as a column, not used as a value: lobsters' models assign
+ * `self.banned_reason = reason` and `m.reason = reason` all over, and a window around
+ * either is code, not a record. A migration's `t.text "reason"` or `add :reason`, a
+ * Laravel `$table->text('reason')`, a model field `reason = models.TextField(`, a
+ * Prisma or SQL column, a typed field `reason: string`.
+ */
+const REASON_COLUMN = /^\s*(?:t\.\w+\s+|add\s+|\$table->\w+\(\s*)?["':]?reason["']?\s*(?:$|,|\)|=\s*(?:models|db|sa|fields)\.|=\s*(?:Column|mapped_column)\(|:\s*(?:str|string|text|Optional|Mapped)\b|\s+(?:text|varchar|string)\b)/i;
+
 /** The name a record is declared under, looked for above the line that matched. */
 const RECORD_DECLARATION = /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:class|struct|model|data\s+class)\s+([A-Za-z_]\w*)/;
+/** Rails declares the table and names the model by convention: `moderations` is `Moderation`. */
+const RAILS_TABLE = /^\s*create_table\s+["':](\w+?)s?["']?\s*,/;
 
 interface ShapedRecords {
   evidence: DetectorEvidence[];
-  /** Names of the records found, where they are distinctive enough to search for. */
+  /** Names of the records found. */
   names: string[];
 }
 
+function recordName(lines: string[], from: number): string | null {
+  for (let i = from; i >= 0 && i >= from - 200; i--) {
+    const declared = RECORD_DECLARATION.exec(lines[i]);
+    if (declared) return declared[1];
+    const table = RAILS_TABLE.exec(lines[i]);
+    if (table) return table[1].split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
+  }
+  return null;
+}
+
 /**
- * The record's own name, when it is compound.
+ * What writes to a record, found by the record's own name.
  *
  * netbox writes its change log from a signal handler — `instance.to_objectchange(action)`
  * then `objectchange.save()` — and none of the write patterns know that word. The model
- * that was found does, so its name is what to search for. Only a compound name: vaultwarden's
- * is `Event`, and a search for every call mentioning an event is a search for every
- * JavaScript handler in the repository. `ObjectChange` or `AuditEntry` names one thing.
+ * that was found does. Loosely only when the name is compound: vaultwarden's is `Event`,
+ * and every call mentioning an event is every JavaScript handler in the repository.
+ * `ObjectChange` or `AuditEntry` names one thing.
+ *
+ * A one-word name is searched for only as the ORM spells a new row, in its own case:
+ * `Moderation.new`, `Moderation.create!`, `Event::new(`, `Entry.objects.create(`. The
+ * browser's `new Event(` is none of them.
  */
-function distinctiveName(lines: string[], from: number): string | null {
-  for (let i = from; i >= 0 && i >= from - 200; i--) {
-    const match = RECORD_DECLARATION.exec(lines[i]);
-    if (!match) continue;
-    const name = match[1];
-    return /[a-z][A-Z]|_[a-z]/.test(name) ? name : null;
-  }
-  return null;
+function writesTo(name: string): RegExp[] {
+  const created = new RegExp(`\\b${name}(?:\\.(?:new|create!?)\\b|::(?:new|create)\\s*\\(|\\.objects\\.create\\s*\\()`);
+  if (!/[a-z][A-Z]|_[a-z]/.test(name)) return [created];
+
+  // A line declaring the record is not a write to it, and the name has to end the
+  // identifier being called: `ObjectChangeTable(queryset)` reads the log.
+  const bare = name.replace(/_/g, '').toLowerCase();
+  return [
+    created,
+    new RegExp(`^(?!\\s*(?:pub\\s+)?(?:class|struct|model|def|fn|import|from)\\b).*\\b\\w*${bare}(?:\\s*\\(|\\.save\\s*\\(|\\.objects\\.create\\s*\\()`, 'i'),
+  ];
 }
 
 async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<ShapedRecords> {
@@ -144,10 +186,11 @@ async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<
       const window = () => lines.slice(Math.max(0, i - WITHIN_ONE_RECORD), i + WITHIN_ONE_RECORD + 1).join('\n');
       const whoWhenWhere = CALLER_IP_COLUMN.test(lines[i]) && ACTOR_COLUMN.test(window()) && WHEN_COLUMN.test(window());
       const beforeAndAfter = BEFORE_STATE.test(lines[i]) && AFTER_STATE.test(window());
-      if (!whoWhenWhere && !beforeAndAfter) continue;
+      const whoWhatWhy = REASON_COLUMN.test(lines[i]) && ACTION_COLUMN.test(window()) && ACTOR_COLUMN.test(window()) && WHEN_COLUMN.test(window());
+      if (!whoWhenWhere && !beforeAndAfter && !whoWhatWhy) continue;
 
       if (evidence.length < 5) evidence.push({ type: 'snippet', value: lines[i].trim().slice(0, 200), file, line: i + 1 });
-      const name = distinctiveName(lines, i);
+      const name = recordName(lines, i);
       if (name) names.add(name);
       break;
     }
@@ -195,13 +238,8 @@ export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
    * word search over the most common noun in software; behind that gate it is the second
    * half of one specific finding.
    */
-  // The record's own name joins that search when it is compound (see `distinctiveName`):
-  // `to_objectchange(` and `objectchange.save()` are writes to netbox's change log. A
-  // line declaring the record is not a write to it.
-  const writeToNamedRecord = shaped.names.map((name) => {
-    const bare = name.replace(/_/g, '').toLowerCase();
-    return new RegExp(`^(?!\\s*(?:pub\\s+)?(?:class|struct|model|def|fn|import|from)\\b).*\\b\\w*${bare}(?:\\s*\\(|\\.save\\s*\\(|\\.objects\\.create\\s*\\()`, 'i');
-  });
+  // The record's own name joins that search (see `writesTo`).
+  const writeToNamedRecord = shaped.names.flatMap(writesTo);
   const unnamedWrites = shapedRecords.length > 0
     ? await searchInFiles(ctx.root, ctx.files.source, [/\b(log|record|write|emit|create|append)_?[eE]vents?\s*\(/, ...writeToNamedRecord], 10)
     : [];
