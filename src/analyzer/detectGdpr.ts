@@ -50,6 +50,9 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
    * and `UserAnonymizer` there. Discourse ships both and was told it had neither,
    * at `high` — which is the severity a reader acts on.
    */
+  /** A module path, not an endpoint: `import { exportCSV } from "../export"`. */
+  const MODULE_IMPORT = /^\s*(?:import\b|export\s+(?:\*|\{)|from\s+["'])|require\s*\(/;
+
   const exportRoute = await searchInFiles(
     ctx.root,
     ctx.files.source,
@@ -64,8 +67,27 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       /user[_-]?export/i,
       /export[_-]?(user|account|profile)\b/i,
       /download (your|my) data/i,
+      /**
+       * A route whose path ends at export, whatever the framework's shape.
+       *
+       * The patterns above are all compound words — `exportUserData`, `user_export`,
+       * `export_account`. plausible's are `get "/:domain/download/export"` and
+       * `post "/:domain/export"`, where `export` is the last segment of a path and
+       * nothing is glued to it, so none of them matched.
+       *
+       * Quoted and terminal, for the same reason `/status` is: `export` is a common verb
+       * and a common column, and the one thing it cannot be at the end of a quoted path
+       * is anything but an endpoint that hands data over.
+       *
+       * Except an import. `import { exportCSV } from "../export"` is a module path with
+       * the same shape as a route, and plane has five of them — the finding was right
+       * about plane and three of its five citations were not endpoints at all. A reader
+       * who opens the evidence and finds an import line stops believing the rest.
+       */
+      /["'`][^"'`]*\/(?:download\/)?exports?\/?["'`]/i,
     ],
-    20
+    20,
+    (match) => !MODULE_IMPORT.test(match.snippet),
   );
   const exportFiles = searchFileNames(ctx.files.source, [
     /user[_-]?export/i,
@@ -117,6 +139,19 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
        * out.
        */
       /\bdelete\s*[(:]\s*["'`]\/?(?:account\b|users?\/me\b|me\b)/i,
+      /**
+       * Phoenix writes a route with a space, not a bracket.
+       *
+       * `delete "/me", AuthController, :delete_me` is how `plausible/analytics` lets
+       * somebody close their account, and every pattern here wanted `delete(` or
+       * `delete:` immediately after the verb. A product whose entire position is privacy
+       * was reported as having no erasure flow.
+       *
+       * The trailing comma is what keeps this to a router: `delete "/me"` on its own
+       * could be prose, and a Phoenix route is always followed by the controller that
+       * handles it.
+       */
+      /\b(?:delete|destroy)\s+["'`]\/?(?:account|users?\/me|me)["'`]\s*,/i,
       /@Delete\(\s*["'`]\/?(?:account\b|users?\/me\b|me\b)/i,
       /\.route\(\s*["'`]\/?(?:account\b|users?\/me\b|me\b)[^)]*,\s*delete\(/i,
     ],
