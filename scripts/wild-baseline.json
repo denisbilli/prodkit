@@ -255,7 +255,7 @@
       "uploads.protection": "not_applicable",
       "observability.health": "present",
       "observability.logging": "partial",
-      "audit.baseline": "missing",
+      "audit.baseline": "present",
       "deployment.readiness": "partial",
       "deployment.docker": "present"
     }
