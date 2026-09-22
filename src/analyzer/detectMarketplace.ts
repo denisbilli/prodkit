@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { evidenceOrSearch } from './absenceEvidence';
 
 /**
  * Marketplace-specific signals.
@@ -22,8 +23,53 @@ import { searchInFiles } from '../utils/textSearch';
 // concept would actually be modelled, and a term only qualifies if its presence
 // genuinely implies a supply side — which rules out build vocabulary (`vendor`),
 // common verbs (`listing`), and anything that ships inside a payment SDK (`customer`).
-const SELLER_TERMS = [/\bseller\b/i, /\bmerchant\b/i, /\bstorefront\b/i, /\bsupplier\b/i];
-const BUYER_TERMS = [/\bbuyer\b/i, /\bpurchaser\b/i, /\bshopper\b/i];
+/**
+ * A connected account is a seller, in the payment platform's own words.
+ *
+ * `seller`, `merchant`, `storefront` and `supplier` are four English words, and a
+ * mercato whose table is `venditori` has none of them. What it does have, if it pays
+ * anybody, is Stripe: `stripe.accounts.create({ type: 'express' })` creates a
+ * connected account, and a connected account is the supply side by definition — the
+ * platform is the other one. The same is true of `transfers.create` with a
+ * `destination`, which is money leaving the platform for somebody else's account.
+ *
+ * It is the anchor the payout capability beside this one already uses, and the reason
+ * an Italian marketplace was reported as having a payout but no seller.
+ */
+const CONNECTED_ACCOUNT = [
+  /\baccounts\.create\s*\(/,
+  /\bstripe\.accounts\b/i,
+  /['"`]account\.updated['"`]|['"`]account\.application\./,
+  /\bdestination_account\b|destination:\s*\w/,
+  /\bconnected_?account/i,
+];
+
+/**
+ * Nobody writes `seller` on its own.
+ *
+ * `\bseller\b` is a word boundary, and code is not prose: the supply side of a real
+ * marketplace is `onboardSeller`, `sellerId`, `db.sellers` and `seller_account`, and a
+ * word boundary matches none of the first three. A fixture written the way an English
+ * marketplace is actually written came out with zero seller signals and zero buyer
+ * signals — and then, since 1.27.0 reads that as "this repository's words are not
+ * mine", the commission and dispute findings would have been withdrawn from a
+ * repository that spells both sides on every line.
+ *
+ * A trailing lowercase letter is still excluded, so `sellerships` or `buyerish` do not
+ * qualify; `reseller` does, and a reseller is a supply side.
+ *
+ * The lookahead is why these are not written with the `i` flag. `/buyers?(?![a-z])/i`
+ * applies the flag to the lookahead too, so `[a-z]` matches the `I` of `buyerId` and
+ * the pattern rejects the one spelling it was widened to accept — a case-insensitive
+ * negative lookahead asserts the opposite of what it reads like.
+ */
+function identifierWord(word: string): RegExp {
+  const initial = word[0];
+  return new RegExp(`(?:[${initial.toLowerCase()}${initial.toUpperCase()}]${word.slice(1)}|${word.toUpperCase()})s?(?![a-z])`);
+}
+
+const SELLER_TERMS = ['seller', 'merchant', 'storefront', 'supplier'].map(identifierWord);
+const BUYER_TERMS = ['buyer', 'purchaser', 'shopper'].map(identifierWord);
 
 /** Files where a domain concept is declared rather than merely mentioned. */
 const DOMAIN_FILE = /(model|schema|entity|migration|prisma|domain|route|controller)/i;
@@ -38,8 +84,21 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
 
   const sellerHits = await searchInFiles(ctx.root, scope, SELLER_TERMS, 20);
   const buyerHits = await searchInFiles(ctx.root, scope, BUYER_TERMS, 20);
+  /**
+   * The connected-account search is not scoped and not restricted to files whose name
+   * is an English word, because it is not searching for a word.
+   *
+   * `DOMAIN_FILE` keeps the vocabulary terms away from `vite.config.js` — a reasonable
+   * precaution for `vendor` and `listing`, and useless for a repository whose files
+   * are called `venditori.js` and `ordini.js`. It is the same filter twice over: an
+   * English word inside a file whose path is an English word.
+   *
+   * `stripe.accounts.create(` is neither. Nothing calls it by accident, so it can be
+   * looked for where the code actually is.
+   */
+  const connectedHits = await searchInFiles(ctx.root, ctx.files.source, CONNECTED_ACCOUNT, 20);
 
-  for (const hit of [...sellerHits, ...buyerHits]) {
+  for (const hit of [...sellerHits, ...buyerHits, ...connectedHits]) {
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
   }
 
@@ -72,7 +131,12 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
   // A file name on its own is not a role either. Twenty had four such names and no
   // buyer or seller vocabulary anywhere in its code, and came out a marketplace:
   // naming a file is cheaper than building a two-sided product.
-  const oneSide = vocabularyFiles.size >= 2;
+  //
+  // The two-file rule guards against one sentence naming both sides — a comment in
+  // documenso listing "Tenant", "Landlord", "Buyer", "Seller" as example labels. A
+  // connected account is not a sentence, so it does not need the guard: one call to
+  // `accounts.create` is a supply side whether or not the repository also spells one.
+  const oneSide = vocabularyFiles.size >= 2 || connectedHits.length > 0;
 
   return {
     key: 'marketplace.multiRole',
@@ -80,7 +144,24 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
     complete: bothSides,
     evidence,
     details: {
-      sellerSignals: sellerHits.length,
+      sellerSignals: sellerHits.length + connectedHits.length,
+      connectedAccountSignals: connectedHits.length,
+      /**
+       * This repository runs a marketplace in words this tool does not have.
+       *
+       * The payment platform named the supply side and the repository never did: a
+       * connected account is created, and `seller`, `merchant`, `buyer` and
+       * `shopper` appear nowhere. That combination is not a marketplace missing its
+       * vocabulary — it is a marketplace whose vocabulary is `venditori` and
+       * `acquirenti`, or any of the other several thousand languages this tool reads
+       * none of.
+       *
+       * Commission and dispute are searched for in English and in provider API names.
+       * Where the provider name is absent — a cut computed in arithmetic, a table
+       * called `contestazioni` — the search has nothing left to look with, and the
+       * finding downstream becomes "not assessed" rather than "not there".
+       */
+      vocabularyUnread: connectedHits.length > 0 && sellerHits.length === 0 && buyerHits.length === 0,
       buyerSignals: buyerHits.length,
       roleFiles: roleFiles.length,
     },
@@ -113,7 +194,17 @@ async function detectPayout(ctx: DetectContext): Promise<DetectorResult> {
   };
 }
 
-async function detectCommission(ctx: DetectContext): Promise<DetectorResult> {
+/**
+ * Nothing was found, and the search had nothing left to look with.
+ *
+ * Commission and dispute are searched for in English and in provider API names. Where
+ * the provider name is absent — a cut computed as arithmetic, a table called
+ * `contestazioni` — only the English half remains, and a repository that never spelled
+ * `seller` or `buyer` was never going to answer it. `unanswered` turns the finding into
+ * "not assessed" downstream, which is the one direction blindness is allowed to move a
+ * verdict.
+ */
+async function detectCommission(ctx: DetectContext, vocabularyUnread: boolean): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
   const hits = await searchInFiles(
@@ -138,12 +229,13 @@ async function detectCommission(ctx: DetectContext): Promise<DetectorResult> {
   return {
     key: 'marketplace.commission',
     present: hits.length > 0,
-    evidence,
+    unanswered: hits.length === 0 && vocabularyUnread,
+    evidence: evidenceOrSearch(evidence, 'a cut taken on the way through', ['commission_rate', 'commissionRate', 'application_fee', 'platform_fee', 'take_rate', 'service_fee']),
     details: { commissionSignals: hits.length },
   };
 }
 
-async function detectDispute(ctx: DetectContext): Promise<DetectorResult> {
+async function detectDispute(ctx: DetectContext, vocabularyUnread: boolean): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
   // `refund` alone is not evidence of dispute handling — it appears in any payment
@@ -172,8 +264,9 @@ async function detectDispute(ctx: DetectContext): Promise<DetectorResult> {
   return {
     key: 'marketplace.dispute',
     present: strong || weakHits.length > 0,
+    unanswered: !strong && weakHits.length === 0 && vocabularyUnread,
     complete: strong,
-    evidence,
+    evidence: evidenceOrSearch(evidence, 'a way to unwind a transaction', ['disputes.create', 'chargeback', 'escrow', 'refund', 'dispute']),
     details: {
       disputeSignals: strongHits.length,
       refundOnlySignals: weakHits.length,
@@ -183,10 +276,13 @@ async function detectDispute(ctx: DetectContext): Promise<DetectorResult> {
 }
 
 export async function detectMarketplace(ctx: DetectContext): Promise<DetectorResult[]> {
+  const multiRole = await detectMultiRole(ctx);
+  const vocabularyUnread = multiRole.details?.vocabularyUnread === true;
+
   return Promise.all([
-    detectMultiRole(ctx),
+    Promise.resolve(multiRole),
     detectPayout(ctx),
-    detectCommission(ctx),
-    detectDispute(ctx),
+    detectCommission(ctx, vocabularyUnread),
+    detectDispute(ctx, vocabularyUnread),
   ]);
 }
