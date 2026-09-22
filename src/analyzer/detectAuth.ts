@@ -643,6 +643,36 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       evidence: evidenceOrSearch(snippetEvidence(apiKeySignals), 'keys this product issues and checks', ['x-api-key', 'api_keys.find', 'api_keys.where', 'hashedApiKey', 'token scope']),
     },
     {
+      /**
+       * Whether this project's routes are in a language these patterns can read.
+       *
+       * A gestionale with `/accedi`, `/recupero-password` and `/conferma-email` —
+       * bcrypt, jsonwebtoken, the whole flow present — was told at `high` that it has
+       * no password reset and no erasure. The searches look for "forgot password",
+       * "password_reset" and "reset token", and `recuperoPassword` is none of those.
+       * Adding the Italian words would fix Italian and leave Japanese, Spanish and
+       * every other language exactly where they were, which is the guessing this
+       * analyzer exists to stop.
+       *
+       * What can be known is whether we ever read a route name at all. `routeSignals`
+       * matches `/login`, `/register`, `/signin` and their relatives; where a project
+       * authenticates — proved by a hashing package, which is not a word anybody
+       * chose — and *none* of those ever matched, its routes are named in something
+       * else. The reset search never had a chance, and the difference between "you
+       * have no reset" and "we could not read your routes" is the whole difference
+       * between a finding and a guess.
+       *
+       * A framework that supplies the flow is checked before this: Django's
+       * `auth.urls`, Devise and `Auth::routes(` are read whatever the routes around
+       * them are called.
+       */
+      key: 'auth.routesAreReadable',
+      present: routeSignals.length > 0,
+      evidence: routeSignals.length > 0
+        ? snippetEvidence(routeSignals.slice(0, 3))
+        : searchedFor('a route named in English', ['/login', '/register', '/signin', '/signup', '/logout']),
+    },
+    {
       key: 'auth.passwordReset',
       present: passwordResetSignals.length > 0 || passwordResetFiles.length > 0,
       // The terms, where nothing matched. "No direct evidence captured" reads like

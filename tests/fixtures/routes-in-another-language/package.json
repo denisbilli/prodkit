@@ -1,0 +1,9 @@
+{
+  "name": "gestionale",
+  "private": true,
+  "dependencies": {
+    "express": "^4.19.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

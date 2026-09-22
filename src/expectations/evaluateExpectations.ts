@@ -14,6 +14,31 @@ import type {
 import { CAPABILITIES, type CapabilityId, getProductProfile } from './productProfiles';
 import type { EvidenceQuality, FindingConfidence } from '../report/types';
 
+/**
+ * Whether this project's routes are named in a language these searches can read.
+ *
+ * A gestionale with `/accedi`, `/recupero-password` and `/conferma-email` — bcrypt,
+ * jsonwebtoken, the whole flow present — was told at `high` that it has no password
+ * reset and no email verification. The searches look for "forgot password",
+ * "password_reset" and "verify email", and `recuperoPassword` is none of those.
+ * Adding the Italian words would fix Italian and leave Japanese, Spanish and every
+ * other language where they were, which is the guessing this analyzer exists to stop.
+ *
+ * What can be known is whether a route name was ever read at all. Where a project
+ * authenticates — proved by a password-hashing package, which is nobody's choice of
+ * word — and none of `/login`, `/register`, `/signin` ever matched, its routes are
+ * named in something else. The reset search never had a chance, and "we could not
+ * read your routes" is a different sentence from "you have no reset".
+ *
+ * Blindness may turn a verdict into no verdict; it may never turn it into the
+ * opposite verdict. The same rule the report applies to a language it cannot parse,
+ * applied to a vocabulary it cannot read.
+ */
+function routesWentUnread(analysis: ProjectAnalysis): boolean {
+  return detector(analysis, 'auth.core')?.present === true
+    && detector(analysis, 'auth.routesAreReadable')?.present === false;
+}
+
 function detector(analysis: ProjectAnalysis, key: string): DetectorResult | undefined {
   return analysis.detectors[key];
 }
@@ -49,10 +74,12 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
       const managedOnly = detector(analysis, 'auth.externalIdentityOnly')?.present === true;
       if (managedOnly && detector(analysis, 'auth.core')?.present === true) return 'not_applicable';
 
-      return 'missing';
+      return routesWentUnread(analysis) ? 'unknown' : 'missing';
     }
     case 'auth.email-verification': {
-      return detector(analysis, 'auth.emailVerification')?.present ? 'present' : 'missing';
+      if (detector(analysis, 'auth.emailVerification')?.present) return 'present';
+
+      return routesWentUnread(analysis) ? 'unknown' : 'missing';
     }
     case 'authz.roles': {
       /**
