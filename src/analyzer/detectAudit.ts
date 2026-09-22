@@ -27,11 +27,28 @@ const AUDIT_STORE = [
   /\bmodel\s+\w*Audit\w*\s*\{/i,
   /class\s+\w*Audit(?:Log|Event|Trail)\w*\b/i,
   /\b(audit_events?|audit_logs?|auditlog|audit_trail)\b/i,
+  /**
+   * A table declared through a migration or schema API rather than in SQL.
+   *
+   * `plausible/analytics` keeps its trail in `audit_entries`, created by an Ecto
+   * migration — `create table(:audit_entries, ...)` — and mapped by
+   * `schema "audit_entries"`. Neither is `CREATE TABLE`, and `entries` was not one of
+   * the nouns above, so a product that records every team and SSO change was reported
+   * as having no audit trail. The call is the framework's and the anchor: Ecto's
+   * `table(:x)` and `schema "x"`, Rails' `create_table :x`, Laravel's
+   * `Schema::create('x')`, knex's `createTable('x')` and drizzle's `pgTable('x')`. Only
+   * the table's name is the author's, and a table whose name says audit is one.
+   */
+  /\b(?:create_table|createTable|\w+Table|table|schema|Schema::create)\s*\(?\s*[:"'`]\w*audit\w*/i,
 ];
 
 /** Calls that write an entry. */
 const AUDIT_WRITE = [
   /\b(record|write|log|create|append|emit)[A-Z_]?\w*audit\w*\s*\(/i,
+  // plausible's repository wraps every audited change: `update_with_audit!(changeset,
+  // "team_updated", ...)`, `insert_with_audit!`, `delete_with_audit!`. Elixir and Ruby
+  // end a raising or asking call with `!` or `?`, and the verb is a persistence verb.
+  /\b(update|insert|delete|save|store|persist)[A-Z_]?\w*audit\w*[!?]?\s*\(/i,
   /\baudit[._]?(log|event|trail)\s*\(/i,
   /\bauditLog\s*\(/,
   /\blog_audit\b/i,
@@ -66,8 +83,57 @@ const WHEN_COLUMN = /\b\w*_?(date|at|time|timestamp)\b/i;
 /** How far apart the three may sit and still be one record: a generous struct or table. */
 const WITHIN_ONE_RECORD = 8;
 
-async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<DetectorEvidence[]> {
-  const found: DetectorEvidence[] = [];
+/**
+ * The change log that keeps the object as it was and as it became.
+ *
+ * `netbox-community/netbox` records every create, update and delete in `ObjectChange`:
+ * who, when, the request, and `prechange_data` beside `postchange_data`. It has no
+ * caller IP, so the signature above never fired, and nothing in it is called audit, so
+ * nothing else did either — a product whose changelog is one of its headline features
+ * was reported with half an audit trail on the strength of a request-id header.
+ *
+ * The state before and the state after, kept side by side, is the other signature. A
+ * domain model has no use for a copy of some other object's previous state; a record
+ * of what changed has no use for anything else. Snake case or `prechange` only, and
+ * generic payload nouns only: `oldState` and `newState` are what every reducer names its
+ * arguments, and `old_price` is a price. Not after a dot: netbox's data migrations read
+ * `objectchange.prechange_data` three times, and a line that reads the record is not
+ * where it is kept.
+ */
+const BEFORE_STATE = /(?<!\.)\b(?:pre_?change_?|before_?change_?|old_|before_)(?:data|values|snapshot|attributes)\b/i;
+const AFTER_STATE = /\b(?:post_?change_?|after_?change_?|new_|after_)(?:data|values|snapshot|attributes)\b/i;
+
+/** The name a record is declared under, looked for above the line that matched. */
+const RECORD_DECLARATION = /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:class|struct|model|data\s+class)\s+([A-Za-z_]\w*)/;
+
+interface ShapedRecords {
+  evidence: DetectorEvidence[];
+  /** Names of the records found, where they are distinctive enough to search for. */
+  names: string[];
+}
+
+/**
+ * The record's own name, when it is compound.
+ *
+ * netbox writes its change log from a signal handler — `instance.to_objectchange(action)`
+ * then `objectchange.save()` — and none of the write patterns know that word. The model
+ * that was found does, so its name is what to search for. Only a compound name: vaultwarden's
+ * is `Event`, and a search for every call mentioning an event is a search for every
+ * JavaScript handler in the repository. `ObjectChange` or `AuditEntry` names one thing.
+ */
+function distinctiveName(lines: string[], from: number): string | null {
+  for (let i = from; i >= 0 && i >= from - 200; i--) {
+    const match = RECORD_DECLARATION.exec(lines[i]);
+    if (!match) continue;
+    const name = match[1];
+    return /[a-z][A-Z]|_[a-z]/.test(name) ? name : null;
+  }
+  return null;
+}
+
+async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<ShapedRecords> {
+  const evidence: DetectorEvidence[] = [];
+  const names = new Set<string>();
 
   for (const file of files) {
     const text = await readTextFileSafe(ctx.root, file);
@@ -75,18 +141,19 @@ async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<
 
     const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
-      if (!CALLER_IP_COLUMN.test(lines[i])) continue;
+      const window = () => lines.slice(Math.max(0, i - WITHIN_ONE_RECORD), i + WITHIN_ONE_RECORD + 1).join('\n');
+      const whoWhenWhere = CALLER_IP_COLUMN.test(lines[i]) && ACTOR_COLUMN.test(window()) && WHEN_COLUMN.test(window());
+      const beforeAndAfter = BEFORE_STATE.test(lines[i]) && AFTER_STATE.test(window());
+      if (!whoWhenWhere && !beforeAndAfter) continue;
 
-      const record = lines.slice(Math.max(0, i - WITHIN_ONE_RECORD), i + WITHIN_ONE_RECORD + 1).join('\n');
-      if (!ACTOR_COLUMN.test(record) || !WHEN_COLUMN.test(record)) continue;
-
-      found.push({ type: 'snippet', value: lines[i].trim().slice(0, 200), file, line: i + 1 });
+      if (evidence.length < 5) evidence.push({ type: 'snippet', value: lines[i].trim().slice(0, 200), file, line: i + 1 });
+      const name = distinctiveName(lines, i);
+      if (name) names.add(name);
       break;
     }
-    if (found.length >= 5) break;
   }
 
-  return found;
+  return { evidence, names: [...names] };
 }
 
 export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
@@ -111,7 +178,8 @@ export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
   }
 
-  const shapedRecords = await auditShapedRecords(ctx, [...ctx.files.source, ...schemaFiles]);
+  const shaped = await auditShapedRecords(ctx, [...ctx.files.source, ...schemaFiles]);
+  const shapedRecords = shaped.evidence;
   for (const record of shapedRecords) evidence.push(record);
 
   /**
@@ -127,8 +195,15 @@ export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
    * word search over the most common noun in software; behind that gate it is the second
    * half of one specific finding.
    */
+  // The record's own name joins that search when it is compound (see `distinctiveName`):
+  // `to_objectchange(` and `objectchange.save()` are writes to netbox's change log. A
+  // line declaring the record is not a write to it.
+  const writeToNamedRecord = shaped.names.map((name) => {
+    const bare = name.replace(/_/g, '').toLowerCase();
+    return new RegExp(`^(?!\\s*(?:pub\\s+)?(?:class|struct|model|def|fn|import|from)\\b).*\\b\\w*${bare}(?:\\s*\\(|\\.save\\s*\\(|\\.objects\\.create\\s*\\()`, 'i');
+  });
   const unnamedWrites = shapedRecords.length > 0
-    ? await searchInFiles(ctx.root, ctx.files.source, [/\b(log|record|write|emit|create|append)_?[eE]vents?\s*\(/], 10)
+    ? await searchInFiles(ctx.root, ctx.files.source, [/\b(log|record|write|emit|create|append)_?[eE]vents?\s*\(/, ...writeToNamedRecord], 10)
     : [];
   for (const hit of unnamedWrites) {
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });

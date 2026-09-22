@@ -341,7 +341,7 @@
       "uploads.protection": "partial",
       "observability.health": "present",
       "observability.logging": "present",
-      "audit.baseline": "partial",
+      "audit.baseline": "present",
       "deployment.readiness": "present",
       "deployment.docker": "missing"
     }
@@ -399,7 +399,7 @@
       "uploads.protection": "not_applicable",
       "observability.health": "present",
       "observability.logging": "partial",
-      "audit.baseline": "missing",
+      "audit.baseline": "present",
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
