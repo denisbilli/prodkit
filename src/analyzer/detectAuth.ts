@@ -278,6 +278,22 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /\bTokenAuthentication\b|rest_framework\.authtoken/,
       /\bHasApiTokens\b|laravel\/sanctum/,
       /\bauthenticate_with_http_token\b/,
+      /**
+       * A type called ApiKey is a key you issue. A variable called apiKey is one you hold.
+       *
+       * That distinction is this whole list's subject, and the patterns above draw it
+       * with a header name, a store, or a hash. A statically typed backend draws it in
+       * the type system instead: `dani-garcia/vaultwarden` implements Bitwarden's
+       * organization API keys as `OrgApiKeyId` and `OrgApiKeyLoginJwtClaims` in
+       * `src/auth.rs`, and was told it offers no API keys.
+       *
+       * Declaring a type for something is modelling it, and nothing models a key it
+       * merely holds — a held key is a `String` read out of the environment. Capitalised
+       * because that is what distinguishes a type from a variable in Rust, Go, C#, Java
+       * and TypeScript alike.
+       */
+      /\b(struct|class|type|enum|interface|record)\s+\w*ApiKey/,
+      /\b\w*ApiKey(?:Id|Login|Claims|Entity|Model|Repository|Table)\b/,
     ],
     20
   );

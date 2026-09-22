@@ -238,7 +238,7 @@
       "auth.mfa": "present",
       "auth.password-reset": "present",
       "auth.email-verification": "present",
-      "auth.api-keys": "missing",
+      "auth.api-keys": "present",
       "authz.roles": "present",
       "authz.ownership": "present",
       "tenancy.organization": "present",

@@ -1,0 +1,11 @@
+[package]
+name = "vault"
+version = "1.34.0"
+edition = "2021"
+
+[dependencies]
+rocket = "0.5.1"
+diesel = { version = "2.2.4", features = ["postgres"] }
+argon2 = "0.5.3"
+governor = "0.6.3"
+jsonwebtoken = "9.3.0"
