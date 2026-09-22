@@ -1,0 +1,7 @@
+source "https://rubygems.org"
+
+gem "rails", "~> 7.2.1"
+gem "pg", "~> 1.5"
+gem "devise", "~> 4.9"
+gem "rack-attack", "~> 6.7"
+gem "bcrypt", "~> 3.1"

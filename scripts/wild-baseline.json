@@ -298,7 +298,7 @@
       "auth.email-verification": "missing",
       "b2c.onboarding": "present",
       "b2c.notifications": "partial",
-      "authz.ownership": "missing",
+      "authz.ownership": "present",
       "gdpr.consent": "missing",
       "gdpr.export": "missing",
       "gdpr.erasure": "present",

@@ -484,6 +484,27 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /@user_passes_test/,
       /get_queryset\([^)]*\)[\s\S]{0,120}filter\([^)]*user/,
       /\bis_visible_to\b/,
+      /**
+       * Rails checks ownership by comparing the row's foreign key to the signed-in user.
+       *
+       * The shapes above are Express and Django. `lobsters/lobsters` writes
+       * `if @message.recipient_user_id == @user.id` and
+       * `@message.author_user_id == @user.id` in its messages controller, and was told
+       * it has no per-record authorization at all.
+       *
+       * `<something>_user_id` is Rails' foreign-key convention rather than a name
+       * anybody picked, and comparing one is what an ownership check *is* — there is no
+       * other reason to test a row's user column against a value. The same line reads
+       * the same way in Python or PHP.
+       *
+       * The two gems are stronger still: `authorize @record` and `policy_scope` are
+       * Pundit's, `load_and_authorize_resource` and `can?` are CanCanCan's, and both
+       * libraries exist for this one question. Pundit's `authorize` takes no parentheses
+       * in Ruby, which is why the pattern above could not see it.
+       */
+      /\b\w*_user_id\s*[=!]==?\s*\S/,
+      /\bpolicy_scope\b|\bauthorize\s+@/,
+      /\bload_and_authorize_resource\b|\bcan\?\s*[:(]/,
     ],
     20
   );

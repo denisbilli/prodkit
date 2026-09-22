@@ -12,8 +12,15 @@
  * deletes the sources again. It needs the network, so it is not part of CI; run it
  * before a release that touches a detector.
  *
- *   node scripts/wild-check.mjs            compare against the baseline
- *   node scripts/wild-check.mjs --write    record the current behaviour as the baseline
+ *   node scripts/wild-check.mjs                compare against the baseline
+ *   node scripts/wild-check.mjs --only=plane   just that one repository
+ *   node scripts/wild-check.mjs --write        record the current behaviour as the baseline
+ *
+ * Clones are deleted as soon as they have been read, but the largest of them are several
+ * hundred megabytes and the analysis of one runs beside it. On a machine short of memory
+ * the whole set in one go can be killed part-way through; `--only` a few at a time is the
+ * way round it, and a killed run leaves its workspace behind under the system temp
+ * directory as `prodkit-wild-*`.
  */
 import { execFileSync } from 'child_process';
 import fs from 'fs';
