@@ -72,11 +72,27 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   for (const d of logDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
   for (const d of sentryDeps) evidence.push({ type: 'dependency', value: d, claim: 'logging' });
 
+  /**
+   * An import path is not a route.
+   *
+   * `import Health from 'typings/Health';` is a TypeScript type in Radarr's frontend,
+   * and `/Health'` matches the route pattern exactly as `/health` in a URL does. It
+   * was the evidence behind Radarr's passing health check — a false pass, which is
+   * the direction that raises a score rather than lowering one.
+   *
+   * Imports are good evidence elsewhere and are left alone there; this is the search
+   * for a *route*, and a module specifier is never one. Filtered inside the search so
+   * that a frontend full of them cannot spend the budget before a real route is
+   * reached.
+   */
+  const IMPORT_LINE = /^\s*(?:import\b|from\s+['"]|const\s+\{?[\w\s,}]*\}?\s*=\s*require\()/;
+
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
     [HEALTH_ROUTE, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
-    25
+    25,
+    (match) => !IMPORT_LINE.test(match.snippet),
   );
   /**
    * One search, three answers, so the claim is decided per hit rather than per search.

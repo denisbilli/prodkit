@@ -42,6 +42,22 @@ describe('the route, in every spelling', () => {
    * treats the dependency alone as enough; these are the same statement in another
    * manifest. Radarr goes from 74 to 76.
    */
+  /**
+   * And an import path is not a route. `import Health from 'typings/Health';` is a
+   * TypeScript type in Radarr's frontend, and `/Health'` matches the route pattern
+   * exactly as `/health` in a URL does — it was the evidence behind Radarr's passing
+   * health check. A false pass is the direction that raises a score rather than
+   * lowering one, which is why it is worth a rule of its own.
+   *
+   * Imports are good evidence elsewhere and are untouched there; this is the search
+   * for a *route*, and a module specifier is never one.
+   */
+  it('does not read an imported type called Health as a health endpoint', async () => {
+    const found = await finding('health-is-a-type-not-a-route', 'observability.health');
+
+    expect(found?.status).toBe('missing');
+  });
+
   it('reads the logging a .NET project declares', async () => {
     const found = await finding('dotnet-logs-with-nlog', 'observability.logging');
 
