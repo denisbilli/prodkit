@@ -388,7 +388,7 @@
       "tenancy.organization": "present",
       "tenancy.isolation": "present",
       "gdpr.consent": "present",
-      "gdpr.export": "present",
+      "gdpr.export": "missing",
       "gdpr.erasure": "present",
       "gdpr.retention": "missing",
       "billing.model": "missing",

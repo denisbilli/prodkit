@@ -11,7 +11,6 @@ defmodule AppWeb.Router do
 
     get "/settings", SettingsController, :index
     delete "/me", AuthController, :delete_me
-    get "/:domain/download/export", SiteController, :download_export
-    post "/:domain/export", StatsController, :csv_export
+    get "/settings/account/export", SettingsController, :download
   end
 end

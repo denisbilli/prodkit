@@ -68,23 +68,26 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       /export[_-]?(user|account|profile)\b/i,
       /download (your|my) data/i,
       /**
-       * A route whose path ends at export, whatever the framework's shape.
+       * A route whose path ends at export, below a path that names the person.
        *
        * The patterns above are all compound words — `exportUserData`, `user_export`,
-       * `export_account`. plausible's are `get "/:domain/download/export"` and
-       * `post "/:domain/export"`, where `export` is the last segment of a path and
-       * nothing is glued to it, so none of them matched.
+       * `export_account`. plane's is `workspaces/<slug>/user-activity/<uuid:user_id>/export/`,
+       * where `export` is the last segment of a path and nothing is glued to it.
        *
-       * Quoted and terminal, for the same reason `/status` is: `export` is a common verb
-       * and a common column, and the one thing it cannot be at the end of a quoted path
-       * is anything but an endpoint that hands data over.
+       * Terminal alone was not enough, and the wild check measured it the release it went
+       * in: open-webui gained an export from `/configs/export` and `/functions/export`,
+       * vaultwarden from an organisation's vault export, plausible from a site's statistics
+       * as CSV. Each of those hands data over, and none of it is the person's own — which
+       * is what article 20 is about and what this capability says it checks. So the path
+       * has to say whose: `me`, `my`, `self`, an account or a profile, or a user or member
+       * followed by the segment that picks one out. `/users/export` is an admin's list of
+       * everybody, not somebody's data.
        *
        * Except an import. `import { exportCSV } from "../export"` is a module path with
-       * the same shape as a route, and plane has five of them — the finding was right
-       * about plane and three of its five citations were not endpoints at all. A reader
-       * who opens the evidence and finds an import line stops believing the rest.
+       * the same shape as a route, and plane has five of them. A reader who opens the
+       * evidence and finds an import line stops believing the rest.
        */
-      /["'`][^"'`]*\/(?:download\/)?exports?\/?["'`]/i,
+      /["'`][^"'`]*\/(?:(?:me|my|self|accounts?|profiles?)(?:[-_]\w+)?|(?:users?|members?)(?:[-_]\w+)?\/[^"'`/]+)\/(?:[^"'`]*\/)?(?:download\/)?exports?\/?["'`]/i,
     ],
     20,
     (match) => !MODULE_IMPORT.test(match.snippet),
