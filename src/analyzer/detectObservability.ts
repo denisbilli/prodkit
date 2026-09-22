@@ -50,6 +50,26 @@ const ELIXIR_LOGGING_PACKAGES = ['logger_json', 'logger_file_backend', 'sentry']
  */
 const HEALTH_ROUTE = /\/(health|healthz|healthcheck|health[-_]check|readyz|livez|alive)\b/i;
 
+/**
+ * The other name for the same endpoint.
+ *
+ * `netbox-community/netbox` answers "is this thing up" at
+ * `path('api/status/', StatusView.as_view())` and was reported as having no health
+ * endpoint. `/status` is as much a convention as `/health` — it is what GitHub, Stripe
+ * and most status pages use — and the list above had five spellings of one word and
+ * none of the other.
+ *
+ * It is separate from `HEALTH_ROUTE` because it has to be quoted to count. `status` is
+ * also a field on nearly every JSON response ever written: measured across the fixture
+ * corpus, the unquoted form matched `{"status": "ok"}` and `"status": 200` in four
+ * fixtures, and the quoted form matches exactly two things — the one fixture with a real
+ * `/status` route, and netbox.
+ *
+ * `/orders/:id/status` is deliberately excluded: the path has to end there, or the
+ * status is a thing's rather than the service's.
+ */
+const SERVICE_STATUS_ROUTE = /["'`](?:\/(?:api\/)?(?:v\d\/)?status\/?|api\/(?:v\d\/)?status\/?)["'`]/;
+
 export async function detectObservability(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
   /**
@@ -98,7 +118,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [HEALTH_ROUTE, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
+    [HEALTH_ROUTE, SERVICE_STATUS_ROUTE, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
     25,
     (match) => !IMPORT_LINE.test(match.snippet),
   );
@@ -110,7 +130,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
    * is what the line is evidence of.
    */
   for (const m of hits) {
-    const claim = HEALTH_ROUTE.test(m.snippet)
+    const claim = HEALTH_ROUTE.test(m.snippet) || SERVICE_STATUS_ROUTE.test(m.snippet)
       ? 'health'
       : /x-request-id|correlation-id/i.test(m.snippet)
         ? 'request-id'
@@ -182,7 +202,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hasHealth = declaredProbes.length > 0
     || healthFiles.length > 0
     || actuator.length > 0
-    || hits.some((h) => HEALTH_ROUTE.test(h.snippet));
+    || hits.some((h) => HEALTH_ROUTE.test(h.snippet) || SERVICE_STATUS_ROUTE.test(h.snippet));
   /**
    * Whether one log line can be tied to the request that produced it.
    *

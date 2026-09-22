@@ -339,7 +339,7 @@
       "security.cors": "present",
       "security.rate-limit": "missing",
       "uploads.protection": "partial",
-      "observability.health": "missing",
+      "observability.health": "present",
       "observability.logging": "present",
       "audit.baseline": "partial",
       "deployment.readiness": "present",
