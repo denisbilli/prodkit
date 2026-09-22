@@ -260,6 +260,24 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /api[_-]?keys?\s*\.\s*(find|where|get|create)/i,
       /hashed?[_-]?(api[_-]?)?key/i,
       /token\s*scope/i,
+      /**
+       * A scheme the framework names, where the project need not say "api key" at all.
+       *
+       * netbox issues API tokens — a `Token` model in `users/models/tokens.py`, and
+       * `'netbox.api.authentication.TokenAuthentication'` listed in DRF's
+       * `DEFAULT_AUTHENTICATION_CLASSES` — and was told it offers no API keys. It is the
+       * primary way anything talks to NetBox.
+       *
+       * None of the patterns above could see it: they look for `x-api-key`, a store of
+       * keys, or a hashed one, and DRF's scheme is a class name in a settings tuple. The
+       * name belongs to the framework — `TokenAuthentication` is DRF's base class,
+       * `authtoken` its app, `HasApiTokens` is Laravel Sanctum's trait and
+       * `authenticate_with_http_token` is Rails'. Each says a caller presents a token it
+       * was issued, which is the question.
+       */
+      /\bTokenAuthentication\b|rest_framework\.authtoken/,
+      /\bHasApiTokens\b|laravel\/sanctum/,
+      /\bauthenticate_with_http_token\b/,
     ],
     20
   );

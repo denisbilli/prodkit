@@ -324,7 +324,7 @@
       "auth.mfa": "missing",
       "auth.password-reset": "missing",
       "auth.email-verification": "missing",
-      "auth.api-keys": "missing",
+      "auth.api-keys": "present",
       "authz.roles": "present",
       "authz.ownership": "present",
       "tenancy.organization": "present",
