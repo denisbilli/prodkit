@@ -122,10 +122,42 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
   const documentationSite = docsGenerators.length > 0 || frontendAllInDocs;
 
   const licenseFiles = collect(all, LICENSE_FILE);
-  const declaredLicense = typeof (ctx.packageJson as { license?: unknown } | null)?.license === 'string';
+  /**
+   * The manifest that declares the licence is not always the one at the root.
+   *
+   * This read `ctx.packageJson.license` and nothing else, so excalidraw — a LICENSE file
+   * at the root and `"license": "MIT"` in every one of its published packages — came out
+   * `partial`, told to declare a licence it declares nine times. Its root manifest is
+   * `private: true`: it is the workspace, not a package, and npm would refuse to publish
+   * it. A manifest that is never published has no licence field to be missing.
+   *
+   * So: any workspace manifest naming a licence answers it, and a private root is not
+   * asked for one. The LICENSE file is still required either way — the field alone
+   * tells a human nothing about the terms.
+   *
+   * `private: true` excuses the missing field; it does not supply a licence. A
+   * repository with a private root, no LICENSE and no field anywhere is unlicensed, and
+   * saying otherwise would be the one direction this must never move a verdict.
+   */
+  const workspaceManifests = all.filter(
+    (file) => /(^|\/)package\.json$/.test(file) && !/(^|\/)node_modules\//.test(file) && file !== 'package.json',
+  );
+  let workspaceLicense: string | undefined;
+  for (const file of workspaceManifests.slice(0, 50)) {
+    const manifest = await readJsonSafe<{ license?: unknown }>(ctx.root, file);
+    if (typeof manifest?.license === 'string') {
+      workspaceLicense = file;
+      break;
+    }
+  }
+  const rootIsPrivate = (ctx.packageJson as { private?: unknown } | null)?.private === true;
+  const rootLicense = typeof (ctx.packageJson as { license?: unknown } | null)?.license === 'string';
+  const namesALicense = rootLicense || workspaceLicense !== undefined;
+  const declaredLicense = namesALicense || (rootIsPrivate && licenseFiles.length > 0);
   const licenseEvidence: DetectorEvidence[] = [
     ...licenseFiles.map((file) => ({ type: 'file' as const, value: file, file })),
-    ...(declaredLicense ? [{ type: 'note' as const, value: 'a license field in package.json' }] : []),
+    ...(rootLicense ? [{ type: 'note' as const, value: 'a license field in package.json' }] : []),
+    ...(workspaceLicense ? [{ type: 'note' as const, value: `a license field in ${workspaceLicense}`, file: workspaceLicense }] : []),
   ];
 
   const readmeFiles = collect(all, README_FILE);

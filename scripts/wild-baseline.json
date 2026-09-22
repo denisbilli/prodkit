@@ -148,7 +148,7 @@
     "capabilities": {
       "packaging.metadata": "present",
       "packaging.entrypoints": "present",
-      "packaging.license": "partial",
+      "packaging.license": "present",
       "docs.readme": "present",
       "quality.tests": "present",
       "quality.ci": "present",
