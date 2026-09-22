@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGoDep, hasAnyGradleDep } from './detectContext';
+import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGoDep, hasAnyGradleDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { searchedFor } from './absenceEvidence';
 import { readPackageValueUses } from './structural/valuesFromPackage';
@@ -183,7 +183,45 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
     || healthFiles.length > 0
     || actuator.length > 0
     || hits.some((h) => HEALTH_ROUTE.test(h.snippet));
-  const hasReqId = hits.some((h) => /x-request-id|correlation-id/i.test(h.snippet));
+  /**
+   * Whether one log line can be tied to the request that produced it.
+   *
+   * This read `x-request-id|correlation-id` over the snippets the health-and-logging
+   * search had already collected — two hyphenated spellings, inside a search that was
+   * looking for something else. Five of the seven repositories in `npm run wild` came
+   * out `observability.logging: partial` on it, and cal.com is the case that shows why:
+   * `packages/lib/tracing/index.ts` builds `traceId`, `spanId` and `parentSpanId` for
+   * every operation and threads them through a `tslog` logger. It correlates. It just
+   * does not spell it with a hyphen, and nothing was looking in that file anyway.
+   *
+   * The two anchors below are not words anybody chose. `traceparent` and `x-b3-traceid`
+   * are wire formats — W3C Trace Context and B3 — and `spanId` beside `traceId` is
+   * OpenTelemetry's own vocabulary: a span is not a thing people name by accident, and
+   * requiring it keeps `traceId` from matching the identifier Stripe and AWS hand back
+   * on an unrelated call.
+   */
+  const CORRELATION = [
+    /x-request-id|x-correlation-id|\bcorrelation[-_]?id\b/i,
+    /\btraceparent\b|x-b3-traceid|x-amzn-trace-id/i,
+    /\bspan[-_]?id\b/i,
+    /@opentelemetry\/|\btrace\.getActiveSpan\b|\bSpanContext\b/,
+  ];
+  const correlationHits = await searchInFiles(ctx.root, ctx.files.source, CORRELATION, 10);
+  const correlationDeps = hasAnyDep(ctx, [
+    'cls-rtracer', 'express-request-id', 'pino-http', 'nestjs-pino', '@opentelemetry/api', '@opentelemetry/sdk-node',
+  ]);
+  const correlationPyDeps = hasAnyPyDep(ctx, ['django-guid', 'asgi-correlation-id', 'opentelemetry-api', 'opentelemetry-sdk']);
+
+  const hasReqId = correlationHits.length > 0
+    || correlationDeps.length + correlationPyDeps.length > 0
+    || hits.some((h) => /x-request-id|correlation-id/i.test(h.snippet));
+
+  for (const hit of correlationHits.slice(0, 3)) {
+    evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line, claim: 'logging' });
+  }
+  for (const dep of [...correlationDeps, ...correlationPyDeps]) {
+    evidence.push({ type: 'dependency', value: dep, claim: 'logging' });
+  }
 
   // Structured logging without a logging library is still structured logging. What
   // matters is that entries are machine-readable and correlated, not which package
