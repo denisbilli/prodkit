@@ -5,19 +5,52 @@ on:
     branches: [main]
   pull_request:
 
+# A second push to main while the first is still verifying makes the first answer
+# worthless: nobody reads a green tick for a commit that is no longer the head.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Enough history for `git tag --points-at HEAD` to see the tags.
+          fetch-depth: 0
+
+      # Release runs `npm run build`, `npm run lint`, the test typecheck and `npm test`
+      # on the same commit, before it publishes anything. When a release tag points at
+      # this commit, everything below is that work done twice, on a runner whose minutes
+      # are a paid monthly allowance.
+      #
+      # The steps are skipped rather than the workflow, because a required check that
+      # never runs is a check that never passes.
+      - id: release
+        run: |
+          set -euo pipefail
+          if git tag --points-at HEAD | grep -q '^v'; then
+            echo "Release is verifying this commit; skipping the duplicate run."
+            echo "covered=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "covered=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.release.outputs.covered != 'true'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        if: steps.release.outputs.covered != 'true'
       - run: npm run build
+        if: steps.release.outputs.covered != 'true'
       - run: npm run lint
+        if: steps.release.outputs.covered != 'true'
       # Separate from the build: tsc -p tsconfig.json emits, and the test sources are
       # only checked by the test config.
       - run: npx tsc --noEmit -p tsconfig.test.json
+        if: steps.release.outputs.covered != 'true'
       - run: npm test
+        if: steps.release.outputs.covered != 'true'
