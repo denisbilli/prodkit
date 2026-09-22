@@ -618,11 +618,51 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * first parameter is the request whatever its author called it. The rest is
    * structure and needs no vocabulary at all.
    */
+  /**
+   * Hashing a password is authentication, whatever the manifest says.
+   *
+   * `auth.core` rested on three things: a package on a list, a route named in English,
+   * or a platform identity service. `gotify/server` has none of them — its Go module
+   * requires `golang.org/x/crypto`, which is not an auth package but a hundred
+   * different ones, and its routes are `/client`, `/application` and `/message`. It was
+   * reported as having nothing to sign in to, and the profile that follows from that
+   * was `client-app`: a notification server with users, tokens and a database, judged
+   * as a program somebody installs.
+   *
+   * What it does have is `bcrypt.GenerateFromPassword` and
+   * `bcrypt.CompareHashAndPassword` in `auth/password/password.go`. Those names belong
+   * to the library, not to gotify, and the same is true of every entry below:
+   * `password_hash` and `password_verify` are PHP's own, `has_secure_password` is
+   * Rails', `BCryptPasswordEncoder` is Spring Security's, `PasswordHasher<T>` is
+   * ASP.NET's, `make_password` and `check_password` are Django's.
+   *
+   * A program that hashes a password has somebody to sign in. There is no other reason
+   * to call these.
+   */
+  const passwordHashing = await searchInFiles(
+    ctx.root,
+    sourceFiles,
+    [
+      /\bbcrypt\.(GenerateFromPassword|CompareHashAndPassword)\b/,
+      /golang\.org\/x\/crypto\/(bcrypt|argon2|scrypt|pbkdf2)/,
+      /\bargon2\.IDKey\b|\bscrypt\.Key\(/,
+      /\bpassword_hash\s*\(|\bpassword_verify\s*\(/,
+      /\bhas_secure_password\b|\bBCrypt::Password\b/,
+      /\bBCryptPasswordEncoder\b|\bPasswordEncoder\b/,
+      /\bPasswordHasher\s*<|\bRfc2898DeriveBytes\b/,
+      /\bmake_password\s*\(|\bcheck_password(_hash)?\s*\(/,
+    ],
+    10,
+  );
+
   const structuralOwnership = await readOwnershipChecks(ctx.root, sourceFiles);
   const ownershipUnasked =
     wentUnasked(structuralOwnership, sourceFiles) && (await anyFileImportsExpress(ctx.root, sourceFiles));
 
-  const hasAuth = authDeps.length > 0 || routeSignals.length > 0 || platformIdentity.length > 0;
+  const hasAuth = authDeps.length > 0
+    || routeSignals.length > 0
+    || platformIdentity.length > 0
+    || passwordHashing.length > 0;
   const hasAuthz = permissionSignals.length > 0 || roleSignals.length > 0;
   const b2bHint = b2bSignals.length > 0;
   const hasOrganization = organizationSignals.length > 0;

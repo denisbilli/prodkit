@@ -1,5 +1,5 @@
 {
-  "note": "Real repositories, cloned shallow, measured, and deleted again. The fixture corpus cannot see a pattern that no fixture happens to write: `destination:\\s*\\w` went in at 1.27.0 with 0 changes across 234 fixtures and inferred three B2B products as marketplaces, because no fixture writes a Next.js redirect. These are the counterweight. Sources are deleted after each run.",
+  "note": "Real repositories, cloned shallow, measured, and deleted again. The fixture corpus cannot see a pattern that no fixture happens to write: `destination:\\s*\\w` went in at 1.27.0 with 0 changes across 234 fixtures and inferred three B2B products as marketplaces, because no fixture writes a Next.js redirect. These are the counterweight. Sources are deleted after each run. Language coverage matters as much as product coverage: the detectors carry rules for Go, Rust, PHP, Ruby and .NET that no JavaScript or Python repository can exercise, and every one of those rules was written for a real repository that is named in the comment beside it. Those repositories are here so the rule stays measured.",
   "repos": [
     {
       "repo": "documenso/documenso",
@@ -28,6 +28,26 @@
     {
       "repo": "open-webui/open-webui",
       "is": "a model chat interface; the set had no product whose main job is inference"
+    },
+    {
+      "repo": "gotify/server",
+      "is": "Go notification server; the Go logging and health rules were written for it. Open: inferred client-app. Its authentication is now seen \u2014 bcrypt.GenerateFromPassword in auth/password/password.go \u2014 but client-app still wins on `clientLogic`, because the React admin SPA holds state in the browser and `accounts to manage` only weighs -1 against it. Changing those weights moves every profile, so it needs its own measurement, not a nudge here."
+    },
+    {
+      "repo": "dani-garcia/vaultwarden",
+      "is": "Rust password server; the Rust rate-limiting rule was written for it"
+    },
+    {
+      "repo": "monicahq/monica",
+      "is": "PHP/Laravel personal CRM; the Laravel throttle alias and the per-request runtime rule were written for it"
+    },
+    {
+      "repo": "lobsters/lobsters",
+      "is": "Ruby on Rails link aggregator; the rack-attack rule was written for it"
+    },
+    {
+      "repo": "netbox-community/netbox",
+      "is": "Django infrastructure database; a second Django shape beside plane"
     }
   ]
 }
