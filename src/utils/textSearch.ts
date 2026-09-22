@@ -104,15 +104,39 @@ const NAMES_SOMETHING = /^["']?(?:name|key|label|id|title|field|env|variable)["'
  */
 const HTTP_HEADER_NAME = /^[A-Z][A-Za-z0-9]*(?:-[A-Z][A-Za-z0-9]*)+$/;
 
+/**
+ * What is left when a constant's value is taken out of its own name.
+ *
+ * Stirling-PDF stores a user's second factor under a key, and declares that key as
+ * `public static final String MFA_SECRET_KEY = "mfaSecret";`. Normalised, the name is
+ * the value plus `key` — it says what the string is *for*. That line was the one
+ * `critical` in the report of a careful product: the loudest severity there is, about
+ * a map key.
+ *
+ * A real secret is never its own name. `JWT_SECRET = "jwtSecret"` is somebody naming
+ * a slot; the value that matters is random and lives in the environment.
+ */
+const NAME_PLUS_WHAT_IT_IS = /^(?:key|name|field|prop|property|attr|attribute|header|param|id|label|const|setting|option)$/;
+
 function spellsItsOwnName(trimmed: string): boolean {
   const withoutComment = trimmed.replace(/\s*(\/\/|#).*$/, '').replace(/[,;]\s*$/, '');
-  const assignment = /^(?:(?:public|private|protected|internal|export|const|let|var|final|static|readonly|string)\s+)*([A-Za-z_][\w.]*)\s*(?::\s*[\w<>[\].]+)?\s*=\s*(['"`])([^'"`]+)\2$/.exec(withoutComment);
+  /**
+   * The type sits between the modifiers and the name in Java, C# and Go, and it is
+   * spelled however that language spells it — `String`, not `string`. Listing the
+   * declarators alone missed `public static final String MFA_SECRET_KEY = "mfaSecret"`
+   * entirely, so one optional word is allowed there instead of a list that would
+   * always be short of somebody's type.
+   */
+  const assignment = /^(?:(?:public|private|protected|internal|export|const|let|var|final|static|readonly)\s+)*(?:[A-Za-z_][\w.<>[\]]*\s+)?([A-Za-z_][\w.]*)\s*(?::\s*[\w<>[\].]+)?\s*=\s*(['"`])([^'"`]+)\2$/.exec(withoutComment);
   if (!assignment) return false;
 
   const plain = (value: string) => value.toLowerCase().replace(/[-_.\s]/g, '');
   const declared = /^\s*(?:public|private|protected|internal|export|const|let|var|final|static|readonly)\b/.test(withoutComment);
+  const name = plain(assignment[1]);
+  const literal = plain(assignment[3]);
 
-  return plain(assignment[1]) === plain(assignment[3])
+  return name === literal
+    || (declared && NAME_PLUS_WHAT_IT_IS.test(name.replace(literal, '')) && name.includes(literal))
     || (declared && HTTP_HEADER_NAME.test(assignment[3]));
 }
 

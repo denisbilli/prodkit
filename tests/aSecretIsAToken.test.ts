@@ -40,6 +40,27 @@ describe('a secret is a token', () => {
    * `config/runtime.exs` and neither of the other two. supabase/realtime keeps
    * `metrics_jwt_secret: "test"` there and it was the one `critical` in its report.
    */
+  /**
+   * A constant whose name is its value plus what it is for is naming a slot.
+   *
+   * Stirling-PDF stores a user's second factor under a key and declares that key as
+   * `public static final String MFA_SECRET_KEY = "mfaSecret";`. Normalised, the name
+   * is the value plus `key`. That line was the one `critical` in the report of a
+   * careful product — the loudest severity there is, about a map key — and it took
+   * the score from 80 to 65.
+   *
+   * A real secret is never its own name: `JWT_SECRET = "jwtSecret"` is somebody
+   * naming a slot, while the value that matters is random and lives in the
+   * environment. The type had to be allowed for as well; the first version listed
+   * declarators and missed `String` for being capitalised, which is how Java, C# and
+   * Go all spell theirs.
+   */
+  it('does not read a constant naming a settings key as a secret', async () => {
+    const found = await weakSecret('java-names-a-settings-key');
+
+    expect(found?.status).toBe('passed');
+  });
+
   it('does not read the test environment config as production', async () => {
     const found = await weakSecret('mix-test-config');
 
