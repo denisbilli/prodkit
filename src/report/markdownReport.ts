@@ -303,6 +303,18 @@ export function renderMarkdown(report: ProductionReadinessReport): string {
     ...(describeReadingDepth(report.diagnostics.readingDepth, report.diagnostics.parsedStructure)
       ? [`- ${describeReadingDepth(report.diagnostics.readingDepth, report.diagnostics.parsedStructure)}`]
       : []),
+    /**
+     * A vocabulary this could not read, said out loud.
+     *
+     * Four capabilities are found by the English words their routes are usually
+     * given. Where a project authenticates and no route name was ever read, those
+     * questions go unanswered rather than answered wrongly — and a reader whose
+     * routes are `/accedi` and `/recupero-password` is entitled to know that is what
+     * happened, instead of finding four questions quietly absent.
+     */
+    ...(report.diagnostics.routeNamesUnread
+      ? ['- No route name in this repository matched /login, /register or /signin, so password reset, email verification, personal data export and erasure were not assessed: those are found by the words a route is given, and this project gives them others.']
+      : []),
     `- Expectation mode: ${report.diagnostics.expectationMode}`,
     `- ProdKit version: ${report.diagnostics.prodkitVersion}`,
     `- Detector diagnostics: ${report.diagnostics.detectors.filter((d) => d.status === 'completed').length} completed / ${report.diagnostics.detectors.filter((d) => d.status === 'skipped').length} skipped`,

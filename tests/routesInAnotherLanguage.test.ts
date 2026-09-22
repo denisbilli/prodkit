@@ -2,6 +2,7 @@ import * as path from 'path';
 import { describe, expect, it } from 'vitest';
 import { analyzeProject } from '../src/analyzer/analyzeProject';
 import { buildReport } from '../src/report/buildReport';
+import { renderMarkdown } from '../src/report/markdownReport';
 
 const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
 
@@ -44,5 +45,29 @@ describe('routes in another language', () => {
    */
   it('still says missing when the routes were readable and had no reset', async () => {
     expect((await reset('saas-with-nothing-but-login'))?.status).toBe('missing');
+  });
+
+  /**
+   * And it says so out loud, which is the half that nearly shipped missing.
+   *
+   * Withdrawing the claim is only right if the reader learns why. A withdrawn
+   * expectation emits no finding at all — `shouldCreateFinding` drops every `unknown`
+   * — so the report of a project whose routes are `/accedi` and `/recupero-password`
+   * had four questions simply absent from it, with nothing saying they had been
+   * asked and not answered. The note sits beside the reading-depth line, which exists
+   * for exactly the same reason one capability up.
+   */
+  it('tells the reader that the routes are why four questions went unanswered', async () => {
+    const report = buildReport(await analyzeProject(fixture('routes-in-another-language')), { profile: 'b2b-saas' });
+
+    expect(report.diagnostics.routeNamesUnread).toBe(true);
+    expect(renderMarkdown(report)).toMatch(/No route name in this repository matched/);
+  });
+
+  it('says nothing of the sort when the routes were readable', async () => {
+    const report = buildReport(await analyzeProject(fixture('saas-with-nothing-but-login')), { profile: 'b2b-saas' });
+
+    expect(report.diagnostics.routeNamesUnread).toBe(false);
+    expect(renderMarkdown(report)).not.toMatch(/No route name in this repository matched/);
   });
 });

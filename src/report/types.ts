@@ -105,6 +105,19 @@ export interface ReportDiagnostics {
    */
   readingDepth: LanguageReading[];
   /**
+   * Whether a route name was ever read in this project, where it authenticates.
+   *
+   * Four capabilities — password reset, email verification, personal data export and
+   * erasure — are found by the English words their routes are usually given. Where
+   * none of `/login`, `/register` or `/signin` ever matched, those searches could not
+   * reach this project's vocabulary and answer `unknown` instead of `missing`.
+   *
+   * Withdrawing the claim silently would be its own failure: the reader of a project
+   * whose routes are `/accedi` and `/recupero-password` would see four questions
+   * simply absent, with nothing saying why. This is what the report says instead.
+   */
+  routeNamesUnread: boolean;
+  /**
    * Whether the optional TypeScript compiler was loaded for this reading.
    *
    * Two readings with the same `readingDepth` list are not the same reading: JavaScript

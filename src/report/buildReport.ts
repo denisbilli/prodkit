@@ -503,6 +503,8 @@ export function buildReport(analysis: ProjectAnalysis, options?: BuildReportOpti
      * presented with the same confidence.
      */
     readingDepth: readingDepths(analysis.files.source, analysis.files.unreadable, analysis.parsedStructure),
+    routeNamesUnread: analysis.detectors['auth.core']?.present === true
+      && analysis.detectors['auth.routesAreReadable']?.present === false,
     parsedStructure: analysis.parsedStructure,
     detectors: detectorDiagnostics(analysis),
     selectedProfile: requestedProfile,
