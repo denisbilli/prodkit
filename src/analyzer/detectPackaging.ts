@@ -349,7 +349,10 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
 
     for (const file of goFiles.slice(0, 80)) {
       const raw = (await readTextFileSafe(ctx.root, file)) ?? '';
-      if (/^\s*package\s+main\s*$/m.test(raw)) { sawMain = true; break; }
+      // At column 0 only: gofmt puts the package clause there, and an indented one is an
+      // example inside a comment — gin's doc.go shows `\tpackage main` to explain usage,
+      // and read as a program.
+      if (/^package\s+main\s*$/m.test(raw)) { sawMain = true; break; }
     }
 
     goLibrary = goFiles.length > 0 && !sawMain;

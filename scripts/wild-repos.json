@@ -152,6 +152,10 @@
     {
       "repo": "tokio-rs/axum",
       "is": "Rust web framework; library crates that depend on hyper, servers only under examples, and test pages in test_files"
+    },
+    {
+      "repo": "gin-gonic/gin",
+      "is": "Go web framework; net/http everywhere, no main package outside a doc comment, and a LICENSE"
     }
   ]
 }

@@ -105,10 +105,12 @@ export interface ProfileFacts {
  * structure: a crate with `src/lib.rs` and no `src/main.rs` or `src/bin/` builds nothing
  * anybody starts. Examples and docs do not count.
  *
- * Go was tried with the same rule — a module with no `package main` — and measured
- * against the fixture corpus it turned thirteen Go fragments, `go-server-that-hashes-
- * passwords` among them, into libraries: a fixture is a slice of a server and seldom
- * carries its `main`. No real repository has shown the Go case yet, so it waits for one.
+ * Go's is a module with no `package main` — and a licence. Without the licence the rule
+ * turned thirteen Go fragments in the fixture corpus, `go-server-that-hashes-passwords`
+ * among them, into libraries: a fixture is a slice of a server and seldom carries its
+ * `main`. gin is the real case: a web framework with `net/http` everywhere, no `main`, and
+ * a LICENSE — which pkg.go.dev requires before it will show a module's documentation, so a
+ * Go module meant for others to import has one.
  */
 function buildsNothingToRun(analysis: ProjectAnalysis): boolean {
   const files = analysis.files.all.filter((file) => !DOCS_DIRECTORIES.test(file) && !/(^|\/)(tests?|benches|fuzz)\//.test(file));
@@ -118,7 +120,8 @@ function buildsNothingToRun(analysis: ProjectAnalysis): boolean {
     const libraries = files.some((file) => /(^|\/)src\/lib\.rs$/.test(file));
     return libraries && !binaries;
   }
-  return false;
+  return analysis.detectors['packaging.entrypoints']?.details?.goLibrary === true
+    && analysis.detectors['packaging.license']?.present === true;
 }
 
 /**
