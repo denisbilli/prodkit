@@ -148,6 +148,10 @@
     {
       "repo": "spf13/cobra",
       "is": "Go CLI library; typed by its language, licensed by its LICENSE file, tested by go test, the first Go library here"
+    },
+    {
+      "repo": "tokio-rs/axum",
+      "is": "Rust web framework; library crates that depend on hyper, servers only under examples, and test pages in test_files"
     }
   ]
 }

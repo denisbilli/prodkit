@@ -1,0 +1,9 @@
+[package]
+name = "example-hello"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+webkit = { path = "../../webkit" }
+tokio = { version = "1", features = ["full"] }

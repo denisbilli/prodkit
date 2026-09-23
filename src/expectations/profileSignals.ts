@@ -96,6 +96,32 @@ export interface ProfileFacts {
 
 
 /**
+ * A repository whose code compiles to libraries and to nothing that runs.
+ *
+ * `tokio-rs/axum` is a web framework: its crates depend on hyper and tower-http because
+ * serving HTTP is their subject, and it came out as a consumer application at high
+ * confidence, judged for password resets and GDPR erasure. Its servers are all under
+ * `examples/`. In Rust whether something runs is not a matter of dependencies but of
+ * structure: a crate with `src/lib.rs` and no `src/main.rs` or `src/bin/` builds nothing
+ * anybody starts. Examples and docs do not count.
+ *
+ * Go was tried with the same rule — a module with no `package main` — and measured
+ * against the fixture corpus it turned thirteen Go fragments, `go-server-that-hashes-
+ * passwords` among them, into libraries: a fixture is a slice of a server and seldom
+ * carries its `main`. No real repository has shown the Go case yet, so it waits for one.
+ */
+function buildsNothingToRun(analysis: ProjectAnalysis): boolean {
+  const files = analysis.files.all.filter((file) => !DOCS_DIRECTORIES.test(file) && !/(^|\/)(tests?|benches|fuzz)\//.test(file));
+  const crates = files.filter((file) => /(^|\/)Cargo\.toml$/.test(file));
+  if (crates.length > 0) {
+    const binaries = files.some((file) => /(^|\/)src\/(main\.rs|bin\/)/.test(file));
+    const libraries = files.some((file) => /(^|\/)src\/lib\.rs$/.test(file));
+    return libraries && !binaries;
+  }
+  return false;
+}
+
+/**
  * Whether any backend in this repository belongs to the product.
  *
  * A workspace under `docs/`, `playground/` or `examples/` that runs a server is running
@@ -107,6 +133,7 @@ export interface ProfileFacts {
  */
 function hasProductBackend(analysis: ProjectAnalysis): boolean {
   if (analysis.stack.backend.length === 0) return false;
+  if (buildsNothingToRun(analysis)) return false;
 
   const withBackend = analysis.workspaceStacks.filter((workspace) => workspace.backend.length > 0);
   if (withBackend.length === 0) return true;

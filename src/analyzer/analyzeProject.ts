@@ -193,7 +193,12 @@ function isTestOrExamplePath(file: string): boolean {
 
   const layout = layoutPartOf(file);
 
-  return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test-data|fixtures?|frontend-example)(\/|$)/i.test(layout)
+  return /(^|\/)(__tests__|__mocks__|mocks?|tests?|test[-_]?(?:data|files)|fixtures?|frontend-example)(\/|$)/i.test(layout)
+    /*
+     * `test_files/` and `testdata/` too. Go's toolchain ignores `testdata` by rule, and
+     * axum keeps two HTML pages in `axum-extra/test_files/` to test its static-file
+     * service — which made a Rust web framework's front end its product.
+     */
     /**
      * The conventions other ecosystems use, which this list did not know.
      *

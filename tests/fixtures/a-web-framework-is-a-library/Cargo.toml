@@ -1,0 +1,3 @@
+[workspace]
+members = ["webkit", "examples/*"]
+resolver = "2"
