@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGradleDep, hasAnyPyDep, hasAnyRustDep } from './detectContext';
+import { hasAnyDep, hasAnyDotnetDep, hasAnyElixirDep, hasAnyGoDep, hasAnyGradleDep, hasAnyPhpDep, hasAnyPyDep, hasAnyRubyDep, hasAnyRustDep } from './detectContext';
 import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readRoleChecks } from './structural/roleChecks';
 import { evidenceOrSearch, searchedFor } from './absenceEvidence';
@@ -166,6 +166,22 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...hasAnyDep(ctx, ['speakeasy', 'pyotp', '@simplewebauthn/server', 'otplib']),
     /** `nimble_totp` is the Elixir one, and plausible ships it. */
     ...hasAnyElixirDep(ctx, ['nimble_totp']),
+    /**
+     * The TOTP library of every other ecosystem, named by its registry.
+     *
+     * The second-factor search also read `otp` as a word, and a word is what it matched:
+     * hoppscotch's desktop agent pairs with the app through a one-time code and was
+     * credited with a second factor it does not have. Dropping the word took two real
+     * ones away — listmonk verifies with `github.com/pquerna/otp`, traccar with
+     * `com.warrenstrange:googleauth` — so the packages are the anchor instead.
+     */
+    ...hasAnyGoDep(ctx, ['github.com/pquerna/otp', 'github.com/xlzd/gotp']),
+    ...hasAnyGradleDep(ctx, ['com.warrenstrange:googleauth', 'dev.samstevens.totp:totp', 'com.eatthepath:java-otp']),
+    ...hasAnyRubyDep(ctx, ['rotp', 'devise-two-factor']),
+    ...hasAnyPhpDep(ctx, ['pragmarx/google2fa', 'spomky-labs/otphp', 'scheb/2fa-bundle', 'scheb/2fa-totp']),
+    ...hasAnyDotnetDep(ctx, ['Otp.NET']),
+    ...hasAnyRustDep(ctx, ['totp-rs']),
+    ...hasAnyPyDep(ctx, ['django-otp']),
   ];
 
   const routeSignals = await searchInFiles(
@@ -229,19 +245,6 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   ];
   const platformIdentity = await searchInFiles(ctx.root, sourceFiles, PLATFORM_IDENTITY, 10);
 
-  /**
-   * `otp` as a word, not as three letters inside another one.
-   *
-   * `/otp/i` matched `VarError::NotPresent` and `PandasUseOfDotPivotOrUpdate` — N-**otp**-resent
-   * and D-**otp**-ivot — so a Rust linter was credited with two-factor authentication.
-   * Two of the three signals behind that reading were substring collisions of this kind.
-   *
-   * Word boundaries in the languages people actually write: delimited by a non-letter
-   * (`otp_secret`, `verify(otp)`), or the capital that starts a camelCase word
-   * (`verifyOtp`, `otpCode`). `pyotp` no longer matches here and does not need to: it is
-   * a dependency, and dependencies are read from the manifest above.
-   */
-  const OTP_AS_A_WORD = /(?:^|[^a-z])t?otp(?:[^a-z]|$)|[a-z_](?:Otp|OTP|Totp|TOTP)/;
 
   /**
    * A picture of a padlock is not a padlock.
@@ -263,14 +266,28 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * `GenerateTwoFactorTokenAsync` — are left alone, and they are what a real one has.
    */
   const IDENTITY_COLUMN = /\bTwoFactorEnabled\b/g;
+  /**
+   * A one-time password as a second factor: something verified, or the secret it is
+   * verified against.
+   *
+   * `otp` as a bare word was the pattern, and it read three other things. Every Phoenix
+   * application declares `use Phoenix.Endpoint, otp_app: :shop` — OTP there is Erlang's
+   * Open Telecom Platform — and two fixtures were credited with a second factor for being
+   * Elixir. hoppscotch's desktop agent pairs with the app through `generate_otp()` and
+   * `get_otp()`, a registration code. And before that, `NotPresent` and `DotPivot` as
+   * substrings. What a second factor has that none of them do is a secret and a check:
+   * `otp_secret`, `otpSecret`, `verifyOtp`, `verify_totp`, an `otpCode` submitted by the
+   * user, or `totp` itself. The packages above answer for every library that does it.
+   */
+  const OTP_AS_A_SECOND_FACTOR = /\bt?otp[_-]?(?:secret|code|token|uri|enabled|verified)\b|\bt?otp(?:Secret|Code|Token|Uri|Enabled|Verified)\b|\b(?:verify|check|validate)[_-]?t?otp\b|\b(?:verify|check|validate)T?Otp\b|\btotp\b/i;
   const twoFaSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/two[_-]?factor/i, OTP_AS_A_WORD],
+    [/two[_-]?factor/i, OTP_AS_A_SECOND_FACTOR],
     20,
     (match) => {
       const line = match.snippet.replace(ICON_IDENTIFIER, '').replace(IDENTITY_COLUMN, '');
-      return /two[_-]?factor/i.test(line) || OTP_AS_A_WORD.test(line);
+      return /two[_-]?factor/i.test(line) || OTP_AS_A_SECOND_FACTOR.test(line);
     },
   );
   const apiKeySignals = await searchInFiles(
