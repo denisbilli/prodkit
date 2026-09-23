@@ -716,5 +716,33 @@
       "deployment.readiness": "partial",
       "deployment.docker": "missing"
     }
+  },
+  "Kavita": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "partial",
+      "authz.ownership": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "present",
+      "security.rate-limit": "present",
+      "uploads.protection": "partial",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
+    }
   }
 }

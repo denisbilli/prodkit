@@ -252,12 +252,25 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * line is read.
    */
   const ICON_IDENTIFIER = /\b(?:mdi[A-Z]\w*|\w+Icon)\b/g;
+  /**
+   * A column every ASP.NET Identity schema has, whether or not anyone turns it on.
+   *
+   * `IdentityUser` declares `TwoFactorEnabled`, so it appears in every migration snapshot
+   * of every application that uses Identity. `Kareadita/Kavita` has twenty of them and no
+   * second factor, and was reported as having one. The bare property is the framework's
+   * default; the calls that use it — `SetTwoFactorEnabledAsync`, `TwoFactorSignInAsync`,
+   * `GenerateTwoFactorTokenAsync` — are left alone, and they are what a real one has.
+   */
+  const IDENTITY_COLUMN = /\bTwoFactorEnabled\b/g;
   const twoFaSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
     [/two[_-]?factor/i, OTP_AS_A_WORD],
     20,
-    (match) => /two[_-]?factor/i.test(match.snippet.replace(ICON_IDENTIFIER, '')) || OTP_AS_A_WORD.test(match.snippet.replace(ICON_IDENTIFIER, '')),
+    (match) => {
+      const line = match.snippet.replace(ICON_IDENTIFIER, '').replace(IDENTITY_COLUMN, '');
+      return /two[_-]?factor/i.test(line) || OTP_AS_A_WORD.test(line);
+    },
   );
   const apiKeySignals = await searchInFiles(
     ctx.root,

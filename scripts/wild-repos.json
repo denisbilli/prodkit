@@ -100,6 +100,10 @@
     {
       "repo": "traccar/traccar",
       "is": "Java GPS tracking server; Jersey in an embedded Jetty and hand-rolled PBKDF2, the only plain-JVM backend here"
+    },
+    {
+      "repo": "Kareadita/Kavita",
+      "is": "ASP.NET Core and Angular reading server; Identity's schema in every migration snapshot, and test projects named Foo.Tests"
     }
   ]
 }

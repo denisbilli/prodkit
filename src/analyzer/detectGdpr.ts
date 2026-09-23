@@ -159,7 +159,11 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       /\/gdpr\/export\b/i,
       /exportUserData/i,
       /personalDataExport/i,
-      /dataSubject/i,
+      /**
+       * The data subject, and not a subject that loads data: `loadDataSubject` in Kavita's
+       * Angular side nav is an RxJS `Subject`, and it was the evidence for a data export.
+       */
+      /(?<![a-z])data[_ -]?subject/i,
       /rightToAccess/i,
       /data portability/i,
       /export personal data/i,

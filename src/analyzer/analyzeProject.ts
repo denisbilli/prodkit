@@ -205,6 +205,13 @@ function isTestOrExamplePath(file: string): boolean {
      * the argument for fixing what gets read before fixing how.
      */
     || /(^|\/)(spec|specs|e2e|integration-tests?|cypress|playwright|testing)(\/|$)/i.test(layout)
+    /**
+     * .NET names a test project after the project it tests: `Kavita.Services.Tests/`,
+     * `API.Tests/`, `Foo.IntegrationTests/`. None of the directory names above is that
+     * shape, so Kavita's test fixtures were read as its product — a test named
+     * `ExportAnnotationsCorrectExportUser` was cited as its data export.
+     */
+    || /(^|\/)[\w.-]+\.(?:Unit|Integration|Functional)?Tests?(\/|$)/.test(layout)
     || /\.(e2e|e2e-spec|cy|stories)\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file)
     || /_spec\.rb$/i.test(file)
     || /_test\.(go|py|rb|java|cs|php)$/i.test(file)
