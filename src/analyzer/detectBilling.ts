@@ -177,6 +177,19 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
       [
         /stripe\.webhooks\.constructEvent/i,
         /constructEvent\(/i,
+        /**
+         * The same check in the SDKs that do not write camelCase, and in Stripe's newer API.
+         *
+         * `maybe-finance/maybe` verifies every Stripe webhook with
+         * `client.parse_thin_event(webhook_body, sig_header, webhook_secret)` and rescues
+         * `Stripe::SignatureVerificationError`, and was told its webhook integrity was
+         * partial. Ruby and Python spell the classic call `construct_event`, and thin events
+         * — Stripe's v2 event API — are parsed and verified in one call in every SDK:
+         * `parse_thin_event`, `parseThinEvent`, `ParseThinEvent`. Each one refuses a
+         * payload whose signature does not match; none is a name the author chose.
+         */
+        /\bconstruct_event\s*\(/,
+        /\bparse_?thin_?event\s*\(/i,
         /['"]stripe-signature['"]/i,
         /validateSignature/i,
       ],

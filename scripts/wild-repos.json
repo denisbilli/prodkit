@@ -92,6 +92,10 @@
     {
       "repo": "mealie-recipes/mealie",
       "is": "FastAPI and Nuxt recipe manager; keeps other sites' scraped pages, cookie banners included, as parser test data"
+    },
+    {
+      "repo": "maybe-finance/maybe",
+      "is": "Rails personal finance with Stripe subscriptions and Plaid; verifies Stripe through v2 thin events"
     }
   ]
 }
