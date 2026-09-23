@@ -116,6 +116,10 @@
     {
       "repo": "outline/outline",
       "is": "Koa B2B wiki with teams, SSO and passkeys; its events table keeps actor and IP sixty lines apart, which audit.baseline reads as partial"
+    },
+    {
+      "repo": "getfider/fider",
+      "is": "Go and React feedback boards; issues a key per user under Go's APIKey spelling"
     }
   ]
 }

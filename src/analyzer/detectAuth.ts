@@ -356,8 +356,14 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        * because that is what distinguishes a type from a variable in Rust, Go, C#, Java
        * and TypeScript alike.
        */
-      /\b(struct|class|type|enum|interface|record)\s+\w*ApiKey/,
-      /\b\w*ApiKey(?:Id|Login|Claims|Entity|Model|Repository|Table)\b/,
+      /**
+       * Go writes an initialism in capitals — `APIKey`, not `ApiKey` — and that is the
+       * language's own style rule. getfider/fider issues a key per user, looks it up with
+       * `type GetUserByAPIKey struct` and rotates it with `RegenerateAPIKey`, and was told
+       * it offers no API keys.
+       */
+      /\b(struct|class|type|enum|interface|record)\s+\w*(?:ApiKey|APIKey)/,
+      /\b\w*(?:ApiKey|APIKey)(?:Id|ID|Login|Claims|Entity|Model|Repository|Table)\b/,
     ],
     20
   );
