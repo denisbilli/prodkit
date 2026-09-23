@@ -96,6 +96,10 @@
     {
       "repo": "maybe-finance/maybe",
       "is": "Rails personal finance with Stripe subscriptions and Plaid; verifies Stripe through v2 thin events"
+    },
+    {
+      "repo": "traccar/traccar",
+      "is": "Java GPS tracking server; Jersey in an embedded Jetty and hand-rolled PBKDF2, the only plain-JVM backend here"
     }
   ]
 }

@@ -767,6 +767,16 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /\bhas_secure_password\b|\bBCrypt::Password\b/,
       /\bBCryptPasswordEncoder\b|\bPasswordEncoder\b/,
       /\bPasswordHasher\s*<|\bRfc2898DeriveBytes\b/,
+      /**
+       * Java's PBKDF2, named by the platform's algorithm registry.
+       *
+       * `traccar/traccar` hashes passwords in its own `Hashing` class through
+       * `SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")`, with no Spring Security and
+       * no bcrypt library, and read as a client application with nobody to sign in.
+       * `PBKDF2WithHmacSHA256` is a standard JCA algorithm name — the same function .NET
+       * calls `Rfc2898DeriveBytes`, one line up.
+       */
+      /\bPBKDF2WithHmacSHA\d+\b/,
       /\bmake_password\s*\(|\bcheck_password(_hash)?\s*\(/,
     ],
     10,

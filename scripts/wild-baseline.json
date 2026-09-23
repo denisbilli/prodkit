@@ -688,5 +688,33 @@
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
+  },
+  "traccar": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "unknown",
+      "b2c.onboarding": "missing",
+      "b2c.notifications": "missing",
+      "authz.ownership": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "unknown",
+      "gdpr.erasure": "unknown",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "missing",
+      "security.rate-limit": "missing",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "partial",
+      "deployment.readiness": "partial",
+      "deployment.docker": "missing"
+    }
   }
 }

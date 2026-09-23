@@ -212,7 +212,7 @@ prodkit plan ../my-app --output prodkit-plan.md
 
 _Generated from the analyzer itself — run `npm run docs:stacks` after changing a detector._
 
-- **Backend:** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS, SvelteKit, Remix, Nuxt, Nitro, Astro, Django, Flask, FastAPI, aiohttp, Litestar, Sanic, Tornado, Starlette, Streamlit, Gradio, Dash, Chainlit, Gin, Echo, Fiber, chi, Gorilla, Beego, Go, Axum, Actix Web, Rocket, Warp, Tide, Poem, Salvo, Tower HTTP, Hyper, Spring Boot, Quarkus, Micronaut, Ktor, Javalin, Vert.x, Dropwizard, Helidon, Rails, Sinatra, Hanami, Roda, Grape, Ruby, Phoenix, Plug, Bandit, Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, PHP, ASP.NET Core, Cloudflare Workers
+- **Backend:** Express, Next.js, NestJS, Fastify, Hono, Elysia, Koa, AdonisJS, SvelteKit, Remix, Nuxt, Nitro, Astro, Django, Flask, FastAPI, aiohttp, Litestar, Sanic, Tornado, Starlette, Streamlit, Gradio, Dash, Chainlit, Gin, Echo, Fiber, chi, Gorilla, Beego, Go, Axum, Actix Web, Rocket, Warp, Tide, Poem, Salvo, Tower HTTP, Hyper, Spring Boot, Quarkus, Micronaut, Ktor, Javalin, Vert.x, Dropwizard, Helidon, Jersey, Jetty, Rails, Sinatra, Hanami, Roda, Grape, Ruby, Phoenix, Plug, Bandit, Laravel, Symfony, Slim, CodeIgniter, CakePHP, Yii, PHP, ASP.NET Core, Cloudflare Workers
 - **Frontend:** React, Vite, Vue, Nuxt, Svelte, Angular, Astro, Solid, Qwik, Preact, Remix, htmx, Tailwind CSS, Electron
 - **Mobile:** Flutter, React Native, iOS (native), Android (native), SwiftUI, UIKit, Jetpack Compose, Android views
 - **Databases:** Postgres, MySQL, SQLite, SQL Server, MongoDB, Redis, Firestore, DynamoDB, Convex

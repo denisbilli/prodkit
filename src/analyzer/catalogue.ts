@@ -85,6 +85,22 @@ export const JVM_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['vertx', ['io.vertx:vertx-web', 'io.vertx:vertx-core']],
   ['dropwizard', ['io.dropwizard:dropwizard-core']],
   ['helidon', ['io.helidon.webserver:helidon-webserver']],
+  /**
+   * JAX-RS without a platform around it, and the server it runs in.
+   *
+   * `traccar/traccar` serves its whole API through Jersey inside an embedded Jetty — no
+   * Spring, no Quarkus — and came out with no backend at all, so no profile was inferred
+   * for a product with users, devices, permissions and a REST API. Jersey is the JAX-RS
+   * reference implementation and its servlet container is how it is served; an embedded
+   * `jetty-server` is a process answering HTTP whatever sits on top of it.
+   */
+  ['jersey', [
+    'org.glassfish.jersey.containers:jersey-container-servlet',
+    'org.glassfish.jersey.containers:jersey-container-servlet-core',
+    'org.glassfish.jersey.containers:jersey-container-grizzly2-http',
+    'org.glassfish.jersey.containers:jersey-container-jetty-http',
+  ]],
+  ['jetty', ['org.eclipse.jetty:jetty-server']],
 ];
 
 /**
@@ -266,6 +282,8 @@ const LABELS: Record<string, string> = {
   vertx: 'Vert.x',
   dropwizard: 'Dropwizard',
   helidon: 'Helidon',
+  jersey: 'Jersey',
+  jetty: 'Jetty',
   axum: 'Axum',
   'actix-web': 'Actix Web',
   rocket: 'Rocket',
