@@ -449,7 +449,7 @@
       "security.rate-limit": "present",
       "uploads.protection": "present",
       "observability.health": "present",
-      "observability.logging": "partial",
+      "observability.logging": "present",
       "audit.baseline": "present",
       "deployment.readiness": "present",
       "deployment.docker": "partial"

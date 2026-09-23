@@ -225,6 +225,16 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
     /\btraceparent\b|x-b3-traceid|x-amzn-trace-id/i,
     /\bspan[-_]?id\b/i,
     /@opentelemetry\/|\btrace\.getActiveSpan\b|\bSpanContext\b/,
+    /**
+     * Rails tags every line itself when told to.
+     *
+     * `config.log_tags = [:request_id]` prefixes each log line with the id
+     * `ActionDispatch::RequestId` assigned the request — correlation, configured rather
+     * than written. `chatwoot/chatwoot` has it in production.rb and was `partial` for want
+     * of a hyphenated header name. `:request_id` is Rails' symbol for that id, not the
+     * author's.
+     */
+    /\blog_tags\s*=.*:request_id\b/,
   ];
   const correlationHits = await searchInFiles(ctx.root, ctx.files.source, CORRELATION, 10);
   const correlationDeps = hasAnyDep(ctx, [
