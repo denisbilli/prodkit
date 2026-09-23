@@ -188,6 +188,10 @@
     {
       "repo": "kimai/kimai",
       "is": "Symfony time tracking that bills its own customers; its invoices name a seller and a buyer, as every invoice does"
+    },
+    {
+      "repo": "solidtime-io/solidtime",
+      "is": "Laravel and Vue time tracking with organisations, Jetstream teams and API tokens; the second Laravel B2B product"
     }
   ]
 }
