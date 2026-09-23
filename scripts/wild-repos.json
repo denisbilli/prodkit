@@ -184,6 +184,10 @@
     {
       "repo": "saleor/saleor",
       "is": "Django GraphQL commerce platform; deletes the caller through info.context.user and allows origins from ALLOWED_GRAPHQL_ORIGINS, open by default"
+    },
+    {
+      "repo": "kimai/kimai",
+      "is": "Symfony time tracking that bills its own customers; its invoices name a seller and a buyer, as every invoice does"
     }
   ]
 }

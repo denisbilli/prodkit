@@ -109,8 +109,20 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
   const scope = domainFiles(ctx);
 
-  const sellerHits = await searchInFiles(ctx.root, scope, SELLER_TERMS, 20);
-  const buyerHits = await searchInFiles(ctx.root, scope, BUYER_TERMS, 20);
+  /**
+   * An invoice has a seller and a buyer, and so does every sale anywhere.
+   *
+   * `kimai/kimai` is time tracking for a company that bills its own customers, and it was
+   * inferred as a marketplace at high confidence: its invoice hydrator names the issuing
+   * company `$seller`, and its Customer entity carries `buyer_reference` — EN 16931's
+   * BT-10, the reference an e-invoice must quote back to the buyer. Those are the two
+   * parties to an invoice, not two populations with accounts on a platform. Words found in
+   * invoicing code, and the invoicing standard's own field, do not make two sides.
+   */
+  const notInvoicing = (hit: { file: string; snippet: string }) =>
+    !/invoic/i.test(hit.file) && !/buyer_?reference/i.test(hit.snippet);
+  const sellerHits = (await searchInFiles(ctx.root, scope, SELLER_TERMS, 40)).filter(notInvoicing).slice(0, 20);
+  const buyerHits = (await searchInFiles(ctx.root, scope, BUYER_TERMS, 40)).filter(notInvoicing).slice(0, 20);
   /**
    * The connected-account search is not scoped and not restricted to files whose name
    * is an English word, because it is not searching for a word.
@@ -177,7 +189,12 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
   // documenso listing "Tenant", "Landlord", "Buyer", "Seller" as example labels. A
   // connected account is not a sentence, so it does not need the guard: one call to
   // `accounts.create` is a supply side whether or not the repository also spells one.
-  const oneSide = vocabularyFiles.size >= 2 || connectedHits.length > 0;
+  //
+  // And the side has to be the supply side. Every shop has buyers; what makes a
+  // marketplace is somebody else selling through it. With buyers alone counted, kimai —
+  // time tracking whose Customer entity and a migration spell `buyerReference`, the
+  // e-invoice field — needed two files of the demand side's word and nothing else.
+  const oneSide = (sellerHits.length > 0 && vocabularyFiles.size >= 2) || connectedHits.length > 0;
 
   return {
     key: 'marketplace.multiRole',
