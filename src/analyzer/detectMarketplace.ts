@@ -59,6 +59,13 @@ const CONNECTED_ACCOUNT = [
   /\baccounts\.create\s*\(\s*\{[^}]*\btype:\s*["'`](?:express|standard|custom)["'`]/i,
   /['"`]account\.updated['"`]|['"`]account\.application\./,
   /\bdestination_account\b/,
+  /**
+   * An account named for Stripe Connect itself. Sharetribe's template onboards every
+   * provider through a `stripeConnectAccount` — its duck, its selectors, its SDK calls —
+   * and with `provider` and `customer` for the two sides, the supply side was never found:
+   * payouts, commission and disputes all present, and the product read as a consumer app.
+   */
+  /\bstripe_?connect(?:ed)?_?account/i,
   /\bconnected_?account/i,
 ];
 /** The ones that name Stripe or its API; the last pattern is only a word. */

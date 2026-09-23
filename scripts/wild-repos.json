@@ -124,6 +124,10 @@
     {
       "repo": "twentyhq/twenty",
       "is": "NestJS and React CRM with workspaces and Stripe subscriptions; calls every linked Gmail or calendar a connectedAccount, which is not Stripe Connect"
+    },
+    {
+      "repo": "sharetribe/web-template",
+      "is": "Sharetribe marketplace template; providers onboard through a Stripe Connect account and the platform takes a provider commission"
     }
   ]
 }

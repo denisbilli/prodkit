@@ -40,6 +40,8 @@ export interface ProfileFacts {
   tenancy: boolean;
   adminSurface: boolean;
   marketplaceVocabulary: boolean;
+  /** A commission or application fee: the platform keeping part of what passes through. */
+  platformCut: boolean;
   callsAModel: boolean;
   jobs: boolean;
   uploads: boolean;
@@ -127,6 +129,7 @@ export function readFacts(analysis: ProjectAnalysis): ProfileFacts {
     tenancy: present('tenancy.organization') || present('tenancy.membership'),
     adminSurface: /admin|\/users|subscription|billing/i.test(sourceHints),
     marketplaceVocabulary: present('marketplace.multiRole'),
+    platformCut: present('marketplace.commission'),
     callsAModel: present('ai.modelProvider'),
     jobs: present('jobs.background'),
     uploads: present('uploads.exposure'),
@@ -450,6 +453,18 @@ const RULES: ProfileRule[] = [
     signals: [
       { identifies: true, label: 'two sides to a transaction', weight: 3, holds: (f) => f.marketplaceVocabulary },
       { label: 'money moving', weight: 2, holds: (f) => f.billing },
+      /**
+       * The platform keeping a cut is the thing only a marketplace does.
+       *
+       * Sharetribe's template has two sides, payouts to providers, a provider commission
+       * computed into every line item and dispute handling, and was inferred as a
+       * consumer app: the only marketplace signals were the two sides and money, and
+       * self-service password recovery with email verification outscored them. A
+       * subscription is money moving too; a commission is money moving *through*.
+       * Scored only where the marketplace is admissible, so a fee field in a SaaS without
+       * a supply side cannot make it one.
+       */
+      { label: 'a cut taken on the way through', weight: 2, holds: (f) => f.platformCut },
       { label: 'accounts', weight: 1, holds: (f) => f.auth },
     ],
   },
