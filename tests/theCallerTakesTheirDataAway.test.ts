@@ -31,6 +31,13 @@ describe('the caller takes their data away', () => {
     expect(analysis.detectors['gdpr.export.route']?.present).toBe(true);
   });
 
+  /** black puts a long call's keywords on lines of their own: `user=request.user,`. */
+  it('reads the caller as a keyword on a line of its own', async () => {
+    const analysis = await analyzeProject(fixture('django-bulk-download'));
+
+    expect(analysis.detectors['gdpr.export.route']?.present).toBe(true);
+  });
+
   /**
    * An admin's CSV of every user has the download and not the caller; a page listing the
    * caller's rows has the caller and not the download. Neither is a person taking their

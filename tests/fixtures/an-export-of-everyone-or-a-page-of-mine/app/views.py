@@ -11,6 +11,8 @@ from bookmarks.models import Bookmark
 
 @staff_member_required
 def users_csv(request):
+    user = request.user
+    assert user.is_staff
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="users.csv"'
     delimiter = request.user.config.get("csv_delimiter") if request.user.is_authenticated else None

@@ -176,6 +176,10 @@
     {
       "repo": "bram2w/baserow",
       "is": "Django and Nuxt no-code database with workspaces; appends Django's debug-only static() for media to its urlpatterns unguarded"
+    },
+    {
+      "repo": "paperless-ngx/paperless-ngx",
+      "is": "Django and Angular document archive; zips the documents a user chose through a call black formats one keyword per line"
     }
   ]
 }

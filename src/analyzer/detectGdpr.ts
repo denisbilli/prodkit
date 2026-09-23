@@ -81,12 +81,16 @@ async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
  * person taking their data away. An admin's CSV of every user has the download and not
  * the caller; a page listing the caller's rows has the caller and not the download.
  *
- * The caller has to be the value of a keyword argument, and nothing read off it. netbox's
+ * The caller has to be the value of a keyword argument — inline, or on a line of its own as
+ * black formats a long call, `user=request.user,` with no spaces round the `=` and a comma
+ * after, which is what paperless-ngx hands the job that zips the documents somebody chose;
+ * `user = request.user` is an assignment, and admin views make it too — and nothing read
+ * off it. netbox's
  * table export reads `delimiter = request.user.config.get('csv_delimiter')` beside its
  * attachment header, and a plain assignment was enough to call every table in it the
  * caller's own data.
  */
-const CALLER_NARROWS = /[(,]\s*\w+(?:_id)?\s*=\s*request\.user\b(?!\.)|\bcurrent_user\.\w+s\b|\bwhere\(\s*user(?:_id)?:\s*current_user\b|(?:\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\))->\w+s\b/;
+const CALLER_NARROWS = /[(,]\s*\w+(?:_id)?\s*=\s*request\.user\b(?!\.)|^\s*\w+(?:_id)?=request\.user\s*,|\bcurrent_user\.\w+s\b|\bwhere\(\s*user(?:_id)?:\s*current_user\b|(?:\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\))->\w+s\b/;
 const HANDED_OVER = /Content-Disposition['"]?\]?\s*[=,:]?.*attachment|\bas_attachment\s*=\s*True\b|\bsend_data\b|->(?:streamD|d)ownload\s*\(/i;
 const FUNCTION_START = /^\s*(?:async\s+def|def|(?:public\s+|private\s+|protected\s+)?function)\b/;
 
