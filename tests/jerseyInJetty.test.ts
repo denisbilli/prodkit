@@ -53,4 +53,14 @@ describe('Jersey in Jetty', () => {
 
     expect(security?.details?.corsLoose || security?.details?.corsStrict).toBe(true);
   });
+
+  /**
+   * JAX-RS writes `/password/reset` in two halves — `@Path("password")` on the class,
+   * `@Path("reset")` on the method — and the joined path appears nowhere.
+   */
+  it('reads a reset path written in two halves', async () => {
+    const analysis = await analyzeProject(fixture('jersey-in-jetty'));
+
+    expect(analysis.detectors['auth.passwordReset']?.present).toBe(true);
+  });
 });

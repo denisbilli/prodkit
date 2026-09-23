@@ -8,6 +8,7 @@ import { fileNameEvidence, searchFileNames } from './fileNames';
 import { readPackageValueUses } from './structural/valuesFromPackage';
 import { anyFileImportsExpress, readOwnershipChecks } from './structural/ownershipChecks';
 import { wentUnasked } from './readingDepth';
+import { readTextFileSafe } from '../utils/readTextFileSafe';
 
 /**
  * In a product that talks to a model, `role` usually means who is speaking.
@@ -353,7 +354,19 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     sourceFiles,
     [
       /forgot\s*password/i,
-      /password[_-]?reset/i,
+      /**
+       * A path, not a word.
+       *
+       * `password_reset` anywhere was enough, and two real products without a
+       * self-service reset were credited with one on the strength of the word alone:
+       * `usememos/memos` declares rate-limit scopes `password_reset_ip` and
+       * `password_reset_email` for a flow it has not built, and `immich-app/immich` has an
+       * administrator's `prompt-password-reset` command. Removing the bare word changed no
+       * verdict across the fixture corpus; what still counts is the path a user is sent
+       * to — `/password-reset`, `/password_resets` — beside the forgot, token and
+       * recovery patterns around it and the frameworks that ship the flow.
+       */
+      /\/password[_-]?resets?\b/i,
       /reset\s*token/i,
       /**
        * Django ships the whole flow — token, expiry, single use — behind one include.
@@ -382,6 +395,27 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ],
     20
   );
+  /**
+   * JAX-RS writes a path in two halves.
+   *
+   * `traccar/traccar` resets passwords at `/password/reset`: the class is
+   * `@Path("password")`, the method `@Path("reset")`, and the method emails a token that
+   * `@Path("update")` redeems. Neither annotation alone says password reset, and the
+   * joined path is written nowhere, so a method-level reset is read only in a class whose
+   * own path is `password`.
+   */
+  const resetMethods = await searchInFiles(
+    ctx.root,
+    sourceFiles.filter((file) => /\.(java|kt)$/.test(file)),
+    [/@Path\(\s*"\/?(?:reset|forgot|recover)\w*"\s*\)/],
+    5,
+  );
+  const jaxRsReset: TextMatch[] = [];
+  for (const hit of resetMethods) {
+    const text = await readTextFileSafe(ctx.root, hit.file);
+    if (text && /@Path\(\s*"\/?password"\s*\)/.test(text)) jaxRsReset.push(hit);
+  }
+  passwordResetSignals.push(...jaxRsReset);
   const emailVerificationSignals = await searchInFiles(
     ctx.root,
     sourceFiles,

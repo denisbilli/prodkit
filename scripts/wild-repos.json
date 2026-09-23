@@ -108,6 +108,10 @@
     {
       "repo": "wallabag/wallabag",
       "is": "Symfony read-it-later service; closes an account through getUser and a user manager, the only Symfony product here"
+    },
+    {
+      "repo": "usememos/memos",
+      "is": "Go and React notes server; declares rate-limit scopes for a password reset it has not built"
     }
   ]
 }
