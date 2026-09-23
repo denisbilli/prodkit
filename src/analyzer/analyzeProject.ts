@@ -449,6 +449,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
   const allFiles = await scanFiles({ cwd: root });
   const sourceFiles = pickSource(allFiles);
   const configFiles = pickConfig(allFiles);
+  const pages = allFiles.filter((file) => /\.html?$/i.test(file) && !isTestOrExamplePath(file));
 
   const packageJsonRaw = await readJsonSafe<PackageJson>(root, 'package.json');
   const packageJson = packageJsonRaw ? packageJsonSchema.parse(packageJsonRaw) : null;
@@ -939,7 +940,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
 
   const ctx: DetectContext = {
     root,
-    files: { all: allFiles, source: sourceFiles, config: configFiles, unreadable: unreadableLanguages(allFiles) },
+    files: { all: allFiles, source: sourceFiles, config: configFiles, pages, unreadable: unreadableLanguages(allFiles) },
     runtimeNpmDeps,
     runtimePythonDeps,
     packageJson,
@@ -1073,6 +1074,7 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
       all: allFiles,
       source: sourceFiles,
       config: configFiles,
+      pages,
     },
     detectors,
   };

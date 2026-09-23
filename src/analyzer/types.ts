@@ -139,6 +139,16 @@ export interface ProjectFiles {
   /** Config files. */
   config: string[];
   /**
+   * HTML pages the product serves, without the ones under test or example paths.
+   *
+   * A consent banner is embedded as a script tag, so the consent search reads HTML — and
+   * read it from `all`, test data included. mealie keeps scraped recipe pages from other
+   * people's sites under `tests/data/html/` to test its parser; they carry those sites'
+   * OneTrust and Funding Choices scripts, and mealie was credited with a consent banner it
+   * does not have. The same test-path rule that keeps tests out of `source` applies here.
+   */
+  pages: string[];
+  /**
    * Files in languages nothing here can read, counted by language.
    *
    * The warning built from this has existed for a while and said the right thing —

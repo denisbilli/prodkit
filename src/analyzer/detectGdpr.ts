@@ -139,7 +139,7 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       [/cookie[-_ ]?consent/i, /consentGiven/i, /privacyConsent/i, /gdprConsent/i],
       20
     ),
-    ...await searchInFiles(ctx.root, [...ctx.files.source, ...ctx.files.all.filter((f) => /\.html?$/i.test(f))], CONSENT_VENDORS, 10),
+    ...await searchInFiles(ctx.root, [...ctx.files.source, ...ctx.files.pages], CONSENT_VENDORS, 10),
   ];
   /**
    * The same duty, in the words each ecosystem actually uses.

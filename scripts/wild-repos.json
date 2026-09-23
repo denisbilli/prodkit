@@ -88,6 +88,10 @@
     {
       "repo": "sissbruecker/linkding",
       "is": "Django bookmark manager; exports the caller's bookmarks from a settings view whose path names no person"
+    },
+    {
+      "repo": "mealie-recipes/mealie",
+      "is": "FastAPI and Nuxt recipe manager; keeps other sites' scraped pages, cookie banners included, as parser test data"
     }
   ]
 }
