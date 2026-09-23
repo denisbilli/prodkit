@@ -957,5 +957,26 @@
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
+  },
+  "flutter": {
+    "inferredProfile": "mobile-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "mobile.permissions": "present",
+      "mobile.credential-storage": "present",
+      "mobile.offline": "present",
+      "mobile.forced-update": "missing",
+      "mobile.privacy-declaration": "missing",
+      "app.state-durability": "present",
+      "client.error-reporting": "partial",
+      "app.asset-delivery": "present",
+      "auth.baseline": "present",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "security.rate-limit": "missing",
+      "uploads.protection": "partial",
+      "observability.logging": "partial",
+      "deployment.readiness": "partial"
+    }
   }
 }

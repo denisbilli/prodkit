@@ -132,6 +132,10 @@
     {
       "repo": "danny-avila/LibreChat",
       "is": "Express and React multi-provider AI chat with tenants and a hash-chained audit log; the third ai-saas here"
+    },
+    {
+      "repo": "wger-project/flutter",
+      "is": "Flutter fitness app for iOS and Android; the second mobile product here and the only Flutter one, with usage descriptions but no PrivacyInfo.xcprivacy"
     }
   ]
 }
