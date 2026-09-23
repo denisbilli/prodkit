@@ -56,7 +56,7 @@ import { evidenceOrSearch } from './absenceEvidence';
  */
 const CONNECTED_ACCOUNT = [
   /\bstripe\.accounts\.create\s*\(/i,
-  /\baccounts\.create\s*\(\s*\{[^}]*\btype:\s*["'`](?:express|standard|custom)["'`]/i,
+  /\baccounts\.create\s*\(\s*\{[^}]*\btype:\s*["'`](?:express|custom)["'`]/i,
   /['"`]account\.updated['"`]|['"`]account\.application\./,
   /\bdestination_account\b/,
   /**
@@ -66,8 +66,26 @@ const CONNECTED_ACCOUNT = [
    * payouts, commission and disputes all present, and the product read as a consumer app.
    */
   /\bstripe_?connect(?:ed)?_?account/i,
+  /**
+   * The same call in the SDKs that are not JavaScript, and only for the account types a
+   * marketplace creates.
+   *
+   * Stripe separates the two kinds of platform itself. A `standard` account belongs to a
+   * business with its own Stripe relationship, which a SaaS platform connects so its
+   * customers can take their own payments; `express` and `custom` accounts are the ones a
+   * marketplace onboards for the sellers it pays out. `invoiceninja/invoiceninja` creates
+   * `standard` accounts — `$stripe->accounts->create(['type' => 'standard'])` — so the
+   * companies it serves can charge their own clients, with no application fee, and it is
+   * invoicing software rather than a marketplace. The pattern above accepted `standard`
+   * too, and no longer does.
+   */
+  /->accounts->create\s*\(\s*\[[^\]]*['"]type['"]\s*=>\s*['"](?:express|custom)['"]/,
+  /\baccounts\.create\s*\(\s*(?:type|\{\s*:?type)\s*[:=]\s*['"](?:express|custom)['"]/,
   /\bconnected_?account/i,
 ];
+/** A `standard` account is a SaaS customer's own Stripe, connected — see above. */
+const STANDARD_ACCOUNT = /['"]?type['"]?\s*(?::|=>|=)\s*['"]standard['"]/;
+
 /** The ones that name Stripe or its API; the last pattern is only a word. */
 const STRIPE_CONNECT_CALLS = CONNECTED_ACCOUNT.slice(0, -1);
 
@@ -119,8 +137,16 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
    * parties to an invoice, not two populations with accounts on a platform. Words found in
    * invoicing code, and the invoicing standard's own field, do not make two sides.
    */
+  /*
+   * Tax code speaks the same way: invoiceninja's TaxModel has a `seller_subregion`, the
+   * seller's jurisdiction for a sales-tax rule. And `merchant` in a payment provider's
+   * identifier — `AppleMerchantId`, `merchant_id` — is the product's own merchant account
+   * with Apple Pay or PayPal, not a merchant selling through it.
+   */
   const notInvoicing = (hit: { file: string; snippet: string }) =>
-    !/invoic/i.test(hit.file) && !/buyer_?reference/i.test(hit.snippet);
+    !/invoic|(^|\/)tax/i.test(hit.file)
+    && !/buyer_?reference|seller_?(?:sub)?region|seller_?(?:country|state|tax)/i.test(hit.snippet)
+    && !/merchant_?id(?:entifier)?\b|MerchantId/i.test(hit.snippet);
   const sellerHits = (await searchInFiles(ctx.root, scope, SELLER_TERMS, 40)).filter(notInvoicing).slice(0, 20);
   const buyerHits = (await searchInFiles(ctx.root, scope, BUYER_TERMS, 40)).filter(notInvoicing).slice(0, 20);
   /**
@@ -146,6 +172,7 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
    */
   const connectedHits: TextMatch[] = [];
   for (const hit of await searchInFiles(ctx.root, ctx.files.source, CONNECTED_ACCOUNT, 40)) {
+    if (STANDARD_ACCOUNT.test(hit.snippet)) continue;
     const stripesOwn = STRIPE_CONNECT_CALLS.some((pattern) => pattern.test(hit.snippet));
     if (stripesOwn || /stripe/i.test((await readTextFileSafe(ctx.root, hit.file)) ?? '')) connectedHits.push(hit);
     if (connectedHits.length >= 20) break;
@@ -236,8 +263,11 @@ async function detectPayout(ctx: DetectContext): Promise<DetectorResult> {
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/\bpayout/i, /\btransfer(s)?\.create/i, /stripe\s*connect/i, /\baccounts\.create/i, /destination_account/i, /application_fee/i],
+    [/\bpayout/i, /\btransfer(s)?\.create/i, /stripe\s*connect/i, /\baccounts(?:\.|->)create/i, /destination_account/i, /application_fee/i],
     20,
+    // A referral or affiliate programme pays the people who brought customers in; it is
+    // not a supply side being paid. invoiceninja's only "payouts" were its referral report.
+    (hit) => !/referral|affiliate/i.test(hit.file) && !/referral|affiliate/i.test(hit.snippet) && !STANDARD_ACCOUNT.test(hit.snippet),
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 
@@ -281,6 +311,9 @@ async function detectCommission(ctx: DetectContext, vocabularyUnread: boolean): 
       /\bservice_?fee/i,
     ],
     20,
+    // And the rate a referral programme pays out is a commission to a referrer, not a cut
+    // the platform keeps.
+    (hit) => !/referral|affiliate/i.test(hit.file) && !/referral|affiliate/i.test(hit.snippet),
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 
