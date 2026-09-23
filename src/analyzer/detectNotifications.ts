@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyPyDep } from './detectContext';
+import { hasAnyDep, hasAnyGradleDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { evidenceOrSearch } from './absenceEvidence';
 
@@ -34,11 +34,28 @@ const EMAIL_DEPS = [
 const PUSH_DEPS = ['firebase-admin', 'web-push', '@onesignal/node-onesignal', 'expo-server-sdk'];
 const EMAIL_PY_DEPS = ['sendgrid', 'postmarker', 'mailgun', 'boto3', 'django-anymail'];
 
+/**
+ * The JVM's, by coordinate.
+ *
+ * `traccar/traccar` notifies by email, SMS, Firebase, Telegram and six other channels —
+ * `com.sun.mail:jakarta.mail` and `com.google.firebase:firebase-admin` in its build.gradle —
+ * and was told it has no way to reach a user, because the two lists above are npm's and
+ * PyPI's. Jakarta Mail under its three coordinates, Spring's mail starter, and Firebase's
+ * Admin SDK, which is the same package the npm list already names.
+ */
+const EMAIL_JVM_DEPS = [
+  'com.sun.mail:jakarta.mail',
+  'com.sun.mail:javax.mail',
+  'org.eclipse.angus:angus-mail',
+  'org.springframework.boot:spring-boot-starter-mail',
+];
+const PUSH_JVM_DEPS = ['com.google.firebase:firebase-admin'];
+
 async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
-  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS)];
-  const pushDeps = hasAnyDep(ctx, PUSH_DEPS);
+  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS)];
+  const pushDeps = [...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS)];
   for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
 
   const hits = await searchInFiles(

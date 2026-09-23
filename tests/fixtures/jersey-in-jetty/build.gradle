@@ -13,4 +13,5 @@ dependencies {
     implementation "org.glassfish.jersey.containers:jersey-container-servlet:$jerseyVersion"
     implementation "org.glassfish.jersey.media:jersey-media-json-jackson:$jerseyVersion"
     implementation "org.postgresql:postgresql:42.7.4"
+    implementation "com.sun.mail:jakarta.mail:2.0.2"
 }

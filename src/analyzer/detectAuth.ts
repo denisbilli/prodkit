@@ -183,6 +183,18 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /currentUser\(/,
       /createServerClient/,
       /\[\.\.\.nextauth\]/i,
+      /**
+       * JAX-RS names a resource without the slash.
+       *
+       * `traccar/traccar` signs people in by POSTing to `@Path("session")` and every
+       * pattern above wants `/login` with its slash, so a Java server whose routes are all
+       * plain English was reported as routed in a language this could not read, and its
+       * email verification, export and erasure came out `unknown`. The annotation is
+       * JAX-RS's; `session` joins the sign-in words only inside it, where it can only be
+       * the resource a client creates to log in — Rails' `resource :session` is the same
+       * idea.
+       */
+      /@Path\(\s*"\/?(?:login|logout|register|signin|signup|session)"\s*\)/i,
     ],
     30
   );

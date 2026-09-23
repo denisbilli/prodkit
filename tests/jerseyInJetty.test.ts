@@ -25,4 +25,21 @@ describe('Jersey in Jetty', () => {
 
     expect(analysis.detectors['auth.core']?.present).toBe(true);
   });
+
+  /**
+   * JAX-RS names a resource without the slash: `@Path("session")` is where traccar signs
+   * people in, and with no `/login` anywhere its English routes read as unreadable.
+   */
+  it('reads a JAX-RS sign-in resource as a route in English', async () => {
+    const analysis = await analyzeProject(fixture('jersey-in-jetty'));
+
+    expect(analysis.detectors['auth.routesAreReadable']?.present).toBe(true);
+  });
+
+  /** And Jakarta Mail, declared in build.gradle, is a way to reach a user. */
+  it('reads Jakarta Mail from the build file', async () => {
+    const analysis = await analyzeProject(fixture('jersey-in-jetty'));
+
+    expect(analysis.detectors['notifications.transactional']?.details?.emailDependency).toBe(true);
+  });
 });
