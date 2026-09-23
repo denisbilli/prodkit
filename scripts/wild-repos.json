@@ -112,6 +112,10 @@
     {
       "repo": "usememos/memos",
       "is": "Go and React notes server; declares rate-limit scopes for a password reset it has not built"
+    },
+    {
+      "repo": "outline/outline",
+      "is": "Koa B2B wiki with teams, SSO and passkeys; its events table keeps actor and IP sixty lines apart, which audit.baseline reads as partial"
     }
   ]
 }
