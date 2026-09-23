@@ -68,6 +68,10 @@
     {
       "repo": "immich-app/immich",
       "is": "NestJS and SvelteKit photo server with a Flutter app; Material Design icons in a Svelte UI, and no second factor"
+    },
+    {
+      "repo": "akaunting/akaunting",
+      "is": "Laravel multi-company accounting; its tenant is a company, joined to users by user_companies, and nothing else here is a Laravel B2B product"
     }
   ]
 }

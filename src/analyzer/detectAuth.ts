@@ -631,9 +631,36 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ? await searchInFiles(ctx.root, sourceFiles, [/teamId/i, /team_id/i], 25)
     : [];
 
+  /**
+   * The same pairing, for a company or a workspace.
+   *
+   * `akaunting/akaunting` is multi-company accounting: `company_id` on every table, a
+   * global scope that filters by it, and `user_companies` saying which people belong to
+   * which company. `companyId` is weak for good reason — CRMs and invoicing tools store
+   * the customer's company everywhere — so it never counted, and a B2B product was read
+   * as a consumer app at high confidence.
+   *
+   * A join between people and companies is what a customer's company field never has.
+   * Laravel names it `company_user` or, as akaunting does, `user_companies`; the model is
+   * `CompanyUser` or `UserCompany`; a workspace's is `workspace_members`.
+   */
+  const companyMembership = await searchInFiles(
+    ctx.root,
+    sourceFiles,
+    [
+      /\b(?:user_compan(?:y|ies)|compan(?:y|ies)_users?|compan(?:y|ies)_members?|user_workspaces?|workspace_(?:users|members?))\b/i,
+      /\b(?:UserCompany|CompanyUser|CompanyMember|WorkspaceMember|WorkspaceUser)\b/,
+    ],
+    10,
+  );
+  const companyAsTenant = companyMembership.length > 0
+    ? await searchInFiles(ctx.root, sourceFiles, [/companyId/i, /company_id/i, /workspaceId/i, /workspace_id/i], 25)
+    : [];
+
   const strongOrganization = [
     ...(await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25)),
     ...teamAsTenant,
+    ...companyAsTenant,
   ];
   const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25);
 
@@ -656,6 +683,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   const strongMembership = [
     ...(await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25)),
     ...teamAsTenant,
+    ...companyAsTenant,
   ];
   const weakMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...WEAK_TENANCY], 25);
 
