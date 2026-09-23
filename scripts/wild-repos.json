@@ -136,6 +136,10 @@
     {
       "repo": "wger-project/flutter",
       "is": "Flutter fitness app for iOS and Android; the second mobile product here and the only Flutter one, with usage descriptions but no PrivacyInfo.xcprivacy"
+    },
+    {
+      "repo": "colinhacks/zod",
+      "is": "TypeScript validation library with a Fumadocs site in docs and the previous version's in docs-v3; the second library here"
     }
   ]
 }

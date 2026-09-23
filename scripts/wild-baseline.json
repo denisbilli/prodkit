@@ -978,5 +978,32 @@
       "observability.logging": "partial",
       "deployment.readiness": "partial"
     }
+  },
+  "zod": {
+    "inferredProfile": "library",
+    "inferenceConfidence": "medium",
+    "capabilities": {
+      "packaging.metadata": "present",
+      "packaging.entrypoints": "present",
+      "packaging.license": "present",
+      "docs.readme": "present",
+      "quality.tests": "present",
+      "quality.ci": "present",
+      "security.headers": "not_applicable",
+      "security.cors": "not_applicable",
+      "security.rate-limit": "not_applicable",
+      "auth.baseline": "not_applicable",
+      "auth.password-reset": "not_applicable",
+      "authz.ownership": "not_applicable",
+      "tenancy.isolation": "not_applicable",
+      "gdpr.export": "not_applicable",
+      "gdpr.erasure": "not_applicable",
+      "gdpr.consent": "not_applicable",
+      "uploads.protection": "not_applicable",
+      "observability.health": "not_applicable",
+      "observability.logging": "partial",
+      "deployment.readiness": "not_applicable",
+      "deployment.docker": "missing"
+    }
   }
 }

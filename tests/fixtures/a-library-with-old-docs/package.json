@@ -1,0 +1,11 @@
+{
+  "name": "tiny-schema",
+  "version": "4.1.0",
+  "description": "Schema validation with static type inference",
+  "license": "MIT",
+  "repository": "github:example/tiny-schema",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": "./dist/index.js" },
+  "devDependencies": { "typescript": "^5.6.0", "vitest": "^2.1.0" }
+}

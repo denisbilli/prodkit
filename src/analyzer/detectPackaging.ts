@@ -52,6 +52,8 @@ function collect(files: string[], pattern: RegExp, limit = 3): string[] {
 const DOCS_GENERATORS = [
   '@docusaurus/core', 'vitepress', 'nextra', '@astrojs/starlight', 'vuepress', 'docz',
   'docsify-cli', 'mintlify', '@11ty/eleventy', 'mkdocs', 'mkdocs-material', 'sphinx',
+  // zod's docs are Fumadocs on Next.js, the generator most new TypeScript libraries reach for.
+  'fumadocs-core', 'fumadocs-ui',
 ];
 
 /**
@@ -63,7 +65,14 @@ const DOCS_GENERATORS = [
  * is not caught because the question asked is whether *every* front-end file is in one
  * of these.
  */
-export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www)\//i;
+/*
+ * With a version after it, too: a library that rewrote its docs keeps the old site
+ * beside the new one, and `colinhacks/zod` has `packages/docs/` and `packages/docs-v3/`.
+ * `docs?\/` wanted the slash straight after, so two `index.html` files under
+ * `docs-v3/` made zod's front end its product, and a TypeScript library was inferred as
+ * a client application at high confidence.
+ */
+export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www)(?:[-_.]?v?\d+)?\//i;
 
 /**
  * `.html` belongs here because the front-end fact counts it.
