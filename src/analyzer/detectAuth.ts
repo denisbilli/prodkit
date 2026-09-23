@@ -366,8 +366,24 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        */
       /\b(struct|class|type|enum|interface|record)\s+\w*(?:ApiKey|APIKey|ApiToken|APIToken|PersonalAccessToken)/,
       /\b\w*(?:ApiKey|APIKey)(?:Id|ID|Login|Claims|Entity|Model|Repository|Table)\b/,
+      /**
+       * An access token the product stores is one it issues.
+       *
+       * `chatwoot/chatwoot` authenticates its API with an `api_access_token` header checked
+       * against `class AccessToken < ApplicationRecord` — `has_secure_token :token`, owned
+       * by a user or an agent bot. Its only cited line was a migration that stores a Twilio
+       * key it *holds*. An OAuth client library has an `AccessToken` class too, and never
+       * persists one as a model; ActiveRecord's and Django's base classes are the anchor.
+       */
+      /\bclass\s+\w*AccessToken\s*(?:<\s*(?:ApplicationRecord|ActiveRecord::Base)|\(\s*models\.Model\s*\))/,
     ],
-    20
+    20,
+    /*
+     * A migration's class is named for the change it makes: `AddApiKeySidToTwilioSms` adds
+     * a column for a key chatwoot holds for Twilio. A migration describes the schema; it is
+     * not a type the product issues.
+     */
+    (match) => !/<\s*ActiveRecord::Migration|\(\s*migrations\.Migration\s*\)|extends\s+Migration\b/.test(match.snippet),
   );
   const passwordResetFiles = searchFileNames(sourceFiles, [
     /(password|pwd)[_-]?(reset|recovery)/i,
