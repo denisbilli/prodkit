@@ -707,7 +707,7 @@
       "billing.model": "missing",
       "billing.webhook-integrity": "not_applicable",
       "security.headers": "missing",
-      "security.cors": "missing",
+      "security.cors": "partial",
       "security.rate-limit": "missing",
       "uploads.protection": "not_applicable",
       "observability.health": "present",

@@ -24,7 +24,12 @@ import { isDevelopmentOnlyFile } from './developmentOnly';
  * `AccessControlAllowOrigin` because that is what their conventions do to
  * `Access-Control-Allow-Origin`. It is not the author's word either way.
  */
-const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /\bAccessControlAllowOrigin\b/, /ALLOWED_ORIGINS/, /allowedOrigins/i];
+/*
+ * And the screaming spelling, which is how Netty, Spring and JAX-RS name the same header:
+ * `HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN`. traccar sets its CORS policy entirely
+ * through that constant in `CorsResponseFilter` and was reported as having none.
+ */
+const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /\bAccessControlAllowOrigin\b/, /\bACCESS_CONTROL_ALLOW_ORIGIN\b/, /ALLOWED_ORIGINS/, /allowedOrigins/i];
 
 /** A header name used as a key into a headers object: a lookup, not a decision. */
 const READS_A_HEADER = /\[\s*(['"`])[^'"`]+\1\s*\](?!\s*=[^=])/;

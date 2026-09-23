@@ -42,4 +42,15 @@ describe('Jersey in Jetty', () => {
 
     expect(analysis.detectors['notifications.transactional']?.details?.emailDependency).toBe(true);
   });
+
+  /**
+   * Netty, Spring and JAX-RS name the CORS header `ACCESS_CONTROL_ALLOW_ORIGIN`. traccar
+   * sets its whole policy through that constant and was reported as having none.
+   */
+  it('reads the screaming spelling of the CORS header', async () => {
+    const analysis = await analyzeProject(fixture('jersey-in-jetty'));
+    const security = analysis.detectors['security.core'];
+
+    expect(security?.details?.corsLoose || security?.details?.corsStrict).toBe(true);
+  });
 });
