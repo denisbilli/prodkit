@@ -113,6 +113,55 @@ async function exportsTheCallersRows(ctx: DetectContext): Promise<TextMatch[]> {
   return found.slice(0, 5);
 }
 
+/**
+ * Deleting what is older than a number of days.
+ *
+ * The retention search reads `gdpr` or `privacy` beside `retention`, and a product that
+ * enforces a retention period without citing the regulation was missing it.
+ * `glitchtip/glitchtip-backend` deletes releases older than
+ * `GLITCHTIP_RELEASE_RETENTION_DAYS` and issues older than a configured number of days
+ * from scheduled maintenance jobs — `Release.objects.filter(created__lt=days_ago)` after
+ * `days_ago = now() - timedelta(days=...)`, then a delete — and was told personal data is
+ * kept indefinitely.
+ *
+ * An age in days and a delete, close together, is that idiom in every stack: Python's
+ * `timedelta(days=`, Rails' `30.days.ago` with `delete_all` or `destroy_all`, SQL's
+ * `interval '30 days'` in a `DELETE FROM`, date-fns' `subDays(` with Prisma's `deleteMany`,
+ * Go's `AddDate(0, 0, -30)`. Days, not minutes or hours: a rate-limit window cleared every
+ * minute is housekeeping, not a period somebody chose for keeping data.
+ */
+const AGE_IN_DAYS = /\btimedelta\(\s*days\s*=|\.days\.ago\b|\binterval\s+'\d+\s*days?'|\bsubDays\s*\(|\.AddDate\(\s*0\s*,\s*0\s*,\s*-|\bINTERVAL\s+\d+\s+DAY\b/;
+const DELETES_ROWS = /\.a?delete\(\)|\._raw_delete\b|\bdelete_all\b|\bdestroy_all\b|\.deleteMany\s*\(|\bDELETE\s+FROM\b|->delete\(\)|\.Delete\(|\bdelete_\w+\s*\(|\bdelete[A-Z]\w*\s*\(/;
+/**
+ * The age has to be a cutoff — something is older than it — not a lifetime. A cookie's
+ * `max_age=timedelta(days=30)` beside a logout's `delete_cookie` is an age and a delete,
+ * and is not retention. What a retention job has is a comparison: Django's `__lt=`, Prisma's
+ * and Mongo's `lt:` and `$lt`, SQL's `< now()`, ActiveRecord's `< ?`.
+ */
+const OLDER_THAN = /__lte?\s*=|\blte?\s*:\s|\$lte?\b|<\s*(?:now|NOW|CURRENT_TIMESTAMP)\b|<\s*\?/;
+/** Close enough to be one job: the cutoff computed, the query built, the rows deleted in batches. */
+const WITHIN_ONE_JOB = 60;
+
+async function deletesByAge(ctx: DetectContext): Promise<TextMatch[]> {
+  const found: TextMatch[] = [];
+  for (const file of ctx.files.source) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text || !AGE_IN_DAYS.test(text) || !DELETES_ROWS.test(text)) continue;
+
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      if (!AGE_IN_DAYS.test(lines[i])) continue;
+      const job = lines.slice(i, i + WITHIN_ONE_JOB);
+      if (!job.slice(0, 5).some((line) => OLDER_THAN.test(line))) continue;
+      if (!job.some((line) => DELETES_ROWS.test(line))) continue;
+      found.push({ file, line: i + 1, snippet: lines[i].trim().slice(0, 200) });
+      break;
+    }
+    if (found.length >= 5) break;
+  }
+  return found;
+}
+
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
   /**
    * The consent vendors, who name themselves.
@@ -303,6 +352,7 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     ],
     20
   );
+  const agedOut = await deletesByAge(ctx);
   const adminQueue = await searchInFiles(
     ctx.root,
     ctx.files.source,
@@ -351,8 +401,8 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'gdpr.retention.job',
-      present: retention.length > 0,
-      evidence: evidenceOr(retention, 'retention'),
+      present: retention.length > 0 || agedOut.length > 0,
+      evidence: retention.length > 0 || agedOut.length > 0 ? toEvidence([...retention, ...agedOut]) : evidenceOr(retention, 'retention'),
     },
     {
       key: 'gdpr.adminQueue',

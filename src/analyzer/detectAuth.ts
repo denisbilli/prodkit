@@ -360,9 +360,11 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        * Go writes an initialism in capitals — `APIKey`, not `ApiKey` — and that is the
        * language's own style rule. getfider/fider issues a key per user, looks it up with
        * `type GetUserByAPIKey struct` and rotates it with `RegenerateAPIKey`, and was told
-       * it offers no API keys.
+       * it offers no API keys. A key issued as a token is the same thing under another
+       * noun: glitchtip's is `class APIToken(CreatedModel)`, GitHub's and GitLab's are
+       * personal access tokens.
        */
-      /\b(struct|class|type|enum|interface|record)\s+\w*(?:ApiKey|APIKey)/,
+      /\b(struct|class|type|enum|interface|record)\s+\w*(?:ApiKey|APIKey|ApiToken|APIToken|PersonalAccessToken)/,
       /\b\w*(?:ApiKey|APIKey)(?:Id|ID|Login|Claims|Entity|Model|Repository|Table)\b/,
     ],
     20
