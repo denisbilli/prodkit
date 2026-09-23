@@ -75,9 +75,17 @@ function debugOnlyLines(text: string): Set<number> {
  * — CSS and JavaScript, which every Django project serves and nobody uploads. Two of
  * the projects reported as exposing their uploads were exposing their stylesheets.
  */
+/*
+ * Not `static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)`. That is
+ * `django.conf.urls.static.static`, and Django documents it as a helper that returns an
+ * empty list unless `DEBUG` is on: in production it serves nothing, whether or not an
+ * `if settings.DEBUG:` stands around it. `bram2w/baserow` appends it to its urlpatterns
+ * unguarded, and was told at `critical` that its users' files are public. What does serve
+ * media in production is Django's `serve` view mounted on a route, which is what remains —
+ * the route under `media`, and the `{'document_root': settings.MEDIA_ROOT}` it is given.
+ */
 const DJANGO_MEDIA_ROUTES = [
-  /static\s*\(\s*settings\.MEDIA_URL/i,
-  /document_root\s*=\s*settings\.MEDIA_ROOT/i,
+  /['"]document_root['"]\s*:\s*settings\.MEDIA_ROOT/i,
   /re_path\s*\(\s*r?['"][^'"]*media/i,
   /url\s*\(\s*r?['"][^'"]*media/i,
 ];

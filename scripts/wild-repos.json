@@ -172,6 +172,10 @@
     {
       "repo": "slimphp/Slim",
       "is": "PHP micro framework published as a Composer library; its only AppFactory::create() outside tests is in an error message"
+    },
+    {
+      "repo": "bram2w/baserow",
+      "is": "Django and Nuxt no-code database with workspaces; appends Django's debug-only static() for media to its urlpatterns unguarded"
     }
   ]
 }

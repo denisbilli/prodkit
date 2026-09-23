@@ -116,7 +116,17 @@ describe('a Django monolith is not an Express app with things missing', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  it('still reports a media route that runs in production', async () => {
+  /**
+   * `static()` without the guard is still the debug helper.
+   *
+   * These two cases used to assert the opposite: that an unguarded
+   * `static(settings.MEDIA_URL, ...)` serves uploads in production. Django's own source
+   * says it does not — `django/conf/urls/static.py` returns `[]` when `not settings.DEBUG`,
+   * with the comment "No-op if not in debug mode" — and baserow, which appends it
+   * unguarded, was reported at `critical` for files nobody can reach. The guard above is
+   * the documented idiom; the helper is guarded either way.
+   */
+  it('does not read the debug-only static() helper as production exposure', async () => {
     const root = await project({
       ...DJANGO,
       'app/urls.py':
@@ -128,15 +138,16 @@ describe('a Django monolith is not an Express app with things missing', () => {
 
     const analysis = await analyzeProject(root);
 
-    expect(analysis.detectors['uploads.exposure']?.details?.publicExposure).toBe(true);
+    expect(analysis.detectors['uploads.exposure']?.details?.publicExposure).toBe(false);
 
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  /** What does serve media in production is the `serve` view mounted on a route. */
   it('does call uploads exposed when a route actually serves the media', async () => {
     const root = await project({
       ...DJANGO,
-      'app/urls.py': `from django.conf import settings\nfrom django.conf.urls.static import static\n\nurlpatterns = static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)\n`,
+      'app/urls.py': `from django.conf import settings\nfrom django.urls import re_path\nfrom django.views.static import serve\n\nurlpatterns = [\n    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),\n]\n`,
     });
 
     const analysis = await analyzeProject(root);
