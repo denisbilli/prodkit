@@ -79,7 +79,7 @@ const DOCS_GENERATORS = [
  * `runtime-tests/`, and JSX pages in `benchmarks/jsx/` — and a web framework came out as a
  * consumer application at high confidence.
  */
-export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www|benchmarks?|perf(?:[-_]\w+)?|\w+-tests)(?:[-_.]?v?\d+|[-_]src)?\//i;
+export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www|benchmarks?|bench(?:es)?|perf(?:[-_]\w+)?|\w+-tests)(?:[-_.]?v?\d+|[-_]src)?\//i;
 
 /**
  * `.html` belongs here because the front-end fact counts it.
