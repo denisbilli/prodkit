@@ -180,6 +180,10 @@
     {
       "repo": "paperless-ngx/paperless-ngx",
       "is": "Django and Angular document archive; zips the documents a user chose through a call black formats one keyword per line"
+    },
+    {
+      "repo": "saleor/saleor",
+      "is": "Django GraphQL commerce platform; deletes the caller through info.context.user and allows origins from ALLOWED_GRAPHQL_ORIGINS, open by default"
     }
   ]
 }

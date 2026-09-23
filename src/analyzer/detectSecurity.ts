@@ -28,8 +28,13 @@ import { isDevelopmentOnlyFile } from './developmentOnly';
  * And the screaming spelling, which is how Netty, Spring and JAX-RS name the same header:
  * `HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN`. traccar sets its CORS policy entirely
  * through that constant in `CorsResponseFilter` and was reported as having none.
+ *
+ * And an allowlist with a qualifier in its name: saleor matches every origin against
+ * `settings.ALLOWED_GRAPHQL_ORIGINS`, read from the environment with `"*"` as the default,
+ * and was reported as having no cross-origin policy at all — its header name sits alone
+ * on a line, which says nothing, and `ALLOWED_ORIGINS` was the only allowlist spelled.
  */
-const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /\bAccessControlAllowOrigin\b/, /\bACCESS_CONTROL_ALLOW_ORIGIN\b/, /ALLOWED_ORIGINS/, /allowedOrigins/i];
+const ORIGIN_HANDLING = [/Access-Control-Allow-Origin/i, /\bAccessControlAllowOrigin\b/, /\bACCESS_CONTROL_ALLOW_ORIGIN\b/, /ALLOWED_\w*ORIGINS/, /allowedOrigins/i];
 
 /** A header name used as a key into a headers object: a lookup, not a decision. */
 const READS_A_HEADER = /\[\s*(['"`])[^'"`]+\1\s*\](?!\s*=[^=])/;
@@ -86,7 +91,7 @@ function allowsAChosenOrigin(line: string, file: string): boolean {
    */
   if (MEMBERSHIP_TEST.test(line)) return true;
 
-  const assigned = /(?:Access-Control-Allow-Origin|ALLOWED_ORIGINS|allowedOrigins)[^=:,]*[=:,]\s*(.+)$/i.exec(line);
+  const assigned = /(?:Access-Control-Allow-Origin|ALLOWED_\w*ORIGINS|allowedOrigins)[^=:,]*[=:,]\s*(.+)$/i.exec(line);
   if (!assigned) return false;
 
   // An origin written down: it has a scheme or a dotted host, which `","` does not.

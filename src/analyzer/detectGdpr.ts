@@ -31,7 +31,12 @@ function toEvidence(matches: Array<{ snippet: string; file: string; line: number
  * and Doctrine's is `$entityManager->remove($user)`. The bound caller passed to a
  * `remove` or `delete…` call is the same act as calling `delete` on it.
  */
-const CALLER = String.raw`(?:request\.user|current_user|\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\)|\$this->getUser\(\))`;
+/*
+ * And GraphQL's: in graphene and strawberry resolvers the request is `info.context`, so
+ * the caller is `info.context.user`. saleor's `AccountDelete` mutation reads it into
+ * `user` and calls `user.delete()`, and was told at `high` it has no erasure flow.
+ */
+const CALLER = String.raw`(?:request\.user|info\.context\.user|current_user|\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\)|\$this->getUser\(\))`;
 const CALLER_DELETED = new RegExp(String.raw`${CALLER}\s*(?:\.delete\(\)|\.destroy!?\b|->delete\(\))`);
 const CALLER_BOUND = new RegExp(String.raw`^\s*(\$?\w+)\s*=\s*${CALLER}\s*;?\s*$`);
 /** Far enough to cover one view, not so far it reaches the next. */
@@ -42,7 +47,7 @@ async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
   for (const file of ctx.files.source) {
     if (!/\.(py|rb|php)$/.test(file)) continue;
     const text = await readTextFileSafe(ctx.root, file);
-    if (!text || !/request\.user|current_user|->user\(\)|Auth::user|->getUser\(\)/.test(text)) continue;
+    if (!text || !/request\.user|context\.user|current_user|->user\(\)|Auth::user|->getUser\(\)/.test(text)) continue;
 
     const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length && found.length < 5; i++) {
