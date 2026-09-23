@@ -76,6 +76,10 @@
     {
       "repo": "healthchecks/healthchecks",
       "is": "Django B2B SaaS with projects, TOTP and WebAuthn; its account closes through a view called close that deletes request.user"
+    },
+    {
+      "repo": "knadh/listmonk",
+      "is": "Go and Vue newsletter manager; subscribers export and wipe their own data from a public page"
     }
   ]
 }

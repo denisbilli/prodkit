@@ -542,5 +542,33 @@
       "deployment.readiness": "partial",
       "deployment.docker": "present"
     }
+  },
+  "listmonk": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "missing",
+      "b2c.onboarding": "partial",
+      "b2c.notifications": "partial",
+      "authz.ownership": "missing",
+      "gdpr.consent": "missing",
+      "gdpr.export": "present",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "missing",
+      "security.rate-limit": "missing",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
+    }
   }
 }

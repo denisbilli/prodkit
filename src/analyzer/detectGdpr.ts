@@ -159,6 +159,16 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       /delete user data/i,
       /delete personal data/i,
       /**
+       * Wiping somebody's data, which is the other half of exporting it.
+       *
+       * `knadh/listmonk` lets a subscriber export their data and wipe it from the same
+       * page — `exportSubscriberData` and `WipeSubscriberData`, behind
+       * `/subscription/wipe/:subUUID` — and was credited with the export and not the
+       * erasure. Wipe, erase and purge are verbs nobody uses for an admin removing a row;
+       * `delete` stays out, for the reason `deleteUser(id)` did.
+       */
+      /\b(?:wipe|erase|purge)[_-]?(?:subscriber|user|personal|my)[_-]?data\b/i,
+      /**
        * Anonymisation, which is how a forum satisfies article 17 without losing the
        * thread. Discourse's is `UserAnonymizer` and it was told it had no erasure.
        */
