@@ -156,8 +156,13 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...elixirAuthDeps,
   ];
   const sessionDeps = [...hasAnyDep(ctx, ['express-session', 'cookie-session']), ...managedAuthDeps];
+  /**
+   * `qrcode` is not a second factor. An authenticator's setup shows one, and so does a
+   * share link, a payment request and a Wi-Fi password: immich renders shared-album links
+   * with it and has no second factor at all, and was reported as having one.
+   */
   const twoFaDeps = [
-    ...hasAnyDep(ctx, ['speakeasy', 'pyotp', 'qrcode', '@simplewebauthn/server', 'otplib']),
+    ...hasAnyDep(ctx, ['speakeasy', 'pyotp', '@simplewebauthn/server', 'otplib']),
     /** `nimble_totp` is the Elixir one, and plausible ships it. */
     ...hasAnyElixirDep(ctx, ['nimble_totp']),
   ];
@@ -225,7 +230,23 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    */
   const OTP_AS_A_WORD = /(?:^|[^a-z])t?otp(?:[^a-z]|$)|[a-z_](?:Otp|OTP|Totp|TOTP)/;
 
-  const twoFaSignals = await searchInFiles(ctx.root, sourceFiles, [/two[_-]?factor/i, OTP_AS_A_WORD], 20);
+  /**
+   * A picture of a padlock is not a padlock.
+   *
+   * immich's settings page uses Material Design's `mdiTwoFactorAuthentication` icon for its
+   * OAuth section, and that one identifier was the only line behind its second factor.
+   * Icon sets name their glyphs after what they depict — `mdi…` for Material Design,
+   * `…Icon` for lucide, heroicons and the rest — so the icon's name is removed before the
+   * line is read.
+   */
+  const ICON_IDENTIFIER = /\b(?:mdi[A-Z]\w*|\w+Icon)\b/g;
+  const twoFaSignals = await searchInFiles(
+    ctx.root,
+    sourceFiles,
+    [/two[_-]?factor/i, OTP_AS_A_WORD],
+    20,
+    (match) => /two[_-]?factor/i.test(match.snippet.replace(ICON_IDENTIFIER, '')) || OTP_AS_A_WORD.test(match.snippet.replace(ICON_IDENTIFIER, '')),
+  );
   const apiKeySignals = await searchInFiles(
     ctx.root,
     sourceFiles,
