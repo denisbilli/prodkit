@@ -113,6 +113,66 @@ const UPLOAD_VALIDATION = [
   /\bfileTypeFrom(?:Buffer|File|Stream)\b/,
   /request\.FILES\[[^\]]*\]\.content_type/,
   /\.content_type\s*(?:not\s+)?in\b/,
+  // The server-side checks of the frameworks `FILE_INTAKE` reads. chatwoot's is
+  // `ACCEPTABLE_FILE_TYPES.include?(file_content_type)` behind `validate :acceptable_file`;
+  // until this line the only validation it was credited with was a Vue component
+  // sorting chips by type, which a client can skip.
+  /\binclude\?\(\s*[\w.]*content_type\b/,
+  /\bvalidates?\b.*\bcontent_type:\s*[[%'"/]/,
+  /['"|]mimes(?:types)?:/,
+  /\bhttp\.DetectContentType\s*\(/,
+  // gotify reads the first 261 bytes and asks `filetype.IsImage(head)` before saving an
+  // application image — h2non/filetype and gabriel-vasile/mimetype read the content,
+  // not the name the client sent.
+  /\bfiletype\.(?:Is\w*|Match\w*)\s*\(/,
+  /\bmimetype\.Detect\w*\s*\(/,
+];
+
+/**
+ * Phoenix LiveView enforces what `allow_upload` was told to accept: plausible's CSV
+ * import passes `accept: [".csv", "text/csv"]` and a `max_file_size`. Only from Elixir —
+ * react-dropzone takes an `accept:` too, in a browser that can be told anything.
+ */
+const EX_UPLOAD_VALIDATION = [
+  /\baccept:\s*(?:~w|\[)/,
+  /\bmax_file_size:\s*\d/,
+];
+
+/**
+ * A product that accepts a file, in the words of the framework that receives it.
+ *
+ * Presence was a Node or Python package — multer, formidable, an S3 client, boto3 — or
+ * an Express or Django route serving `/uploads`. `chatwoot/chatwoot` stores every
+ * conversation attachment through Active Storage (`has_one_attached :file`) and validates
+ * the type of each one, and open-webui takes documents through FastAPI's `UploadFile`; both
+ * were `not_applicable`, as if neither product took files at all, and the capability
+ * that asks whether uploads are protected was never asked.
+ *
+ * None of these is a name the author picked. Each is the API the framework gives for
+ * receiving a file: Active Storage's `has_one_attached`, CarrierWave's `mount_uploader`,
+ * Laravel's `$request->file(`, `FormFile` in Go's `net/http` and in gin and echo alike,
+ * ASP.NET's `IFormFile`, Spring's `MultipartFile`, Phoenix's `allow_upload` and
+ * `Plug.Upload`, FastAPI's `UploadFile`, Django's `request.FILES` and its file fields.
+ */
+const FILE_INTAKE = [
+  /\bhas_(?:one|many)_attached\s+:/,
+  /\bmount_uploaders?\s+:/,
+  /\$request->(?:file|hasFile)\s*\(/,
+  /\.FormFile\s*\(\s*["']/,
+  /\bIFormFile\b/,
+  /\bMultipartFile\b/,
+  /\ballow_upload\s*\(/,
+  /%Plug\.Upload\{/,
+];
+
+/**
+ * Python's, read only from Python: antd names its file-picker type `UploadFile` too, and
+ * `file: UploadFile` in a React component is a form, not a server receiving anything.
+ */
+const PY_FILE_INTAKE = [
+  /:\s*UploadFile\b/,
+  /\brequest\.FILES\b/,
+  /\bmodels\.(?:File|Image)Field\s*\(/,
 ];
 
 export async function detectUploads(ctx: DetectContext): Promise<DetectorResult> {
@@ -158,12 +218,16 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
   const djangoPublicSignals: TextMatch[] = [];
   const djangoProtectionSignals: TextMatch[] = [];
   const validationSignals: TextMatch[] = [];
+  const intakeSignals: TextMatch[] = [];
 
   for (const file of source) {
     const text = await readTextFileSafe(ctx.root, file);
     if (!text) continue;
 
-    validationSignals.push(...matchLines(text, UPLOAD_VALIDATION, file));
+    validationSignals.push(...matchLines(text, /\.exs?$/.test(file) ? [...UPLOAD_VALIDATION, ...EX_UPLOAD_VALIDATION] : UPLOAD_VALIDATION, file));
+    if (intakeSignals.length < 10) {
+      intakeSignals.push(...matchLines(text, file.endsWith('.py') ? [...FILE_INTAKE, ...PY_FILE_INTAKE] : FILE_INTAKE, file));
+    }
 
     if (!file.endsWith('.py')) continue;
 
@@ -198,6 +262,7 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
     evidence.push({ type: 'snippet', value: r.snippet, file: r.file, line: r.line, claim: 'uploads' });
   }
   for (const m of djangoPublicSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'uploads' });
+  for (const m of intakeSignals.slice(0, 10)) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'uploads' });
   for (const m of validationSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'validation' });
 
   const publicExposure = unprotectedRoutes.length > 0 || djangoPublicSignals.length > 0;
@@ -205,7 +270,7 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
 
   return {
     key: 'uploads.exposure',
-    present: uploadDeps.length > 0 || routeSignals.length > 0 || djangoPublicSignals.length > 0,
+    present: uploadDeps.length > 0 || routeSignals.length > 0 || djangoPublicSignals.length > 0 || intakeSignals.length > 0,
     complete: !publicExposure,
     evidence,
     details: {

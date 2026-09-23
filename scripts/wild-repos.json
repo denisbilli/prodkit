@@ -60,6 +60,10 @@
     {
       "repo": "gotify/android",
       "is": "Kotlin/Android; the mobile profile and the permission-contract rules have nothing else to run against"
+    },
+    {
+      "repo": "chatwoot/chatwoot",
+      "is": "Rails customer-support SaaS; Active Storage attachments, which no other repository here receives through Rails"
     }
   ]
 }
