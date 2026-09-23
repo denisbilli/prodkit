@@ -411,18 +411,45 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
     })),
   ];
 
+  /**
+   * Ruby says it with a gemspec.
+   *
+   * `sinatra/sinatra` is a gem — `sinatra.gemspec`, `Gem::Specification.new`, and a `lib/`
+   * that `require 'sinatra'` loads — and came out with no manifest, no entry point and no
+   * profile, because nothing here read a gemspec. The specification is RubyGems' own, and
+   * `lib/` is where `require` looks.
+   */
+  let rubyGem = false;
+  /** The names this repository publishes under, whatever the registry. */
+  const publishedNames = new Set<string>();
+  const ownName = (ctx.packageJson as { name?: unknown } | null)?.name;
+  if (typeof ownName === 'string') publishedNames.add(ownName.toLowerCase());
+  for (const file of all.filter((f) => /(^|\/)(pyproject\.toml|Cargo\.toml)$/.test(f) && !DOCS_DIRECTORIES.test(f)).slice(0, 10)) {
+    const name = /^\s*name\s*=\s*["']([\w.-]+)["']/m.exec((await readTextFileSafe(ctx.root, file)) ?? '');
+    if (name) publishedNames.add(name[1].toLowerCase());
+  }
+  for (const file of all.filter((f) => /\.gemspec$/.test(f) && !/(^|\/)(vendor|spec|test)\//.test(f)).slice(0, 5)) {
+    const raw = (await readTextFileSafe(ctx.root, file)) ?? '';
+    if (!/Gem::Specification\.new/.test(raw)) continue;
+    const gemName = /\.name\s*=\s*["']([\w.-]+)["']/.exec(raw) ?? /([\w.-]+)\.gemspec$/.exec(file);
+    if (gemName) publishedNames.add(gemName[1].toLowerCase());
+    const gemRoot = file.replace(/[^/]+\.gemspec$/, '');
+    if (all.some((f) => f.startsWith(`${gemRoot}lib/`) && f.endsWith('.rb'))) rubyGem = true;
+  }
+
   const entrypointCount = nodeEntrypoints.length
     + (pythonEntrypoints ? 1 : 0)
     + (dotnetPackageId ? 1 : 0)
     + (rustCrate ? 1 : 0)
     + (goLibrary ? 1 : 0)
-    + (jvmPublication ? 1 : 0);
+    + (jvmPublication ? 1 : 0)
+    + (rubyGem ? 1 : 0);
 
   return [
     {
       key: 'packaging.manifest',
       present: hasManifest,
-      complete: hasManifest && (named || pythonEntrypoints || dotnetPackageId || rustCrate || goLibrary || jvmPublication),
+      complete: hasManifest && (named || pythonEntrypoints || dotnetPackageId || rustCrate || goLibrary || jvmPublication || rubyGem),
       evidence: hasManifest
         ? [
             publishedMember
@@ -430,14 +457,14 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
               : { type: 'note' as const, value: named ? 'a manifest with a name and a version' : 'a package manifest' },
           ]
         : [],
-      details: { named, described, sourced, private: isPrivate },
+      details: { named, described, sourced, private: isPrivate, publishedNames: [...publishedNames] },
     },
     {
       key: 'packaging.entrypoints',
       present: entrypointCount > 0,
       // A crate, a Go package, a Maven publication and a NuGet package are typed by the
       // language they are written in; `types` is the question only JavaScript has to ask.
-      complete: entrypointCount > 0 && (hasTypes || pythonEntrypoints || goLibrary || rustCrate || jvmPublication || dotnetPackageId),
+      complete: entrypointCount > 0 && (hasTypes || pythonEntrypoints || goLibrary || rustCrate || jvmPublication || dotnetPackageId || rubyGem),
       evidence: [
         ...nodeEntrypoints.map((key) => ({ type: 'note' as const, value: `package.json declares "${key}"` })),
         ...(pythonEntrypoints ? [{ type: 'note' as const, value: 'a Python package or console script declaration' }] : []),
@@ -445,9 +472,10 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
         ...(rustCrate ? [{ type: 'note' as const, value: 'a Cargo package with a library crate root' }] : []),
         ...(goLibrary ? [{ type: 'note' as const, value: 'a Go module with no main package' }] : []),
         ...(jvmPublication ? [{ type: 'note' as const, value: 'a build that configures a Maven publication' }] : []),
+        ...(rubyGem ? [{ type: 'note' as const, value: 'a gemspec with a lib/ to require' }] : []),
         ...(hasTypes ? [{ type: 'note' as const, value: 'TypeScript types are declared' }] : []),
       ],
-      details: { nodeEntrypoints, hasTypes, pythonEntrypoints, dotnetPackageId, rustCrate, goLibrary, jvmPublication },
+      details: { nodeEntrypoints, hasTypes, pythonEntrypoints, dotnetPackageId, rustCrate, goLibrary, jvmPublication, rubyGem },
     },
     {
       key: 'packaging.license',

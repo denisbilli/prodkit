@@ -149,6 +149,21 @@ function servesOnlyInItsDocs(analysis: ProjectAnalysis): boolean {
 }
 
 /**
+ * A framework is not its own product's backend.
+ *
+ * `sinatra/sinatra` is the gem called sinatra, and the backend detector found sinatra —
+ * itself — and nothing else, so a web framework was read as a service with nobody to sign
+ * in. When every framework found is a name this repository publishes under, and no
+ * application is built outside docs and tests, the backend is what the package is.
+ */
+function isItsOwnBackend(analysis: ProjectAnalysis): boolean {
+  const names = analysis.detectors['packaging.manifest']?.details?.publishedNames as string[] | undefined;
+  const backend = analysis.detectors['stack.backend'];
+  if (!names?.length || backend?.details?.servedOutsideDocs !== false) return false;
+  return analysis.stack.backend.every((framework) => names.includes(framework.toLowerCase()));
+}
+
+/**
  * Whether any backend in this repository belongs to the product.
  *
  * A workspace under `docs/`, `playground/` or `examples/` that runs a server is running
@@ -162,6 +177,7 @@ function hasProductBackend(analysis: ProjectAnalysis): boolean {
   if (analysis.stack.backend.length === 0) return false;
   if (buildsNothingToRun(analysis)) return false;
   if (servesOnlyInItsDocs(analysis)) return false;
+  if (isItsOwnBackend(analysis)) return false;
 
   const withBackend = analysis.workspaceStacks.filter((workspace) => workspace.backend.length > 0);
   if (withBackend.length === 0) return true;

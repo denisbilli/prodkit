@@ -164,6 +164,10 @@
     {
       "repo": "honojs/hono",
       "is": "JavaScript web framework; its servers and JSX pages are in benchmarks, perf-measures and runtime-tests"
+    },
+    {
+      "repo": "sinatra/sinatra",
+      "is": "Ruby web framework published as a gem; its only backend is itself"
     }
   ]
 }
