@@ -161,12 +161,35 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
   }
   const rootIsPrivate = (ctx.packageJson as { private?: unknown } | null)?.private === true;
   const rootLicense = typeof (ctx.packageJson as { license?: unknown } | null)?.license === 'string';
-  const namesALicense = rootLicense || workspaceLicense !== undefined;
+  /**
+   * The other ecosystems' manifests, which name a licence in their own fields.
+   *
+   * The search above read package.json only, while the evidence it prints on a miss
+   * already promised "a license classifier in pyproject.toml". `encode/httpx` declares
+   * `license = "BSD-3-Clause"` and the OSI classifier, beside its LICENSE.md, and was
+   * told its licence is only half declared. PEP 621's `license =` and the `License ::`
+   * classifier, `setup.cfg` and `setup.py`, Cargo's `license =`, a gemspec's `.license =`
+   * and NuGet's `PackageLicenseExpression` are the same field under other names.
+   */
+  const otherManifests = all.filter((file) =>
+    /(^|\/)(pyproject\.toml|setup\.cfg|setup\.py|Cargo\.toml)$|\.(gemspec|csproj)$/.test(file)
+    && !/(^|\/)(node_modules|vendor|target)\//.test(file),
+  ).slice(0, 30);
+  let manifestLicense: string | undefined;
+  for (const file of otherManifests) {
+    const text = (await readTextFileSafe(ctx.root, file)) ?? '';
+    if (/^\s*license\s*=|License ::|\.license\s*=|<PackageLicense(?:Expression|File)>|\blicense\s*=\s*["']/m.test(text)) {
+      manifestLicense = file;
+      break;
+    }
+  }
+  const namesALicense = rootLicense || workspaceLicense !== undefined || manifestLicense !== undefined;
   const declaredLicense = namesALicense || (rootIsPrivate && licenseFiles.length > 0);
   const licenseEvidence: DetectorEvidence[] = [
     ...licenseFiles.map((file) => ({ type: 'file' as const, value: file, file })),
     ...(rootLicense ? [{ type: 'note' as const, value: 'a license field in package.json' }] : []),
     ...(workspaceLicense ? [{ type: 'note' as const, value: `a license field in ${workspaceLicense}`, file: workspaceLicense }] : []),
+    ...(manifestLicense ? [{ type: 'note' as const, value: `a licence declared in ${manifestLicense}`, file: manifestLicense }] : []),
   ];
 
   const readmeFiles = collect(all, README_FILE);
