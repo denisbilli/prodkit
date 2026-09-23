@@ -104,6 +104,10 @@
     {
       "repo": "Kareadita/Kavita",
       "is": "ASP.NET Core and Angular reading server; Identity's schema in every migration snapshot, and test projects named Foo.Tests"
+    },
+    {
+      "repo": "wallabag/wallabag",
+      "is": "Symfony read-it-later service; closes an account through getUser and a user manager, the only Symfony product here"
     }
   ]
 }

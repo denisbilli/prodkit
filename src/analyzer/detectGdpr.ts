@@ -25,7 +25,13 @@ function toEvidence(matches: Array<{ snippet: string; file: string; line: number
  * followed a short way, because a view that does more than one thing to the caller names
  * it first.
  */
-const CALLER = String.raw`(?:request\.user|current_user|\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\))`;
+/*
+ * Symfony's is `$this->getUser()`, and it deletes through a service: wallabag closes an
+ * account with `$user = $this->getUser()` then `$this->userManager->deleteUser($user)`,
+ * and Doctrine's is `$entityManager->remove($user)`. The bound caller passed to a
+ * `remove` or `delete…` call is the same act as calling `delete` on it.
+ */
+const CALLER = String.raw`(?:request\.user|current_user|\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\)|\$this->getUser\(\))`;
 const CALLER_DELETED = new RegExp(String.raw`${CALLER}\s*(?:\.delete\(\)|\.destroy!?\b|->delete\(\))`);
 const CALLER_BOUND = new RegExp(String.raw`^\s*(\$?\w+)\s*=\s*${CALLER}\s*;?\s*$`);
 /** Far enough to cover one view, not so far it reaches the next. */
@@ -36,7 +42,7 @@ async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
   for (const file of ctx.files.source) {
     if (!/\.(py|rb|php)$/.test(file)) continue;
     const text = await readTextFileSafe(ctx.root, file);
-    if (!text || !/request\.user|current_user|->user\(\)|Auth::user/.test(text)) continue;
+    if (!text || !/request\.user|current_user|->user\(\)|Auth::user|->getUser\(\)/.test(text)) continue;
 
     const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length && found.length < 5; i++) {
@@ -47,7 +53,7 @@ async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
       const bound = CALLER_BOUND.exec(lines[i]);
       if (!bound) continue;
       const name = bound[1].replace(/[$]/g, '\\$');
-      const deleted = new RegExp(String.raw`(?:^|[^\w$])${name}\s*(?:\.delete\(\)|\.destroy!?\b|->delete\(\))`);
+      const deleted = new RegExp(String.raw`(?:^|[^\w$])${name}\s*(?:\.delete\(\)|\.destroy!?\b|->delete\(\))|->(?:remove|delete\w*)\(\s*${name}\s*\)`);
       for (let j = i + 1; j < Math.min(lines.length, i + WITHIN_ONE_VIEW); j++) {
         if (/^\s*(?:def|function|public function|private function)\b/.test(lines[j])) break;
         if (!deleted.test(lines[j])) continue;

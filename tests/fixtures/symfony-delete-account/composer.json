@@ -1,0 +1,8 @@
+{
+  "name": "acme/reader",
+  "require": {
+    "php": "^8.2",
+    "symfony/framework-bundle": "^7.1",
+    "symfony/security-bundle": "^7.1"
+  }
+}

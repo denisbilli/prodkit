@@ -26,6 +26,13 @@ describe('the caller deletes themselves', () => {
     expect(analysis.detectors['gdpr.erasure.route']?.present).toBe(true);
   });
 
+  /** Symfony's caller is `$this->getUser()`, deleted through a service. */
+  it('reads Symfony\'s getUser passed to a delete', async () => {
+    const analysis = await analyzeProject(fixture('symfony-delete-account'));
+
+    expect(analysis.detectors['gdpr.erasure.route']?.present).toBe(true);
+  });
+
   /**
    * An admin deleting a user by id is every admin screen ever written, and a view that
    * reads the caller and then deletes one of their projects has not deleted the caller.
