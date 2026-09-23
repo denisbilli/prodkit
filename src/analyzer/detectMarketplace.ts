@@ -1,7 +1,8 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyPyDep } from './detectContext';
-import { searchInFiles } from '../utils/textSearch';
+import { searchInFiles, type TextMatch } from '../utils/textSearch';
+import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { evidenceOrSearch } from './absenceEvidence';
 
 /**
@@ -60,6 +61,8 @@ const CONNECTED_ACCOUNT = [
   /\bdestination_account\b/,
   /\bconnected_?account/i,
 ];
+/** The ones that name Stripe or its API; the last pattern is only a word. */
+const STRIPE_CONNECT_CALLS = CONNECTED_ACCOUNT.slice(0, -1);
 
 /**
  * Nobody writes `seller` on its own.
@@ -113,7 +116,21 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
    * `stripe.accounts.create(` is neither. Nothing calls it by accident, so it can be
    * looked for where the code actually is.
    */
-  const connectedHits = await searchInFiles(ctx.root, ctx.files.source, CONNECTED_ACCOUNT, 20);
+  /**
+   * And a connected account is Stripe's only where Stripe is.
+   *
+   * `connected_account` is the one pattern above that does not name Stripe, and
+   * `twentyhq/twenty` — a CRM — has `connectedAccountId` in every file that syncs a
+   * user's Gmail or calendar, because that is what it calls an OAuth account somebody
+   * linked. It was inferred as a marketplace at high confidence. The word counts in a
+   * file that talks to Stripe; the calls that are Stripe's own count anywhere.
+   */
+  const connectedHits: TextMatch[] = [];
+  for (const hit of await searchInFiles(ctx.root, ctx.files.source, CONNECTED_ACCOUNT, 40)) {
+    const stripesOwn = STRIPE_CONNECT_CALLS.some((pattern) => pattern.test(hit.snippet));
+    if (stripesOwn || /stripe/i.test((await readTextFileSafe(ctx.root, hit.file)) ?? '')) connectedHits.push(hit);
+    if (connectedHits.length >= 20) break;
+  }
 
   for (const hit of [...sellerHits, ...buyerHits, ...connectedHits]) {
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });

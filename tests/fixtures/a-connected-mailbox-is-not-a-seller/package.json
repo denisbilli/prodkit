@@ -1,0 +1,10 @@
+{
+  "name": "crm",
+  "version": "1.0.0",
+  "dependencies": {
+    "@nestjs/core": "^10.4.0",
+    "bcrypt": "^5.1.1",
+    "googleapis": "^144.0.0",
+    "stripe": "^17.0.0"
+  }
+}
