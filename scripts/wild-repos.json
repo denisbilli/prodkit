@@ -192,6 +192,10 @@
     {
       "repo": "solidtime-io/solidtime",
       "is": "Laravel and Vue time tracking with organisations, Jetstream teams and API tokens; the second Laravel B2B product"
+    },
+    {
+      "repo": "invoiceninja/invoiceninja",
+      "is": "Laravel invoicing platform that pays its customers' clients through Stripe Connect with an application fee; a marketplace in Stripe's sense, recorded as one"
     }
   ]
 }

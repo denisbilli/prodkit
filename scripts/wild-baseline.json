@@ -1367,5 +1367,39 @@
       "deployment.readiness": "present",
       "deployment.docker": "present"
     }
+  },
+  "invoiceninja": {
+    "inferredProfile": "marketplace",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "b2c.notifications": "partial",
+      "marketplace.multi-role": "present",
+      "marketplace.payout": "present",
+      "marketplace.commission": "present",
+      "marketplace.dispute": "partial",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "present",
+      "gdpr.export": "present",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "missing",
+      "billing.model": "present",
+      "billing.webhook-integrity": "partial",
+      "security.headers": "present",
+      "security.cors": "partial",
+      "security.rate-limit": "present",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "partial",
+      "deployment.readiness": "present",
+      "deployment.docker": "missing"
+    }
   }
 }
