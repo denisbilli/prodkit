@@ -78,6 +78,13 @@ const AUDIT_WRITE = [
  */
 const ACTOR_COLUMN = /\b(act_?user\w*|actor\w*|performed_by\w*|changed_by\w*|modified_by\w*|acting_user\w*|moderator\w*)\b/i;
 const CALLER_IP_COLUMN = /\b(ip_?address|remote_?addr|client_?ip)\b/i;
+/**
+ * A column called just `ip`, which is too short a word to find anywhere else but is
+ * unambiguous where a record declares it: a typed field (`ip: string | null;`), a model
+ * attribute (`ip = models.GenericIPAddressField(`), a migration column (`t.inet :ip`,
+ * `addColumn("events", "ip"`). outline's events table calls it that.
+ */
+const BARE_IP_FIELD = /^\s*(?:(?:public|private|readonly|declare)\s+)*ip\s*[?!]?\s*:\s*(?:string|String|str|text|inet|Optional|Mapped|varchar)\b|^\s*ip\s*=\s*(?:models|db|sa)\.|\bt\.\w+\s+:ip\b|["']ip["']\s*[,)]/;
 const WHEN_COLUMN = /\b\w*_?(date|at|time|timestamp)\b/i;
 
 /** How far apart the three may sit and still be one record: a generous struct or table. */
@@ -173,6 +180,30 @@ function writesTo(name: string): RegExp[] {
   ];
 }
 
+/**
+ * The whole record the line belongs to, when the file says where records begin.
+ *
+ * A window of eight lines either side is one table in SQL and one struct in Go, and a
+ * fraction of a model in an ORM that decorates every column. outline's `Event` model
+ * declares `ip` on line 51 and `actorId` on line 118 of the same class, and was read as
+ * holding neither together. From the declaration above the line to the next one — capped,
+ * so a file of loose functions is not one record — is the record.
+ */
+const ONE_RECORD_AT_MOST = 250;
+
+function enclosingRecord(lines: string[], at: number): string | null {
+  let start = -1;
+  for (let i = at; i >= 0 && at - i <= ONE_RECORD_AT_MOST; i--) {
+    if (RECORD_DECLARATION.test(lines[i]) || RAILS_TABLE.test(lines[i])) { start = i; break; }
+  }
+  if (start < 0) return null;
+  let end = Math.min(lines.length, start + ONE_RECORD_AT_MOST);
+  for (let i = at + 1; i < end; i++) {
+    if (RECORD_DECLARATION.test(lines[i]) || RAILS_TABLE.test(lines[i])) { end = i; break; }
+  }
+  return lines.slice(start, end).join('\n');
+}
+
 async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<ShapedRecords> {
   const evidence: DetectorEvidence[] = [];
   const names = new Set<string>();
@@ -184,7 +215,10 @@ async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<
     const lines = text.split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       const window = () => lines.slice(Math.max(0, i - WITHIN_ONE_RECORD), i + WITHIN_ONE_RECORD + 1).join('\n');
-      const whoWhenWhere = CALLER_IP_COLUMN.test(lines[i]) && ACTOR_COLUMN.test(window()) && WHEN_COLUMN.test(window());
+      const callerIp = CALLER_IP_COLUMN.test(lines[i]) || BARE_IP_FIELD.test(lines[i]);
+      const record = () => enclosingRecord(lines, i) ?? window();
+      const whoWhenWhere = callerIp
+        && ((ACTOR_COLUMN.test(window()) && WHEN_COLUMN.test(window())) || (ACTOR_COLUMN.test(record()) && WHEN_COLUMN.test(record())));
       const beforeAndAfter = BEFORE_STATE.test(lines[i]) && AFTER_STATE.test(window());
       const whoWhatWhy = REASON_COLUMN.test(lines[i]) && ACTION_COLUMN.test(window()) && ACTOR_COLUMN.test(window()) && WHEN_COLUMN.test(window());
       if (!whoWhenWhere && !beforeAndAfter && !whoWhatWhy) continue;

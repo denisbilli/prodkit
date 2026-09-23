@@ -826,7 +826,7 @@
       "uploads.protection": "present",
       "observability.health": "present",
       "observability.logging": "present",
-      "audit.baseline": "partial",
+      "audit.baseline": "present",
       "deployment.readiness": "present",
       "deployment.docker": "present"
     }

@@ -1,0 +1,9 @@
+{
+  "name": "wiki",
+  "version": "1.0.0",
+  "dependencies": {
+    "koa": "^2.15.3",
+    "sequelize": "^6.37.3",
+    "sequelize-typescript": "^2.1.6"
+  }
+}
