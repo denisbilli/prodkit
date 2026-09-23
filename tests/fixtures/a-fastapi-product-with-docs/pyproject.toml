@@ -1,0 +1,5 @@
+[project]
+name = "notes-api"
+version = "1.4.0"
+description = "Notes service."
+dependencies = ["fastapi>=0.115", "uvicorn>=0.30"]

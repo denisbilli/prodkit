@@ -125,6 +125,30 @@ function buildsNothingToRun(analysis: ProjectAnalysis): boolean {
 }
 
 /**
+ * A published package whose every server is in its documentation.
+ *
+ * `fastapi/fastapi` came out as a consumer application at high confidence: every
+ * `app = FastAPI()` and `Flask(__name__)` the backend search found is in `docs_src/`, the
+ * code its documentation pages run, and the only other signal was its own dependency on
+ * starlette, which is what a framework is built from. A package that is published and
+ * whose code shows a server only under docs, examples or tests is demonstrating one.
+ * It needs at least one such line — a bare dependency proves nothing either way — and it
+ * asks the backend detector's own search as well as its evidence: the evidence is a
+ * sample of three lines per framework and cannot say where servers are not, and the
+ * search knows the constructors, not every way a Go program starts one. Both have to
+ * agree — a Go fragment whose only backend line is `apis/serve.go` is not documentation.
+ */
+function servesOnlyInItsDocs(analysis: ProjectAnalysis): boolean {
+  if (analysis.detectors['packaging.manifest']?.complete !== true) return false;
+  const backend = analysis.detectors['stack.backend'];
+  const sites = (backend?.evidence ?? []).filter((e) => e.type === 'snippet' && e.file);
+  const inDocsOrTests = (file: string) => DOCS_DIRECTORIES.test(file) || /(^|\/)(tests?|__tests__|spec|specs)\//.test(file);
+  return sites.length > 0
+    && sites.every((e) => inDocsOrTests(e.file!))
+    && backend?.details?.servedOutsideDocs === false;
+}
+
+/**
  * Whether any backend in this repository belongs to the product.
  *
  * A workspace under `docs/`, `playground/` or `examples/` that runs a server is running
@@ -137,6 +161,7 @@ function buildsNothingToRun(analysis: ProjectAnalysis): boolean {
 function hasProductBackend(analysis: ProjectAnalysis): boolean {
   if (analysis.stack.backend.length === 0) return false;
   if (buildsNothingToRun(analysis)) return false;
+  if (servesOnlyInItsDocs(analysis)) return false;
 
   const withBackend = analysis.workspaceStacks.filter((workspace) => workspace.backend.length > 0);
   if (withBackend.length === 0) return true;

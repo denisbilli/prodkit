@@ -156,6 +156,10 @@
     {
       "repo": "gin-gonic/gin",
       "is": "Go web framework; net/http everywhere, no main package outside a doc comment, and a LICENSE"
+    },
+    {
+      "repo": "fastapi/fastapi",
+      "is": "Python web framework; every application it builds is in docs_src, the code its documentation runs"
     }
   ]
 }

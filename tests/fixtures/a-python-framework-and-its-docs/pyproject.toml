@@ -1,0 +1,6 @@
+[project]
+name = "webfw"
+version = "0.115.0"
+description = "A small web framework built on starlette."
+license = "MIT"
+dependencies = ["starlette>=0.40", "pydantic>=2"]

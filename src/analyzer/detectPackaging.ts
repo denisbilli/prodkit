@@ -70,9 +70,10 @@ const DOCS_GENERATORS = [
  * beside the new one, and `colinhacks/zod` has `packages/docs/` and `packages/docs-v3/`.
  * `docs?\/` wanted the slash straight after, so two `index.html` files under
  * `docs-v3/` made zod's front end its product, and a TypeScript library was inferred as
- * a client application at high confidence.
+ * a client application at high confidence. And `docs_src/`, where FastAPI keeps the code
+ * every page of its documentation runs.
  */
-export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www)(?:[-_.]?v?\d+)?\//i;
+export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www)(?:[-_.]?v?\d+|[-_]src)?\//i;
 
 /**
  * `.html` belongs here because the front-end fact counts it.

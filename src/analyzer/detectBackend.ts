@@ -1,6 +1,7 @@
 import type { DetectorResult, DetectorEvidence } from './types';
 import { hasRuntimeDep, hasRuntimePyDep, hasDep, hasAnyPhpDep, hasAnyGoDep, hasAnyGradleDep, hasAnyRuntimeRustDep, hasAnyRubyDep, hasAnyDotnetDep, hasAnyRuntimeElixirDep, type DetectContext } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { DOCS_DIRECTORIES } from './detectPackaging';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { MINIMUM_LANGUAGE_SHARE, languageShare } from './languageShare';
 import {
@@ -456,13 +457,39 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     evidence.push(...djangoSignals);
   }
 
+  /**
+   * Whether an application is built anywhere a product would build one.
+   *
+   * The evidence above is a sample — three lines per framework, in file order — so it
+   * cannot say where servers are *not*. This asks directly: is an application instance
+   * created, or a server started, in a file outside docs, examples and tests? FastAPI's
+   * `app = FastAPI()` lines are all in `docs_src/`; a product that uses FastAPI makes one
+   * in its own package. The constructors and entry points are the frameworks' own.
+   */
+  const outsideDocs = frameworks.length > 0
+    ? ctx.files.source.filter((f) => !DOCS_DIRECTORIES.test(f) && !/(^|\/)(tests?|__tests__|spec|specs)\//.test(f))
+    : [];
+  const servedOutsideDocs = outsideDocs.length > 0 && (await searchInFiles(ctx.root, outsideDocs, APP_INSTANCE, 1)).length > 0;
+
   return {
     frameworks,
     result: {
       key: 'stack.backend',
       present: frameworks.length > 0,
       evidence,
-      details: { frameworks },
+      details: { frameworks, servedOutsideDocs },
     },
   };
 }
+
+const APP_INSTANCE = [
+  /\b\w+\s*=\s*(?:FastAPI|Flask|Starlette|Quart|Sanic|Litestar|Robyn)\s*\(/,
+  /\bget_(?:wsgi|asgi)_application\s*\(/,
+  /\bexpress\s*\(\s*\)/,
+  /\bnew\s+(?:Hono|Koa|Elysia)\s*\(/,
+  /\b(?:Fastify|fastify)\s*\(\s*\{?/,
+  /\bNestFactory\.create\s*\(/,
+  /\buvicorn\.run\s*\(/,
+  /\bhttp\.ListenAndServe\s*\(/,
+  /\bRails\.application\b/,
+];
