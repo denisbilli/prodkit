@@ -1,0 +1,1 @@
+{ "name": "bench-http", "private": true, "dependencies": { "express": "^4.19.2", "tinyweb": "workspace:*" } }

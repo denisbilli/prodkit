@@ -160,6 +160,10 @@
     {
       "repo": "fastapi/fastapi",
       "is": "Python web framework; every application it builds is in docs_src, the code its documentation runs"
+    },
+    {
+      "repo": "honojs/hono",
+      "is": "JavaScript web framework; its servers and JSX pages are in benchmarks, perf-measures and runtime-tests"
     }
   ]
 }

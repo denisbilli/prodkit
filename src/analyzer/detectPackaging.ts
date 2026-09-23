@@ -72,8 +72,14 @@ const DOCS_GENERATORS = [
  * `docs-v3/` made zod's front end its product, and a TypeScript library was inferred as
  * a client application at high confidence. And `docs_src/`, where FastAPI keeps the code
  * every page of its documentation runs.
+ *
+ * Benchmarks and runtime test suites belong here for the same reason: they build servers
+ * and pages to measure the product, not to be it. `honojs/hono` has an Express and a Hono
+ * app in every `benchmarks/*` workspace, `new Hono()` in `perf-measures/` and
+ * `runtime-tests/`, and JSX pages in `benchmarks/jsx/` — and a web framework came out as a
+ * consumer application at high confidence.
  */
-export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www)(?:[-_.]?v?\d+|[-_]src)?\//i;
+export const DOCS_DIRECTORIES = /(^|\/)(docs?|website|playground|examples?|demo|www|benchmarks?|perf(?:[-_]\w+)?|\w+-tests)(?:[-_.]?v?\d+|[-_]src)?\//i;
 
 /**
  * `.html` belongs here because the front-end fact counts it.
