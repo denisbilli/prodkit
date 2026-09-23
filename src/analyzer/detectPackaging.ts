@@ -184,7 +184,14 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
     }
   }
   const namesALicense = rootLicense || workspaceLicense !== undefined || manifestLicense !== undefined;
-  const declaredLicense = namesALicense || (rootIsPrivate && licenseFiles.length > 0);
+  /**
+   * go.mod has no licence field, so a Go module has nothing to declare it in: pkg.go.dev
+   * reads the LICENSE file and nothing else. The same reasoning that excuses a private
+   * npm root — a manifest with no licence field cannot be missing one — and the file is
+   * still required.
+   */
+  const goModuleOnly = all.includes('go.mod') && !ctx.packageJson && otherManifests.length === 0;
+  const declaredLicense = namesALicense || ((rootIsPrivate || goModuleOnly) && licenseFiles.length > 0);
   const licenseEvidence: DetectorEvidence[] = [
     ...licenseFiles.map((file) => ({ type: 'file' as const, value: file, file })),
     ...(rootLicense ? [{ type: 'note' as const, value: 'a license field in package.json' }] : []),
@@ -219,6 +226,15 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
   const hasTestScript = typeof scripts.test === 'string' && !/no test specified/i.test(scripts.test);
   const hasPyTestRunner = all.some((f) => /(^|\/)(pytest\.ini|tox\.ini|noxfile\.py)$/i.test(f))
     || ctx.pythonDeps.some((d) => d === 'pytest' || d === 'nose2' || d === 'unittest2');
+  /**
+   * The toolchains that run tests with nothing to configure.
+   *
+   * `go test`, `cargo test`, `mix test` and a Gradle or Maven build's `test` task exist the
+   * moment the manifest does; there is no script to write. `spf13/cobra` has `_test.go`
+   * files beside every source file and was told its tests had no runner, which is true of
+   * no Go project anywhere.
+   */
+  const hasToolchainTestRunner = all.some((f) => /(^|\/)(go\.mod|Cargo\.toml|mix\.exs|build\.gradle(\.kts)?|pom\.xml)$/.test(f));
 
   /**
    * Whether the package can be installed and imported.
@@ -409,7 +425,9 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
     {
       key: 'packaging.entrypoints',
       present: entrypointCount > 0,
-      complete: entrypointCount > 0 && (hasTypes || pythonEntrypoints),
+      // A crate, a Go package, a Maven publication and a NuGet package are typed by the
+      // language they are written in; `types` is the question only JavaScript has to ask.
+      complete: entrypointCount > 0 && (hasTypes || pythonEntrypoints || goLibrary || rustCrate || jvmPublication || dotnetPackageId),
       evidence: [
         ...nodeEntrypoints.map((key) => ({ type: 'note' as const, value: `package.json declares "${key}"` })),
         ...(pythonEntrypoints ? [{ type: 'note' as const, value: 'a Python package or console script declaration' }] : []),
@@ -477,17 +495,18 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
     {
       key: 'quality.tests',
       present: testFiles.length > 0,
-      complete: testFiles.length > 0 && (hasTestScript || hasPyTestRunner),
+      complete: testFiles.length > 0 && (hasTestScript || hasPyTestRunner || hasToolchainTestRunner),
       evidence: evidenceOrSearch(
         [
           ...testFiles.slice(0, 3).map((file) => ({ type: 'file' as const, value: file, file })),
           ...(hasTestScript ? [{ type: 'note' as const, value: 'an "npm test" script' }] : []),
           ...(hasPyTestRunner ? [{ type: 'note' as const, value: 'a Python test runner' }] : []),
+          ...(hasToolchainTestRunner && !hasTestScript && !hasPyTestRunner ? [{ type: 'note' as const, value: "the toolchain's own test command" }] : []),
         ],
         'tests',
         ['a path under test/ or tests/', '*.test.*', '*.spec.*', 'test_*.py', '*_test.go', 'an "npm test" script', 'pytest', 'tox'],
       ),
-      details: { files: testFiles.length, runner: hasTestScript || hasPyTestRunner },
+      details: { files: testFiles.length, runner: hasTestScript || hasPyTestRunner || hasToolchainTestRunner },
     },
     {
       key: 'quality.ci',

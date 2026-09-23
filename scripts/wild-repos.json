@@ -144,6 +144,10 @@
     {
       "repo": "encode/httpx",
       "is": "Python HTTP client library with MkDocs; declares its licence in pyproject under PEP 621, the first Python library here"
+    },
+    {
+      "repo": "spf13/cobra",
+      "is": "Go CLI library; typed by its language, licensed by its LICENSE file, tested by go test, the first Go library here"
     }
   ]
 }
