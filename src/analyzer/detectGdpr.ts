@@ -1,11 +1,63 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
+import type { TextMatch } from '../utils/textSearch';
 import { searchInFiles } from '../utils/textSearch';
+import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { searchedFor } from './absenceEvidence';
 import { fileNameEvidence, searchFileNames } from './fileNames';
 
 function toEvidence(matches: Array<{ snippet: string; file: string; line: number }>): DetectorEvidence[] {
   return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
+}
+
+/**
+ * The request's own user, deleted.
+ *
+ * `healthchecks/healthchecks` lets anyone close their account at `accounts/close/`: the
+ * view reads `user = request.user`, cancels the subscription and calls `user.delete()`.
+ * Nothing in it says erasure, delete account or GDPR — the view is called `close` — and it
+ * was reported as having no erasure flow.
+ *
+ * Whose account is the whole question, and the framework answers it. `request.user` is
+ * Django's name for the caller, `current_user` Devise's, `$request->user()` and
+ * `Auth::user()` Laravel's. Deleting that object is deleting yourself; `User.objects.get(
+ * pk=id).delete()` on an admin screen is not it, and is not matched. The binding is
+ * followed a short way, because a view that does more than one thing to the caller names
+ * it first.
+ */
+const CALLER = String.raw`(?:request\.user|current_user|\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\))`;
+const CALLER_DELETED = new RegExp(String.raw`${CALLER}\s*(?:\.delete\(\)|\.destroy!?\b|->delete\(\))`);
+const CALLER_BOUND = new RegExp(String.raw`^\s*(\$?\w+)\s*=\s*${CALLER}\s*;?\s*$`);
+/** Far enough to cover one view, not so far it reaches the next. */
+const WITHIN_ONE_VIEW = 30;
+
+async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
+  const found: TextMatch[] = [];
+  for (const file of ctx.files.source) {
+    if (!/\.(py|rb|php)$/.test(file)) continue;
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text || !/request\.user|current_user|->user\(\)|Auth::user/.test(text)) continue;
+
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length && found.length < 5; i++) {
+      if (CALLER_DELETED.test(lines[i])) {
+        found.push({ file, line: i + 1, snippet: lines[i].trim().slice(0, 200) });
+        continue;
+      }
+      const bound = CALLER_BOUND.exec(lines[i]);
+      if (!bound) continue;
+      const name = bound[1].replace(/[$]/g, '\\$');
+      const deleted = new RegExp(String.raw`(?:^|[^\w$])${name}\s*(?:\.delete\(\)|\.destroy!?\b|->delete\(\))`);
+      for (let j = i + 1; j < Math.min(lines.length, i + WITHIN_ONE_VIEW); j++) {
+        if (/^\s*(?:def|function|public function|private function)\b/.test(lines[j])) break;
+        if (!deleted.test(lines[j])) continue;
+        found.push({ file, line: j + 1, snippet: lines[j].trim().slice(0, 200) });
+        break;
+      }
+    }
+    if (found.length >= 5) break;
+  }
+  return found;
 }
 
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
@@ -166,6 +218,7 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
    * function that removes a cloud provider account. A file *named* for deleting
    * accounts is a different thing: somebody built a feature and called it that.
    */
+  const callerDeleted = await deletesTheCaller(ctx);
   const erasureFiles = searchFileNames(ctx.files.source, [
     /user[_-]?anonymi[sz]/i,
     /anonymi[sz]er/i,
@@ -222,10 +275,10 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'gdpr.erasure.route',
-      present: erasure.length > 0 || erasureFiles.length > 0,
+      present: erasure.length > 0 || erasureFiles.length > 0 || callerDeleted.length > 0,
       evidence:
-        erasure.length > 0 || erasureFiles.length > 0
-          ? [...toEvidence(erasure), ...fileNameEvidence(erasureFiles)]
+        erasure.length > 0 || erasureFiles.length > 0 || callerDeleted.length > 0
+          ? [...toEvidence(erasure), ...toEvidence(callerDeleted), ...fileNameEvidence(erasureFiles)]
           : evidenceOr(erasure, 'erasure'),
     },
     {

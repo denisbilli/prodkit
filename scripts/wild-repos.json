@@ -72,6 +72,10 @@
     {
       "repo": "akaunting/akaunting",
       "is": "Laravel multi-company accounting; its tenant is a company, joined to users by user_companies, and nothing else here is a Laravel B2B product"
+    },
+    {
+      "repo": "healthchecks/healthchecks",
+      "is": "Django B2B SaaS with projects, TOTP and WebAuthn; its account closes through a view called close that deletes request.user"
     }
   ]
 }
