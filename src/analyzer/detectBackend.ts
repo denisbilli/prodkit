@@ -492,4 +492,5 @@ const APP_INSTANCE = [
   /\buvicorn\.run\s*\(/,
   /\bhttp\.ListenAndServe\s*\(/,
   /\bRails\.application\b/,
+  /=\s*AppFactory::create\s*\(/,
 ];

@@ -437,19 +437,36 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
     if (all.some((f) => f.startsWith(`${gemRoot}lib/`) && f.endsWith('.rb'))) rubyGem = true;
   }
 
+  /**
+   * PHP says it in composer.json: a name, an autoload, and a `type` that is not `project`.
+   *
+   * `slimphp/Slim` is `"type": "library"` with a PSR-4 autoload — Packagist's package and
+   * Composer's load path — and came out with no manifest, no entry point and no profile.
+   * `project` is Composer's word for an application you create from a skeleton, which is
+   * the one type that is not a package for others to require.
+   */
+  let composerPackage = false;
+  const composer = await readJsonSafe<{ name?: unknown; type?: unknown; autoload?: unknown }>(ctx.root, 'composer.json');
+  if (typeof composer?.name === 'string' && composer.autoload && composer.type !== 'project') {
+    composerPackage = true;
+    publishedNames.add(composer.name.toLowerCase());
+    publishedNames.add(composer.name.split('/').pop()!.toLowerCase());
+  }
+
   const entrypointCount = nodeEntrypoints.length
     + (pythonEntrypoints ? 1 : 0)
     + (dotnetPackageId ? 1 : 0)
     + (rustCrate ? 1 : 0)
     + (goLibrary ? 1 : 0)
     + (jvmPublication ? 1 : 0)
-    + (rubyGem ? 1 : 0);
+    + (rubyGem ? 1 : 0)
+    + (composerPackage ? 1 : 0);
 
   return [
     {
       key: 'packaging.manifest',
       present: hasManifest,
-      complete: hasManifest && (named || pythonEntrypoints || dotnetPackageId || rustCrate || goLibrary || jvmPublication || rubyGem),
+      complete: hasManifest && (named || pythonEntrypoints || dotnetPackageId || rustCrate || goLibrary || jvmPublication || rubyGem || composerPackage),
       evidence: hasManifest
         ? [
             publishedMember
@@ -464,7 +481,7 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
       present: entrypointCount > 0,
       // A crate, a Go package, a Maven publication and a NuGet package are typed by the
       // language they are written in; `types` is the question only JavaScript has to ask.
-      complete: entrypointCount > 0 && (hasTypes || pythonEntrypoints || goLibrary || rustCrate || jvmPublication || dotnetPackageId || rubyGem),
+      complete: entrypointCount > 0 && (hasTypes || pythonEntrypoints || goLibrary || rustCrate || jvmPublication || dotnetPackageId || rubyGem || composerPackage),
       evidence: [
         ...nodeEntrypoints.map((key) => ({ type: 'note' as const, value: `package.json declares "${key}"` })),
         ...(pythonEntrypoints ? [{ type: 'note' as const, value: 'a Python package or console script declaration' }] : []),
@@ -473,9 +490,10 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
         ...(goLibrary ? [{ type: 'note' as const, value: 'a Go module with no main package' }] : []),
         ...(jvmPublication ? [{ type: 'note' as const, value: 'a build that configures a Maven publication' }] : []),
         ...(rubyGem ? [{ type: 'note' as const, value: 'a gemspec with a lib/ to require' }] : []),
+        ...(composerPackage ? [{ type: 'note' as const, value: 'a Composer package with an autoload' }] : []),
         ...(hasTypes ? [{ type: 'note' as const, value: 'TypeScript types are declared' }] : []),
       ],
-      details: { nodeEntrypoints, hasTypes, pythonEntrypoints, dotnetPackageId, rustCrate, goLibrary, jvmPublication, rubyGem },
+      details: { nodeEntrypoints, hasTypes, pythonEntrypoints, dotnetPackageId, rustCrate, goLibrary, jvmPublication, rubyGem, composerPackage },
     },
     {
       key: 'packaging.license',

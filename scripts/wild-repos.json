@@ -168,6 +168,10 @@
     {
       "repo": "sinatra/sinatra",
       "is": "Ruby web framework published as a gem; its only backend is itself"
+    },
+    {
+      "repo": "slimphp/Slim",
+      "is": "PHP micro framework published as a Composer library; its only AppFactory::create() outside tests is in an error message"
     }
   ]
 }

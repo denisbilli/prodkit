@@ -160,7 +160,13 @@ function isItsOwnBackend(analysis: ProjectAnalysis): boolean {
   const names = analysis.detectors['packaging.manifest']?.details?.publishedNames as string[] | undefined;
   const backend = analysis.detectors['stack.backend'];
   if (!names?.length || backend?.details?.servedOutsideDocs !== false) return false;
-  return analysis.stack.backend.every((framework) => names.includes(framework.toLowerCase()));
+  return analysis.stack.backend.every((framework) => names.includes(framework.toLowerCase())
+    /*
+     * `php` is the language, not a framework: the detector reports it for any PHP that
+     * handles requests, and in a Composer library that is the library's own code. Slim is
+     * `slim/slim`; its apps are all in tests.
+     */
+    || (framework === 'php' && analysis.detectors['packaging.entrypoints']?.details?.composerPackage === true));
 }
 
 /**
