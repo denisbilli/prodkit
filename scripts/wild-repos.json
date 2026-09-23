@@ -84,6 +84,10 @@
     {
       "repo": "polarsource/polar",
       "is": "FastAPI and Next.js merchant of record paying creators through Stripe Connect; the only marketplace here, so the only thing measuring that profile against a real product"
+    },
+    {
+      "repo": "sissbruecker/linkding",
+      "is": "Django bookmark manager; exports the caller's bookmarks from a settings view whose path names no person"
     }
   ]
 }

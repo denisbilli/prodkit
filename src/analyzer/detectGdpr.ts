@@ -60,6 +60,53 @@ async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
   return found;
 }
 
+/**
+ * The caller's own rows, handed over as a file.
+ *
+ * `sissbruecker/linkding` lets anyone download their bookmarks from `settings/export`: the
+ * view reads `Bookmark.objects.filter(owner=request.user)` and answers with
+ * `Content-Disposition: attachment`. It was reported as having no data export, because the
+ * path names no person and the function is called `bookmark_export`.
+ *
+ * Both halves are the framework's, as with erasure above. The caller narrows the query —
+ * `owner=request.user` in Django, `current_user.bookmarks` in Rails, `$request->user()->`
+ * in Laravel — and the response is a download: an attachment header, `as_attachment=True`,
+ * Rails' `send_data`, Laravel's `->download(`. Together, in one function, they are a
+ * person taking their data away. An admin's CSV of every user has the download and not
+ * the caller; a page listing the caller's rows has the caller and not the download.
+ *
+ * The caller has to be the value of a keyword argument, and nothing read off it. netbox's
+ * table export reads `delimiter = request.user.config.get('csv_delimiter')` beside its
+ * attachment header, and a plain assignment was enough to call every table in it the
+ * caller's own data.
+ */
+const CALLER_NARROWS = /[(,]\s*\w+(?:_id)?\s*=\s*request\.user\b(?!\.)|\bcurrent_user\.\w+s\b|\bwhere\(\s*user(?:_id)?:\s*current_user\b|(?:\$request->user\(\)|Auth::user\(\)|auth\(\)->user\(\))->\w+s\b/;
+const HANDED_OVER = /Content-Disposition['"]?\]?\s*[=,:]?.*attachment|\bas_attachment\s*=\s*True\b|\bsend_data\b|->(?:streamD|d)ownload\s*\(/i;
+const FUNCTION_START = /^\s*(?:async\s+def|def|(?:public\s+|private\s+|protected\s+)?function)\b/;
+
+async function exportsTheCallersRows(ctx: DetectContext): Promise<TextMatch[]> {
+  const found: TextMatch[] = [];
+  for (const file of ctx.files.source) {
+    if (!/\.(py|rb|php)$/.test(file)) continue;
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text || !HANDED_OVER.test(text)) continue;
+
+    const lines = text.split(/\r?\n/);
+    let start = 0;
+    for (let i = 0; i <= lines.length; i++) {
+      if (i < lines.length && !FUNCTION_START.test(lines[i])) continue;
+      const body = lines.slice(start, i);
+      const handed = body.findIndex((line) => HANDED_OVER.test(line));
+      if (handed >= 0 && body.some((line) => CALLER_NARROWS.test(line))) {
+        found.push({ file, line: start + handed + 1, snippet: body[handed].trim().slice(0, 200) });
+      }
+      start = i;
+    }
+    if (found.length >= 5) break;
+  }
+  return found.slice(0, 5);
+}
+
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
   /**
    * The consent vendors, who name themselves.
@@ -144,6 +191,7 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     20,
     (match) => !MODULE_IMPORT.test(match.snippet),
   );
+  const callersRowsExported = await exportsTheCallersRows(ctx);
   const exportFiles = searchFileNames(ctx.files.source, [
     /user[_-]?export/i,
     /(data|account|profile)[_-]?export/i,
@@ -277,10 +325,10 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'gdpr.export.route',
-      present: exportRoute.length > 0 || exportFiles.length > 0,
+      present: exportRoute.length > 0 || exportFiles.length > 0 || callersRowsExported.length > 0,
       evidence:
-        exportRoute.length > 0 || exportFiles.length > 0
-          ? [...toEvidence(exportRoute), ...fileNameEvidence(exportFiles)]
+        exportRoute.length > 0 || exportFiles.length > 0 || callersRowsExported.length > 0
+          ? [...toEvidence(exportRoute), ...toEvidence(callersRowsExported), ...fileNameEvidence(exportFiles)]
           : evidenceOr(exportRoute, 'export'),
     },
     {
