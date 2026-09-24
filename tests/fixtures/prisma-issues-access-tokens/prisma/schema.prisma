@@ -1,0 +1,15 @@
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  accessTokens AccessToken[]
+}
+
+model AccessToken {
+  id        Int      @id @default(autoincrement())
+  name      String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  token     String   @unique
+  revoked   Boolean  @default(false)
+  expires   DateTime
+}

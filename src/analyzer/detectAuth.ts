@@ -57,6 +57,8 @@ function snippetEvidence(matches: Array<{ snippet: string; file: string; line: n
   return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
 }
 
+const PRISMA_ISSUED_KEY_MODEL = /^\s*model\s+\w*(?:AccessToken|ApiKey|APIKey|ApiToken|APIToken)\s*\{/;
+
 export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> {
   const sourceFiles = ctx.files.source;
   // Hand-rolled Express auth is only one shape. Most repositories written in the last
@@ -385,6 +387,30 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
      */
     (match) => !/<\s*ActiveRecord::Migration|\(\s*migrations\.Migration\s*\)|extends\s+Migration\b/.test(match.snippet),
   );
+  /**
+   * The same stored token, declared in Prisma's schema.
+   *
+   * linkwarden issues API tokens from `/api/v1/tokens`, each a row of `model AccessToken`
+   * that belongs to a user — `user User @relation(...)` — with a name, an expiry and a
+   * `revoked` flag. It was told it offers no API keys: the schema is a `.prisma` file,
+   * which is not source, and the ActiveRecord and Django anchors above do not speak
+   * Prisma.
+   *
+   * The model has to belong to somebody. A key issued is issued to someone; a table of
+   * keys with no owner is a store of keys the product holds for other services.
+   */
+  for (const file of ctx.files.all.filter((f) => /\.prisma$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      if (!PRISMA_ISSUED_KEY_MODEL.test(lines[i])) continue;
+      const end = lines.findIndex((line, j) => j > i && /^\s*\}/.test(line));
+      const block = lines.slice(i, end === -1 ? lines.length : end);
+      if (!block.some((line) => /@relation\(/.test(line))) continue;
+      apiKeySignals.push({ file, line: i + 1, snippet: lines[i].trim() });
+    }
+  }
   const passwordResetFiles = searchFileNames(sourceFiles, [
     /(password|pwd)[_-]?(reset|recovery)/i,
     /(reset|recover)[_-]?password/i,
