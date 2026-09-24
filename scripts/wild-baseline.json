@@ -1589,7 +1589,7 @@
       "auth.password-reset": "present",
       "auth.email-verification": "present",
       "auth.api-keys": "present",
-      "authz.roles": "missing",
+      "authz.roles": "present",
       "authz.ownership": "present",
       "tenancy.organization": "present",
       "tenancy.isolation": "present",

@@ -600,7 +600,21 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...await searchInFiles(
       ctx.root,
       sourceFiles,
-      [/requireRole/i, /isAdmin/i, /SUPER_ADMIN/i, /roles\.includes\(/i],
+      [
+        /requireRole/i,
+        /isAdmin/i,
+        /SUPER_ADMIN/i,
+        /roles\.includes\(/i,
+        /**
+         * Django's own roles. `is_staff` and `is_superuser` are fields of Django's user
+         * model and `@staff_member_required` is the admin's gate (DRF's `IsAdminUser` is
+         * already caught by `isAdmin` above). zulip turns callers away with
+         * `if not request.user.is_staff:` in its decorators and was told at `high` that
+         * it checks no roles: every pattern here was camelCase or spelled `user.role`.
+         */
+        /\brequest\.user\.is_(?:staff|superuser)\b/,
+        /@staff_member_required\b/,
+      ],
       20
     ),
     ...await searchInFiles(
