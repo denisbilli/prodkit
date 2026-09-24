@@ -1,0 +1,14 @@
+[project]
+name = "chat-server"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+[dependency-groups]
+prod = [
+  "django[argon2]==5.2.*",
+  "psycopg2",
+]
+dev = [
+  { include-group = "prod" },
+  "pytest",
+]

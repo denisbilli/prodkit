@@ -220,6 +220,10 @@
     {
       "repo": "koel/koel",
       "is": "Laravel 11 and Vue personal music server; throttle:10,1, the /up health route, song uploads behind a form request with a content check"
+    },
+    {
+      "repo": "zulip/zulip",
+      "is": "Django team chat that installs Django from a uv dependency group, with a KaTeX renderer on Koa and a per-organisation message retention policy"
     }
   ]
 }

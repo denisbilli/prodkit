@@ -381,6 +381,21 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       /(gdpr|privacy).*(retention|purge|delete)/i,
       /(retention|purge|delete).*(personal data|user data|data subject)/i,
       /delete personal data older than/i,
+      /**
+       * A cutoff in days computed from a retention period.
+       *
+       * zulip archives and deletes messages older than each organisation's
+       * `message_retention_days`: `check_date = timezone_now() - timedelta(days=
+       * message_retention_days)`, compared eleven lines later inside the SQL that moves
+       * the rows, and deleted in a function further down. The age-and-delete rule wants
+       * the three close together and found none, so a chat product with a per-channel
+       * retention policy was told at `high` it keeps personal data indefinitely.
+       *
+       * The date arithmetic is Python's own `timedelta(days=`, and the period it
+       * subtracts is called a retention. That is the policy, stated as code. Only
+       * Python's form is here because only a Python product has been measured missing it.
+       */
+      /\btimedelta\(\s*days\s*=\s*[\w.]*retention\w*/i,
     ],
     20
   );

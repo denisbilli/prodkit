@@ -440,8 +440,26 @@ export async function detectBackend(ctx: DetectContext): Promise<{
    * run said so — removing it failed nothing. A rule nothing measures is a rule to
    * delete.
    */
+  /**
+   * Declared in a dependency group, by an application.
+   *
+   * zulip installs Django from `[dependency-groups] prod` — `uv sync --only-group=prod`
+   * builds its production virtualenv — and has no `[project] dependencies` at all. The
+   * runtime reading treats groups as extras, rightly for langchain, which declares web
+   * frameworks it never runs; so zulip had no Django, its KaTeX renderer's Koa server
+   * became its backend, and the product was profiled as an AI SaaS.
+   *
+   * A `manage.py` that imports `django.core.management` is what `startproject` writes: an
+   * application that runs Django, not a library that integrates with it. Where one exists,
+   * Django declared in any group counts. redash's Flask `manage.py` imports nothing from
+   * Django and stays out.
+   */
+  const manageFile = ctx.files.all.find((f) => f === 'manage.py' || f.endsWith('/manage.py'));
+  const manageText = manageFile ? ((await readTextFileSafe(ctx.root, manageFile)) ?? '') : '';
+  const runsDjangoManagement = /^\s*from\s+django\.core\.management\s+import\b/m.test(manageText);
+
   const djangoSignals: DetectorEvidence[] = [];
-  const djangoDep = hasRuntimePyDep(ctx, 'django');
+  const djangoDep = hasRuntimePyDep(ctx, 'django') || (runsDjangoManagement && ctx.pythonDeps.includes('django'));
   if (djangoDep) djangoSignals.push({ type: 'dependency', value: 'django' });
   if (ctx.files.all.some((f) => f.endsWith('manage.py') || f === 'manage.py')) {
     djangoSignals.push({ type: 'file', value: 'manage.py' });
