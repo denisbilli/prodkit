@@ -663,12 +663,12 @@
   },
   "maybe": {
     "inferredProfile": "b2c-app",
-    "inferenceConfidence": "medium",
+    "inferenceConfidence": "high",
     "capabilities": {
       "auth.baseline": "present",
       "auth.mfa": "present",
       "auth.password-reset": "present",
-      "auth.email-verification": "missing",
+      "auth.email-verification": "present",
       "b2c.onboarding": "present",
       "b2c.notifications": "missing",
       "authz.ownership": "present",
@@ -1518,6 +1518,36 @@
       "audit.baseline": "missing",
       "deployment.readiness": "present",
       "deployment.docker": "present"
+    }
+  },
+  "gitea": {
+    "inferredProfile": "b2b-saas",
+    "inferenceConfidence": "medium",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "auth.api-keys": "present",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "present",
+      "security.cors": "present",
+      "security.rate-limit": "missing",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "present",
+      "deployment.readiness": "partial",
+      "deployment.docker": "partial"
     }
   }
 }

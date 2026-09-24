@@ -486,7 +486,19 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   const emailVerificationSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
-    [/verify\s*email/i, /email[_-]?verification/i, /confirm\s*email/i, /isEmailVerified/i],
+    [
+      /verify\s*email/i,
+      /email[_-]?verification/i,
+      /confirm\s*email/i,
+      /isEmailVerified/i,
+      /**
+       * The same two words the other way round. gitea withholds sign-in until the mailed
+       * activation link is followed when `setting.Service.RegisterEmailConfirm` is on, and
+       * ASP.NET Identity keeps the answer in `EmailConfirmed`; gitea was told it verifies
+       * no addresses.
+       */
+      /email[_-]?confirm(?:ation|ed)?\b/i,
+    ],
     20
   );
   /**

@@ -52,6 +52,11 @@ describe('the framework that receives the file', () => {
     expect((await analyzeProject(fixture('paperclip-unchecked'))).detectors['auth.emailVerification']?.present).toBe(false);
   });
 
+  /** gitea's switch for the same thing: `RegisterEmailConfirm`, the words the other way round. */
+  it('reads an email-confirm setting as email verification', async () => {
+    expect((await analyzeProject(fixture('go-email-confirm'))).detectors['auth.emailVerification']?.present).toBe(true);
+  });
+
   it('finds a Go handler reading a multipart file, and no check on it', async () => {
     const analysis = await analyzeProject(fixture('go-form-file'));
     const uploads = analysis.detectors['uploads.exposure'];

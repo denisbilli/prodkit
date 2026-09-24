@@ -212,6 +212,10 @@
     {
       "repo": "linkwarden/linkwarden",
       "is": "Next.js bookmark manager with collaborators and Prisma; issues API tokens as a model AccessToken that belongs to a user"
+    },
+    {
+      "repo": "go-gitea/gitea",
+      "is": "Go forge with organisations, 2FA and access tokens; confirms addresses behind RegisterEmailConfirm, deletes accounts through its own ctx.Doer"
     }
   ]
 }
