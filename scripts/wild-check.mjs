@@ -48,11 +48,28 @@ try {
 
     const dir = path.join(workspace, name);
     process.stderr.write(`cloning ${entry.repo}\n`);
-    try {
-      execFileSync('git', ['clone', '-q', '--depth', '1', `https://github.com/${entry.repo}`, dir], {
-        stdio: ['ignore', 'ignore', 'inherit'],
-      });
-    } catch {
+    // A clone that stalls on the network never errors; it waits. Twice in one run a
+    // single stalled clone held the whole check for over half an hour. Ten minutes is
+    // several times what the largest repository here takes, and one retry covers a
+    // transient drop.
+    let cloned = false;
+    for (let attempt = 0; attempt < 2 && !cloned; attempt++) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      try {
+        // git's own stall detector: abort when the transfer runs under 1 KB/s for a
+        // minute. The timeout below is the backstop, and it has to be SIGKILL — on
+        // SIGTERM git waits for its HTTP helper, which is the thing that is stuck.
+        execFileSync('git', ['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=60', 'clone', '-q', '--depth', '1', `https://github.com/${entry.repo}`, dir], {
+          stdio: ['ignore', 'ignore', 'inherit'],
+          timeout: 10 * 60 * 1000,
+          killSignal: 'SIGKILL',
+        });
+        cloned = true;
+      } catch {
+        process.stderr.write(`  clone of ${entry.repo} failed (attempt ${attempt + 1})\n`);
+      }
+    }
+    if (!cloned) {
       process.stderr.write(`  could not clone ${entry.repo}; skipping\n`);
       continue;
     }
