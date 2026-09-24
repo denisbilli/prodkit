@@ -200,6 +200,10 @@
     {
       "repo": "formbricks/formbricks",
       "is": "Next.js survey platform with organisations, API keys and Stripe billing; sets its security headers in next.config headers()"
+    },
+    {
+      "repo": "mastodon/mastodon",
+      "is": "Rails social network for people; Devise confirmable, Paperclip media with content-type validators, an archive export built by a worker"
     }
   ]
 }

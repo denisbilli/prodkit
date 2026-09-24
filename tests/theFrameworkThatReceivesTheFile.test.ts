@@ -22,6 +22,36 @@ describe('the framework that receives the file', () => {
     expect(uploads?.details?.validation).toBe(true);
   });
 
+  /**
+   * Paperclip, which mastodon stores every media attachment with, and its validators:
+   * `validates_attachment_content_type :file, content_type: IMAGE_MIME_TYPES` names a
+   * constant, which the literal-list rule could not see. mastodon was `not_applicable`.
+   */
+  it('finds Paperclip, and its content-type validator', async () => {
+    const uploads = (await analyzeProject(fixture('paperclip-and-confirmable'))).detectors['uploads.exposure'];
+
+    expect(uploads?.present).toBe(true);
+    expect(uploads?.details?.validation).toBe(true);
+  });
+
+  it('finds a Paperclip attachment nobody checks', async () => {
+    const uploads = (await analyzeProject(fixture('paperclip-unchecked'))).detectors['uploads.exposure'];
+
+    expect(uploads?.present).toBe(true);
+    expect(uploads?.details?.validation).toBe(false);
+  });
+
+  /**
+   * Devise's `:confirmable` is the whole of email verification in a Devise app: the
+   * mail, the token and the route come from the gem. mastodon writes it on the second
+   * line of its `devise` call and was told at `high` that it verifies no addresses.
+   * The same symbol in a model that does not call `devise` is a state, not a module.
+   */
+  it('reads Devise confirmable as email verification', async () => {
+    expect((await analyzeProject(fixture('paperclip-and-confirmable'))).detectors['auth.emailVerification']?.present).toBe(true);
+    expect((await analyzeProject(fixture('paperclip-unchecked'))).detectors['auth.emailVerification']?.present).toBe(false);
+  });
+
   it('finds a Go handler reading a multipart file, and no check on it', async () => {
     const analysis = await analyzeProject(fixture('go-form-file'));
     const uploads = analysis.detectors['uploads.exposure'];

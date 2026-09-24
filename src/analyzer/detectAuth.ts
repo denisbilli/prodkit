@@ -463,6 +463,28 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     [/verify\s*email/i, /email[_-]?verification/i, /confirm\s*email/i, /isEmailVerified/i],
     20
   );
+  /**
+   * Devise confirms an address when the model says `:confirmable`.
+   *
+   * mastodon's User writes `devise :registerable, :recoverable, :validatable,` and puts
+   * `:confirmable` on the next line — Devise's module that withholds sign-in until the
+   * emailed link is followed — and was told at `high` that it verifies no addresses.
+   * The module is the whole implementation: the mail, the token and the route come
+   * from the gem, so nothing in the application spells "verify email".
+   *
+   * The symbol counts only in a model that calls `devise`, where a symbol is a module;
+   * `:confirmable` anywhere else is somebody else's word.
+   */
+  const confirmableHits = await searchInFiles(
+    ctx.root,
+    sourceFiles.filter((file) => /\.rb$/.test(file)),
+    [/(?:^|[\s,(]):confirmable\b/],
+    5,
+  );
+  for (const hit of confirmableHits) {
+    const text = await readTextFileSafe(ctx.root, hit.file);
+    if (text && /^\s*devise\s+:/m.test(text)) emailVerificationSignals.push(hit);
+  }
   const sessionSignals = await searchInFiles(
     ctx.root,
     sourceFiles,

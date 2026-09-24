@@ -127,6 +127,13 @@ const UPLOAD_VALIDATION = [
   // sorting chips by type, which a client can skip.
   /\binclude\?\(\s*[\w.]*content_type\b/,
   /\bvalidates?\b.*\bcontent_type:\s*[[%'"/]/,
+  /**
+   * Paperclip's validators, which say it in their name. mastodon checks every media
+   * attachment with `validates_attachment_content_type :file, content_type: IMAGE_MIME_TYPES
+   * + ...` — a constant, so the `content_type:` literal above never matched — and
+   * `validates_attachment :image, content_type: { ... }` in the other models.
+   */
+  /\bvalidates_attachment(?:_content_type\s+:\w+|\s+:\w+.*\bcontent_type:)/,
   /['"|]mimes(?:types)?:/,
   /\bhttp\.DetectContentType\s*\(/,
   // gotify reads the first 261 bytes and asks `filetype.IsImage(head)` before saving an
@@ -157,13 +164,16 @@ const EX_UPLOAD_VALIDATION = [
  * that asks whether uploads are protected was never asked.
  *
  * None of these is a name the author picked. Each is the API the framework gives for
- * receiving a file: Active Storage's `has_one_attached`, CarrierWave's `mount_uploader`,
+ * receiving a file: Active Storage's `has_one_attached`, Paperclip's `has_attached_file`,
+ * CarrierWave's `mount_uploader`,
  * Laravel's `$request->file(`, `FormFile` in Go's `net/http` and in gin and echo alike,
  * ASP.NET's `IFormFile`, Spring's `MultipartFile`, Phoenix's `allow_upload` and
  * `Plug.Upload`, FastAPI's `UploadFile`, Django's `request.FILES` and its file fields.
  */
 const FILE_INTAKE = [
   /\bhas_(?:one|many)_attached\s+:/,
+  // Paperclip (and its kt-paperclip fork), which mastodon stores every media file with.
+  /\bhas_attached_file\s+:/,
   /\bmount_uploaders?\s+:/,
   /\$request->(?:file|hasFile)\s*\(/,
   /\.FormFile\s*\(\s*["']/,
