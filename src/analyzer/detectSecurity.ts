@@ -243,6 +243,9 @@ const RATE_LIMIT_PACKAGES = [
   '@nest-lab/throttler-storage-redis',
 ];
 
+const NEXT_CONFIG = /(^|\/)next\.config\.(?:js|mjs|cjs|ts|mts)$/;
+const NEXT_HEADER_KEY = /\bkey\s*:\s*["'`](?:Content-Security-Policy|Strict-Transport-Security|X-Frame-Options|X-Content-Type-Options)["'`]/i;
+
 export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
   const source = ctx.files.source;
@@ -359,7 +362,35 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     });
   }
 
-  const helmet = helmetDep || headerSignals.length > 0 || springFilterChain.length > 0;
+  /**
+   * Next.js' own place for response headers.
+   *
+   * `async headers()` in `next.config.*` returns `{ source, headers: [{ key, value }] }`,
+   * and that object is the whole of how Next is told to send a header on every route.
+   * formbricks sets `X-Frame-Options`, a CSP with `frame-ancestors`, HSTS with preload
+   * and nosniff there, and was told at `high` to add security headers.
+   *
+   * The line the search would have found is `key: "X-Frame-Options",`, which the file
+   * search sets aside as something saying what it is called — rightly, in a table of
+   * templates. Here the key is the header being sent, because that is what Next's
+   * contract makes it, so the config file is read on its own. Outside `next.config.*`
+   * the same line is still a name.
+   */
+  const nextConfigHeaders: Array<{ file: string; line: number; snippet: string }> = [];
+  for (const file of source) {
+    if (!NEXT_CONFIG.test(file)) continue;
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      if (!NEXT_HEADER_KEY.test(lines[i])) continue;
+      nextConfigHeaders.push({ file, line: i + 1, snippet: lines[i].trim() });
+      break;
+    }
+  }
+  for (const m of nextConfigHeaders) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
+
+  const helmet = helmetDep || headerSignals.length > 0 || springFilterChain.length > 0 || nextConfigHeaders.length > 0;
 
   /**
    * The packages the ecosystem names, as distinct from the variables authors do.

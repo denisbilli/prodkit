@@ -196,6 +196,10 @@
     {
       "repo": "invoiceninja/invoiceninja",
       "is": "Laravel invoicing platform that pays its customers' clients through Stripe Connect with an application fee; a marketplace in Stripe's sense, recorded as one"
+    },
+    {
+      "repo": "formbricks/formbricks",
+      "is": "Next.js survey platform with organisations, API keys and Stripe billing; sets its security headers in next.config headers()"
     }
   ]
 }
