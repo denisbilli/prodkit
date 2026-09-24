@@ -216,6 +216,10 @@
     {
       "repo": "go-gitea/gitea",
       "is": "Go forge with organisations, 2FA and access tokens; confirms addresses behind RegisterEmailConfirm, deletes accounts through its own ctx.Doer"
+    },
+    {
+      "repo": "koel/koel",
+      "is": "Laravel 11 and Vue personal music server; throttle:10,1, the /up health route, song uploads behind a form request with a content check"
     }
   ]
 }

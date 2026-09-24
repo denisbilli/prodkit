@@ -503,7 +503,12 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
        * limiter is part of Laravel — so a list of packages could never find them, and
        * monica was told at `high` that it does not throttle.
        */
-      /['"]throttle:[\w.-]+['"]/,
+      /**
+       * With both of its numbers. `throttle:10,1` is ten requests a minute, the form
+       * Laravel's documentation leads with; the pattern stopped at the comma, so koel's
+       * throttled login and AI prompt were a product with no rate limiting at `high`.
+       */
+      /['"]throttle:[\w.,-]+['"]/,
       /\bRateLimiter::for\s*\(/,
       /StatusCode::TOO_MANY_REQUESTS/,
       /http\.StatusTooManyRequests/,

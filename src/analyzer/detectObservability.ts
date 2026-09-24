@@ -70,6 +70,17 @@ const HEALTH_ROUTE = /\/(health|healthz|healthcheck|health[-_]check|readyz|livez
  */
 const SERVICE_STATUS_ROUTE = /["'`](?:\/(?:api\/)?(?:v\d\/)?status\/?|api\/(?:v\d\/)?status\/?)["'`]/;
 
+/**
+ * Laravel 11's health route, which the framework serves.
+ *
+ * `->withRouting(web: ..., health: '/up')` in `bootstrap/app.php` registers an endpoint
+ * that answers 200 once the application has booted — every new Laravel application has
+ * it. koel declares it and was told at `high` that it has no health endpoint: `/up` is
+ * not one of the words the route pattern knows, and it is not meant to be. The named
+ * argument is the anchor.
+ */
+const LARAVEL_HEALTH_ROUTE = /^\s*health:\s*['"]\/[\w/-]*['"]/;
+
 export async function detectObservability(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
   /**
@@ -118,7 +129,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [HEALTH_ROUTE, SERVICE_STATUS_ROUTE, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
+    [HEALTH_ROUTE, SERVICE_STATUS_ROUTE, LARAVEL_HEALTH_ROUTE, /x-request-id/i, /correlation-id/i, /error\s*handler/i, /RotatingFileHandler/i],
     25,
     (match) => !IMPORT_LINE.test(match.snippet),
   );
@@ -130,7 +141,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
    * is what the line is evidence of.
    */
   for (const m of hits) {
-    const claim = HEALTH_ROUTE.test(m.snippet) || SERVICE_STATUS_ROUTE.test(m.snippet)
+    const claim = HEALTH_ROUTE.test(m.snippet) || SERVICE_STATUS_ROUTE.test(m.snippet) || LARAVEL_HEALTH_ROUTE.test(m.snippet)
       ? 'health'
       : /x-request-id|correlation-id/i.test(m.snippet)
         ? 'request-id'
@@ -202,7 +213,7 @@ export async function detectObservability(ctx: DetectContext): Promise<DetectorR
   const hasHealth = declaredProbes.length > 0
     || healthFiles.length > 0
     || actuator.length > 0
-    || hits.some((h) => HEALTH_ROUTE.test(h.snippet) || SERVICE_STATUS_ROUTE.test(h.snippet));
+    || hits.some((h) => HEALTH_ROUTE.test(h.snippet) || SERVICE_STATUS_ROUTE.test(h.snippet) || LARAVEL_HEALTH_ROUTE.test(h.snippet));
   /**
    * Whether one log line can be tied to the request that produced it.
    *

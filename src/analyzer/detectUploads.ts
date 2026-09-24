@@ -135,6 +135,8 @@ const UPLOAD_VALIDATION = [
    */
   /\bvalidates_attachment(?:_content_type\s+:\w+|\s+:\w+.*\bcontent_type:)/,
   /['"|]mimes(?:types)?:/,
+  // Laravel's File facade reads the type from the content, as koel's SupportedAudioFile does.
+  /\bFile::mimeType\s*\(/,
   /\bhttp\.DetectContentType\s*\(/,
   // gotify reads the first 261 bytes and asks `filetype.IsImage(head)` before saving an
   // application image — h2non/filetype and gabriel-vasile/mimetype read the content,
@@ -176,6 +178,14 @@ const FILE_INTAKE = [
   /\bhas_attached_file\s+:/,
   /\bmount_uploaders?\s+:/,
   /\$request->(?:file|hasFile)\s*\(/,
+  /**
+   * Laravel's `file` and `image` validation rules, which pass only for an uploaded file.
+   * koel takes songs through `UploadSongRequest`, whose rules are `'file' => ['required',
+   * 'file', new SupportedAudioFile()]`, and reads `$request->file->move(...)` as a
+   * property — no `$request->file(` call anywhere — so a music server that accepts
+   * uploads was `not_applicable`.
+   */
+  /=>\s*\[[^\]]*['"](?:file|image)['"]/,
   /\.FormFile\s*\(\s*["']/,
   /\bIFormFile\b/,
   /\bMultipartFile\b/,
