@@ -276,7 +276,22 @@ export async function detectPackaging(ctx: DetectContext): Promise<DetectorResul
   const workspaceRoot = Array.isArray(rootPkg.workspaces)
     || (typeof rootPkg.workspaces === 'object' && rootPkg.workspaces !== null)
     || all.some((file) => /^(pnpm-workspace\.yaml|lerna\.json|nx\.json|turbo\.json)$/.test(file));
-  const publishedMember = workspaceRoot ? await findPublishedMember(ctx) : null;
+  /**
+   * Unless the root is itself the package.
+   *
+   * hono added a `pnpm-workspace.yaml` whose only member is `'.'` — the root, named
+   * `hono`, versioned, exported and typed. The members search then found
+   * `benchmarks/jsx/package.json`, named `jsx` and versioned `1.0.0` by whoever set up
+   * the benchmark, and a published web framework was described by a benchmark's
+   * `"main": "index.js"`: entry points `partial`, types undeclared.
+   *
+   * npm publishes the manifest it is run beside, and a root that is named, versioned
+   * and not private is one it would accept. A monorepo's root says `private: true`, or
+   * has no name, precisely so that it cannot be published; that is the root the
+   * members are searched instead of.
+   */
+  const rootPublishable = typeof rootPkg.name === 'string' && typeof rootPkg.version === 'string' && rootPkg.private !== true;
+  const publishedMember = workspaceRoot && !rootPublishable ? await findPublishedMember(ctx) : null;
   const pkg = publishedMember?.manifest ?? rootPkg;
 
   const nodeEntrypoints = ['main', 'module', 'exports', 'bin'].filter((key) => pkg[key] !== undefined);
