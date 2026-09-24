@@ -177,6 +177,40 @@ describe('marketplace words that mean something else', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  /**
+   * Infisical: an operator's migration script binds `exportUser`, the Postgres role it
+   * runs `pg_dump` as, and a query explorer keeps its download in `data-export.ts`. Neither
+   * is a person taking their own data away.
+   */
+  it('does not read an operator script or a data explorer as a personal export', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"fastify":"^4.0.0"}}',
+      'backend/scripts/migrate-organization.ts': `const exportUser = process.env.EXPORT_USER;\nexecSync(\`PGUSER=\${exportUser} pg_dump -Fc app\`);\n`,
+      'frontend/src/pages/explorer/data-export.ts': `export const toCsv = (rows: string[][]) => rows.map((r) => r.join(',')).join('\\n');\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['gdpr.export.route']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  /** maybe's is named for whose data it is: a household's own accounts, exported. */
+  it('still reads a data export named for the person', async () => {
+    const root = await project({
+      'Gemfile': 'source "https://rubygems.org"\ngem "rails"\n',
+      'app/jobs/family_data_export_job.rb': `class FamilyDataExportJob < ApplicationJob\n  def perform(export)\n    export.build!\n  end\nend\n`,
+      'app/models/family/data_exporter.rb': `class Family::DataExporter\n  def initialize(family)\n    @family = family\n  end\nend\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['gdpr.export.route']?.present).toBe(true);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it('still recognises a product with two sides in two places', async () => {
     const root = await project({
       'package.json': '{"name":"app","dependencies":{"express":"^4.0.0","stripe":"^14.0.0"}}',

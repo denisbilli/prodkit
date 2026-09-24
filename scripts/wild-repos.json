@@ -204,6 +204,10 @@
     {
       "repo": "mastodon/mastodon",
       "is": "Rails social network for people; Devise confirmable, Paperclip media with content-type validators, an archive export built by a worker"
+    },
+    {
+      "repo": "Infisical/infisical",
+      "is": "Fastify and React secrets manager for organisations; no personal data export, and an operator script that dumps the database"
     }
   ]
 }

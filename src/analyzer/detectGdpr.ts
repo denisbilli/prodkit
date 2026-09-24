@@ -171,6 +171,8 @@ async function deletesByAge(ctx: DetectContext): Promise<TextMatch[]> {
   return found;
 }
 
+const OPERATOR_SCRIPT = /(^|\/)scripts\//;
+
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
   /**
    * The consent vendors, who name themselves.
@@ -216,9 +218,19 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
   /** A module path, not an endpoint: `import { exportCSV } from "../export"`. */
   const MODULE_IMPORT = /^\s*(?:import\b|export\s+(?:\*|\{)|from\s+["'])|require\s*\(/;
 
+  /**
+   * An export somebody can ask for is served by the product.
+   *
+   * Infisical's `backend/scripts/migrate-organization.ts` binds `const exportUser` — the
+   * Postgres role an operator dumps the database as — and runs `pg_dump` with it. That
+   * line was the evidence for a personal data export in a product that has none. A file
+   * under `scripts/` is run by whoever operates the product, not by the person whose data
+   * it holds.
+   */
+  const servedFiles = ctx.files.source.filter((file) => !OPERATOR_SCRIPT.test(file));
   const exportRoute = await searchInFiles(
     ctx.root,
-    ctx.files.source,
+    servedFiles,
     [
       /\/gdpr\/export\b/i,
       /exportUserData/i,
@@ -260,9 +272,20 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     (match) => !MODULE_IMPORT.test(match.snippet),
   );
   const callersRowsExported = await exportsTheCallersRows(ctx);
-  const exportFiles = searchFileNames(ctx.files.source, [
+  /**
+   * `data-export` says nothing about whose data. Infisical's is
+   * `PamDataExplorerPage/data-export.ts`, which downloads the rows of a customer's own
+   * database from its query explorer, and nocodb's `jobs/data-export/` is a table's rows
+   * as CSV — the same reason the route rule above wants a path that names the person.
+   *
+   * When the name does say whose, it counts: maybe's `family_data_export_job.rb` and
+   * `family/data_exporter.rb` hand a household its own accounts and transactions, which
+   * is the person's data in a product that keeps a family's money.
+   */
+  const exportFiles = searchFileNames(servedFiles, [
     /user[_-]?export/i,
-    /(data|account|profile)[_-]?export/i,
+    /(account|profile)[_-]?export/i,
+    /(?:user|account|profile|family|household|personal|my)[_-]?data[_-]?export/i,
     /export[_-]?(user|account|personal)/i,
   ]);
   const erasure = await searchInFiles(
