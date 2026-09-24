@@ -158,6 +158,25 @@ describe('marketplace words that mean something else', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  /**
+   * documenso again, a release later: its demo seed names a `'Reseller Agreement -
+   * Globex'`, the seed sits under `packages/prisma/`, and that made the second file the
+   * rule above asks for. Seed data is what makes a demo database look busy.
+   */
+  it('does not count seed data as the second side', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"express":"^4.0.0"}}',
+      'packages/lib/ai/detect-fields/schema.ts': `export const hint = 'Recipient identifier from nearby labels (e.g., "Tenant", "Landlord", "Buyer", "Seller").';\n`,
+      'packages/prisma/seed/analytics-seed.ts': `export const titles = ['Reseller Agreement - Globex', 'NDA - Initech'];\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['marketplace.multiRole']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it('still recognises a product with two sides in two places', async () => {
     const root = await project({
       'package.json': '{"name":"app","dependencies":{"express":"^4.0.0","stripe":"^14.0.0"}}',

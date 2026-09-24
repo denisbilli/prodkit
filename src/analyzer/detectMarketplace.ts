@@ -119,8 +119,20 @@ const BUYER_TERMS = ['buyer', 'purchaser', 'shopper'].map(identifierWord);
 /** Files where a domain concept is declared rather than merely mentioned. */
 const DOMAIN_FILE = /(model|schema|entity|migration|prisma|domain|route|controller)/i;
 
+/**
+ * Seed data is sample content, not the domain.
+ *
+ * documenso's `packages/prisma/seed/analytics-seed.ts` fills a demo database with
+ * document titles, one of which is `'Reseller Agreement - Globex'`. The path says
+ * `prisma`, so it was read as a declaration, and it became the second file that the
+ * two-file rule below exists to demand — putting a document-signing product back into
+ * the marketplace profile at high confidence. A seeder writes whatever makes a demo
+ * look busy; what the product is, is in its schema and its routes.
+ */
+const SEED_FILE = /(^|\/)(?:seeds?|seeders?|seeding)\/|(^|\/)\w*seed(?:er|s)?\.\w+$|\.seeds?\.\w+$/i;
+
 function domainFiles(ctx: DetectContext): string[] {
-  return ctx.files.source.filter((file) => DOMAIN_FILE.test(file));
+  return ctx.files.source.filter((file) => DOMAIN_FILE.test(file) && !SEED_FILE.test(file));
 }
 
 async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
