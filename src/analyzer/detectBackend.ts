@@ -243,7 +243,14 @@ export async function detectBackend(ctx: DetectContext): Promise<{
     for (const dep of hits) evidence.push({ type: 'dependency', value: dep });
   }
 
-  if (!namedPhpFramework && (hasAnyPhpDep(ctx, ['php']).length > 0 || ctx.files.source.some((f) => f.endsWith('.php')))) {
+  /**
+   * A PHP file without a Composer manifest is PHP only where PHP is what the repository
+   * is made of, the line Go and Ruby already draw. lldap is a Rust LDAP server whose
+   * `example_configs/` holds one `xbackbone_config.php` for somebody else's application,
+   * and its report said "Backend: actix-web, php".
+   */
+  const phpWithoutManifest = languageShare(ctx, /\.php$/) >= MINIMUM_LANGUAGE_SHARE;
+  if (!namedPhpFramework && (hasAnyPhpDep(ctx, ['php']).length > 0 || phpWithoutManifest)) {
     frameworks.push('php');
     evidence.push({ type: 'note', value: 'PHP sources with no framework named in composer.json' });
   }

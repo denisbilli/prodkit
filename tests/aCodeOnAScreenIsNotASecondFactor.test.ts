@@ -40,4 +40,16 @@ describe('a code on a screen is not a second factor', () => {
       'src/pages/security.vue': '<template>\n  <h2>Two-factor authentication</h2>\n</template>\n',
     })).toBe(true);
   });
+
+  /**
+   * lldap's user model keeps a `totp_secret` column that nothing reads back: no TOTP
+   * library, no code checked at sign-in. A place for a secret is not a check against it.
+   */
+  it('does not read a stored secret column nobody verifies', async () => {
+    expect(await mfa({
+      'src/model/users.rs': 'pub struct Model {\n    pub user_id: String,\n    pub totp_secret: Option<String>,\n}\n',
+      'src/model/columns.rs': 'pub enum Column {\n    UserId,\n    TotpSecret,\n}\n',
+    })).toBe(false);
+  });
 });
+

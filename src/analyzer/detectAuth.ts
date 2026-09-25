@@ -308,6 +308,20 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       return OTP_AS_A_SECOND_FACTOR.test(line) && !INTERFACE_FILE.test(match.file);
     },
   );
+  /**
+   * A place to keep a secret is not a check against it.
+   *
+   * lldap's user model has a `totp_secret` column and nothing anywhere reads it back:
+   * no TOTP library, no code verified at sign-in. That column was the whole of its
+   * second factor. It is the same shape as ASP.NET Identity's `TwoFactorEnabled`
+   * above — a field the schema carries — so where every line found only declares a
+   * secret or names the column, and nothing verifies a code or speaks of two factors,
+   * there is no second factor.
+   */
+  const declaresASecretOnly = (line: string) =>
+    /t?otp[_-]?secret|t?otpSecret/i.test(line)
+    && !/\b(?:verify|check|validate)[_-]?t?otp|\b(?:verify|check|validate)T?Otp|t?otp[_-]?(?:code|token|verified)|t?otp(?:Code|Token|Verified)|two[_-]?factor/i.test(line);
+  const secondFactorSignals = twoFaSignals.every((m) => declaresASecretOnly(m.snippet)) ? [] : twoFaSignals;
   const apiKeySignals = await searchInFiles(
     ctx.root,
     sourceFiles,
@@ -1046,8 +1060,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'auth.2fa',
-      present: twoFaDeps.length > 0 || twoFaSignals.length > 0,
-      evidence: evidenceOrSearch([...depEvidence(twoFaDeps), ...snippetEvidence(twoFaSignals)], 'a second factor', ['otplib', 'speakeasy', 'notp', 'pyotp', 'django-otp', 'totp', 'authenticator app', 'webauthn', '@simplewebauthn']),
+      present: twoFaDeps.length > 0 || secondFactorSignals.length > 0,
+      evidence: evidenceOrSearch([...depEvidence(twoFaDeps), ...snippetEvidence(secondFactorSignals)], 'a second factor', ['otplib', 'speakeasy', 'notp', 'pyotp', 'django-otp', 'totp', 'authenticator app', 'webauthn', '@simplewebauthn']),
     },
     {
       key: 'auth.apiKeys',

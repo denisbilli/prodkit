@@ -253,6 +253,10 @@
       "repo": "bitwarden/server",
       "is": "ASP.NET password manager backend with organisations, resellers of its own plans, Stripe webhooks verified on an attribute route, and an event log in PascalCase",
       "name": "bitwarden-server"
+    },
+    {
+      "repo": "lldap/lldap",
+      "is": "Rust LDAP server with a web UI; a totp_secret column nothing verifies, and one sample PHP config for another application"
     }
   ]
 }
