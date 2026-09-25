@@ -265,6 +265,10 @@
     {
       "repo": "papercups-io/papercups",
       "is": "Phoenix and React support chat sold to companies; users belong to an Account, which is the tenant"
+    },
+    {
+      "repo": "writefreely/writefreely",
+      "is": "Go blogging platform on gorilla/mux; sends password resets and notices through mailgun-go"
     }
   ]
 }

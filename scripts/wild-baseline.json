@@ -1915,5 +1915,33 @@
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
+  },
+  "writefreely": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "partial",
+      "authz.ownership": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "present",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "partial",
+      "security.rate-limit": "present",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
+    }
   }
 }

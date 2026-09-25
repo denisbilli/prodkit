@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyGradleDep, hasAnyPyDep } from './detectContext';
+import { hasAnyDep, hasAnyGoDep, hasAnyGradleDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { evidenceOrSearch } from './absenceEvidence';
 
@@ -50,11 +50,24 @@ const EMAIL_JVM_DEPS = [
   'org.springframework.boot:spring-boot-starter-mail',
 ];
 const PUSH_JVM_DEPS = ['com.google.firebase:firebase-admin'];
+/**
+ * Go's, by module path. writefreely sends its password resets and subscription notices
+ * through `github.com/mailgun/mailgun-go` and `go-simple-mail`, and was told at `high`
+ * that it has no way to reach a user: the lists above were npm, Python and the JVM.
+ */
+const EMAIL_GO_DEPS = [
+  'github.com/mailgun/mailgun-go',
+  'github.com/mailgun/mailgun-go/v4',
+  'github.com/xhit/go-simple-mail/v2',
+  'gopkg.in/gomail.v2',
+  'github.com/wneessen/go-mail',
+  'github.com/sendgrid/sendgrid-go',
+];
 
 async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
-  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS)];
+  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
   const pushDeps = [...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS)];
   for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
 
