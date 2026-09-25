@@ -261,6 +261,10 @@
     {
       "repo": "gitroomhq/postiz-app",
       "is": "NestJS and Next.js social scheduling SaaS with organisations, Stripe and AI; says in a message that it does not support Bluesky two-factor"
+    },
+    {
+      "repo": "papercups-io/papercups",
+      "is": "Phoenix and React support chat sold to companies; users belong to an Account, which is the tenant"
     }
   ]
 }

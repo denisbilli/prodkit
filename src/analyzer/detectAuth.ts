@@ -883,10 +883,52 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ? await searchInFiles(ctx.root, sourceFiles, [/companyId/i, /company_id/i, /workspaceId/i, /workspace_id/i], 25)
     : [];
 
+  /**
+   * An account the user belongs to.
+   *
+   * `account` is the word B2C products use for a person's own login, so it never counted.
+   * papercups — a support chat sold to companies — scopes everything by `account_id`, and
+   * its `users` schema says `belongs_to(:account, Account)`: the person is inside the
+   * account, which is what makes the account a customer rather than a login. It was
+   * inferred as a consumer app at high confidence.
+   *
+   * The relationship is the anchor, written the way Ecto and ActiveRecord both write it,
+   * in the file that declares the users: `schema "users"` or `class User`.
+   */
+  const userBelongsToAccount: TextMatch[] = [];
+  for (const file of sourceFiles.filter((f) => /\.(?:ex|rb)$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text || !/schema\s*\(?\s*"users"|^\s*class\s+User\s*</m.test(text)) continue;
+    const lines = text.split(/\r?\n/);
+    const at = lines.findIndex((line) => /^\s*belongs_to\s*\(?\s*:account\b/.test(line));
+    if (at >= 0) userBelongsToAccount.push({ file, line: at + 1, snippet: lines[at].trim() });
+  }
+  /*
+   * And the account has to hold more than one person. mastodon's User also says
+   * `belongs_to :account`, but its Account is the person's public profile and
+   * `has_one :user`; the first run of this rule made a social network a multi-tenant
+   * product and then a marketplace. papercups' Account `has_many(:users, User)`. It has
+   * to be said in the account's own definition: mastodon's `Invite` and `UserRole` have
+   * many users too.
+   */
+  if (userBelongsToAccount.length > 0) {
+    let holdsPeople = false;
+    for (const file of sourceFiles.filter((f) => /\.(?:ex|rb)$/.test(f))) {
+      const text = await readTextFileSafe(ctx.root, file);
+      if (!text || !/schema\s*\(?\s*"accounts"|^\s*class\s+Account\s*</m.test(text)) continue;
+      if (/^\s*has_many\s*\(?\s*:users\b/m.test(text)) { holdsPeople = true; break; }
+    }
+    if (!holdsPeople) userBelongsToAccount.length = 0;
+  }
+  const accountAsTenant = userBelongsToAccount.length > 0
+    ? [...userBelongsToAccount, ...(await searchInFiles(ctx.root, sourceFiles, [/\baccount_id\b/], 25))]
+    : [];
+
   const strongOrganization = [
     ...(await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25)),
     ...teamAsTenant,
     ...companyAsTenant,
+    ...accountAsTenant,
   ];
   const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25);
 
@@ -910,6 +952,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...(await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25)),
     ...teamAsTenant,
     ...companyAsTenant,
+    // The user belonging to the account is the membership itself.
+    ...userBelongsToAccount,
   ];
   const weakMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...WEAK_TENANCY], 25);
 
