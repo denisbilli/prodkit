@@ -277,6 +277,10 @@
     {
       "repo": "CTFd/CTFd",
       "is": "Flask capture-the-flag platform with users, teams and admins; takes challenge files through request.files and gates admin pages with is_admin()"
+    },
+    {
+      "repo": "firefly-iii/firefly-iii",
+      "is": "Laravel personal finance manager; aligned withRouting arguments with health at /up, and a login guarded by ThrottlesLogins"
     }
   ]
 }

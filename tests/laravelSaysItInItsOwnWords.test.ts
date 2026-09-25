@@ -38,4 +38,33 @@ describe('Laravel says it in its own words', () => {
   it('reads a trash emptied after a number of days as retention', async () => {
     expect((await analyzeProject(fixture('laravel-recycle-bin-lifetime'))).detectors['gdpr.retention.job']?.present).toBe(true);
   });
+
+  /** Firefly III lines its named arguments up: `health  : '/up',`. */
+  it('reads the health route with its arguments aligned', async () => {
+    const fs = await import('fs/promises');
+    const os = await import('os');
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'prodkit-up-'));
+    await fs.mkdir(path.join(root, 'bootstrap'), { recursive: true });
+    await fs.writeFile(path.join(root, 'composer.json'), '{"name":"app/finance","type":"project","require":{"laravel/framework":"^11.0"}}');
+    await fs.writeFile(path.join(root, 'bootstrap/app.php'), "<?php\nreturn Application::configure(basePath: dirname(__DIR__))\n    ->withRouting(\n        web     : __DIR__ . '/../routes/web.php',\n        health  : '/up',\n    )\n    ->create();\n");
+    const health = (await analyzeProject(root)).detectors['observability.core']?.details?.healthEndpoint;
+    await fs.rm(root, { recursive: true, force: true });
+
+    expect(health).toBe(true);
+  });
+
+  /** Firefly III's login uses the framework's own lockout trait. */
+  it('reads ThrottlesLogins as a rate limit', async () => {
+    const fs = await import('fs/promises');
+    const os = await import('os');
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'prodkit-throttle-'));
+    await fs.mkdir(path.join(root, 'app/Http/Controllers/Auth'), { recursive: true });
+    await fs.writeFile(path.join(root, 'composer.json'), '{"name":"app/finance","type":"project","require":{"laravel/framework":"^11.0"}}');
+    await fs.writeFile(path.join(root, 'app/Http/Controllers/Auth/LoginController.php'), "<?php\nnamespace App\\Http\\Controllers\\Auth;\n\nuse Illuminate\\Foundation\\Auth\\ThrottlesLogins;\n\nclass LoginController extends Controller\n{\n    use ThrottlesLogins;\n}\n");
+    const rateLimit = (await analyzeProject(root)).detectors['security.core']?.details?.rateLimit;
+    await fs.rm(root, { recursive: true, force: true });
+
+    expect(rateLimit).toBe(true);
+  });
 });
+

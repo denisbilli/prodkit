@@ -78,8 +78,11 @@ const SERVICE_STATUS_ROUTE = /["'`](?:\/(?:api\/)?(?:v\d\/)?status\/?|api\/(?:v\
  * it. koel declares it and was told at `high` that it has no health endpoint: `/up` is
  * not one of the words the route pattern knows, and it is not meant to be. The named
  * argument is the anchor.
+ *
+ * Aligned, too: Firefly III writes `health  : '/up',` with its named arguments lined up
+ * in a column, and the colon wanted to sit against the name.
  */
-const LARAVEL_HEALTH_ROUTE = /^\s*health:\s*['"]\/[\w/-]*['"]/;
+const LARAVEL_HEALTH_ROUTE = /^\s*health\s*:\s*['"]\/[\w/-]*['"]/;
 
 export async function detectObservability(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];

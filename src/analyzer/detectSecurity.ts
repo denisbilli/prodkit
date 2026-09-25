@@ -510,6 +510,12 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
        */
       /['"]throttle:[\w.,-]+['"]/,
       /\bRateLimiter::for\s*\(/,
+      /**
+       * Laravel's login lockout, a trait of the framework's own: `use ThrottlesLogins;`
+       * in the login controller counts failed attempts and refuses the next ones.
+       * Firefly III guards its login that way and was told at `high` it limits nothing.
+       */
+      /^\s*use\s+ThrottlesLogins\s*;/,
       /StatusCode::TOO_MANY_REQUESTS/,
       /http\.StatusTooManyRequests/,
       /HttpStatus\.TOO_MANY_REQUESTS/,
