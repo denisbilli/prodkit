@@ -494,7 +494,23 @@ export async function detectBackend(ctx: DetectContext): Promise<{
   const outsideDocs = frameworks.length > 0
     ? ctx.files.source.filter((f) => !DOCS_DIRECTORIES.test(f) && !/(^|\/)(tests?|__tests__|spec|specs)\//.test(f))
     : [];
-  const servedOutsideDocs = outsideDocs.length > 0 && (await searchInFiles(ctx.root, outsideDocs, APP_INSTANCE, 1)).length > 0;
+  let servedOutsideDocs = outsideDocs.length > 0 && (await searchInFiles(ctx.root, outsideDocs, APP_INSTANCE, 1)).length > 0;
+  /**
+   * Mezzio takes its application out of the container: `use Mezzio\Application;` and
+   * then `$app = $container->get(Application::class)`, `$app->run()`. shlink does exactly
+   * that in config/run.php and was read as a client application — the only backend
+   * signal outside its docs was a constructor it never calls. `Application::class` alone
+   * is also Symfony Console's, so the file has to import Mezzio's.
+   */
+  if (!servedOutsideDocs && frameworks.includes('mezzio')) {
+    for (const file of outsideDocs.filter((f) => f.endsWith('.php'))) {
+      const text = await readTextFileSafe(ctx.root, file);
+      if (text && /^use\s+Mezzio\\Application;/m.test(text) && /->get\(\s*Application::class\s*\)/.test(text)) {
+        servedOutsideDocs = true;
+        break;
+      }
+    }
+  }
 
   return {
     frameworks,

@@ -2031,5 +2031,25 @@
       "deployment.readiness": "present",
       "deployment.docker": "missing"
     }
+  },
+  "shlink": {
+    "inferredProfile": "client-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "app.state-durability": "missing",
+      "app.asset-delivery": "missing",
+      "client.error-reporting": "missing",
+      "auth.baseline": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "security.headers": "missing",
+      "security.cors": "partial",
+      "security.rate-limit": "missing",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "partial"
+    }
   }
 }

@@ -281,6 +281,10 @@
     {
       "repo": "firefly-iii/firefly-iii",
       "is": "Laravel personal finance manager; aligned withRouting arguments with health at /up, and a login guarded by ThrottlesLogins"
+    },
+    {
+      "repo": "shlinkio/shlink",
+      "is": "Mezzio URL shortener API authenticated by issued API keys; its application comes out of the container. Still read as a client app: no profile yet fits an API service"
     }
   ]
 }

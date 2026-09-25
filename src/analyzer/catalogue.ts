@@ -171,6 +171,9 @@ export const PHP_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
   ['codeigniter', ['codeigniter4/framework']],
   ['cakephp', ['cakephp/cakephp']],
   ['yii', ['yiisoft/yii2']],
+  // Laminas' two, the successors to Zend Framework: shlink is a Mezzio API.
+  ['mezzio', ['mezzio/mezzio']],
+  ['laminas', ['laminas/laminas-mvc']],
 ];
 
 /**
@@ -309,6 +312,8 @@ const LABELS: Record<string, string> = {
   codeigniter: 'CodeIgniter',
   cakephp: 'CakePHP',
   yii: 'Yii',
+  mezzio: 'Mezzio',
+  laminas: 'Laminas MVC',
   litestar: 'Litestar',
   sanic: 'Sanic',
   tornado: 'Tornado',
