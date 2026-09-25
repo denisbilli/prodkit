@@ -244,6 +244,10 @@
     {
       "repo": "BookStackApp/BookStack",
       "is": "Laravel team wiki with MFA, roles and a recycle bin emptied after a configured number of days"
+    },
+    {
+      "repo": "hoppscotch/hoppscotch",
+      "is": "NestJS GraphQL API platform with teams; its desktop agent shows a pairing code, which is not a second factor"
     }
   ]
 }

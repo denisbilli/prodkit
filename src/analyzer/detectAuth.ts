@@ -60,6 +60,9 @@ function snippetEvidence(matches: Array<{ snippet: string; file: string; line: n
   return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
 }
 
+/** Files that render an interface rather than decide anything. */
+const INTERFACE_FILE = /\.(?:vue|svelte|jsx|tsx|html?)$/;
+
 const PRISMA_ISSUED_KEY_MODEL = /^\s*model\s+\w*(?:AccessToken|ApiKey|APIKey|ApiToken|APIToken)\s*\{/;
 
 export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> {
@@ -292,7 +295,17 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     20,
     (match) => {
       const line = match.snippet.replace(ICON_IDENTIFIER, '').replace(IDENTITY_COLUMN, '');
-      return /two[_-]?factor/i.test(line) || OTP_AS_A_SECOND_FACTOR.test(line);
+      if (/two[_-]?factor/i.test(line)) return true;
+      /**
+       * A code on a screen is shown, not verified. hoppscotch's desktop agent displays
+       * `{{ otpCode }}` in `pages/otp.vue` for somebody to copy into the app it is pairing
+       * with, and that page was the whole of its second factor once `generate_otp()` on
+       * the Rust side had been set aside. A second factor is checked where the secret is
+       * — on the server — so a one-time code named only in a template or a component is
+       * not one. The words "two-factor" in an interface still count: that is a page for
+       * a feature somebody built.
+       */
+      return OTP_AS_A_SECOND_FACTOR.test(line) && !INTERFACE_FILE.test(match.file);
     },
   );
   const apiKeySignals = await searchInFiles(
