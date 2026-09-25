@@ -289,6 +289,10 @@
     {
       "repo": "kanboard/kanboard",
       "is": "Plain PHP kanban board for teams, no framework; takes attachments through $_FILES. A self-hosted team tool, so its b2c-app profile is the known gap"
+    },
+    {
+      "repo": "LemmyNet/lemmy",
+      "is": "Rust actix-web federated forum; limits every action with actix-extensible-rate-limit"
     }
   ]
 }

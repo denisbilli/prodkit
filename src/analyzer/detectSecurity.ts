@@ -415,7 +415,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     hasDep(ctx, 'next-rate-limit') ||
     hasDep(ctx, '@nestjs/throttler') ||
     hasAnyPyDep(ctx, ['django-ratelimit', 'slowapi', 'flask-limiter']).length > 0 ||
-    hasAnyRustDep(ctx, ['governor', 'tower_governor', 'tower-governor', 'actix-governor', 'ratelimit']).length > 0 ||
+    hasAnyRustDep(ctx, ['governor', 'tower_governor', 'tower-governor', 'actix-governor', 'actix-extensible-rate-limit', 'ratelimit']).length > 0 ||
     /**
      * Ruby's, which is one gem and nearly universal in Rails.
      *
@@ -517,6 +517,9 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
        */
       /^\s*use\s+ThrottlesLogins\s*;/,
       /StatusCode::TOO_MANY_REQUESTS/,
+      // actix-web's builder for the same answer, a limit written by hand:
+      // `return HttpResponse::TooManyRequests().finish();`.
+      /\bHttpResponse::TooManyRequests\s*\(/,
       /http\.StatusTooManyRequests/,
       /HttpStatus\.TOO_MANY_REQUESTS/,
       /HttpStatusCode\.TooManyRequests/,
