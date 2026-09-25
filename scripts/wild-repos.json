@@ -236,6 +236,10 @@
     {
       "repo": "pocketbase/pocketbase",
       "is": "Go backend in one binary, importable as a module and shipped with its own admin UI; receives files as multipart.FileHeader and checks them with mimetype"
+    },
+    {
+      "repo": "Netflix/dispatch",
+      "is": "FastAPI and Vue incident management with organisations; decides what owners, managers, admins and members may do with self.role == UserRoles.x in Python"
     }
   ]
 }

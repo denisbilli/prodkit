@@ -43,6 +43,9 @@ const ROLE_IN_MARKUP = /[<{][^<>{}]*\brole\s*===?=?/;
 
 const CHAT_TURN_ROLE = /role\s*===?=?\s*["'`](?:assistant|system|tool|function|developer|model|bot)["'`]|["'`](?:assistant|system)["'`]\s*===?=?\s*\w*\.?role/i;
 
+/** The files the role-check tree parses; the text search reads the others. */
+const STRUCTURALLY_READ = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
+
 function excludeChatTurnRoles(matches: TextMatch[]): TextMatch[] {
   return matches.filter(
     (match) => !CHAT_TURN_ROLE.test(match.snippet) && !ROLE_IN_MARKUP.test(match.snippet),
@@ -647,10 +650,24 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ),
   ];
 
-  const comparedRoles = guardedRoles
-    ?? excludeChatTurnRoles(
-      await searchInFiles(ctx.root, sourceFiles, [/req\.user\.role/i, /user\.role/i, /role\s*===/i], 20),
-    );
+  /**
+   * The tree reads JavaScript and TypeScript; everything else is still text.
+   *
+   * `guardedRoles` replaced the text search whenever TypeScript could be loaded — which
+   * is always — and an array is never null, so for every repository the comparison
+   * search over Python, Ruby and PHP simply never ran. Netflix's dispatch decides what
+   * an organisation's owner, manager, admin and member may do with
+   * `self.role == UserRoles.owner` in `auth/permissions.py`, and was told at `high` that
+   * it checks no roles.
+   *
+   * So the tree answers for the files it can parse, and the text search — with
+   * Python's and Ruby's `==` beside JavaScript's `===` — for the rest.
+   */
+  const textRoleFiles = guardedRoles ? sourceFiles.filter((file) => !STRUCTURALLY_READ.test(file)) : sourceFiles;
+  const textRoles = excludeChatTurnRoles(
+    await searchInFiles(ctx.root, textRoleFiles, [/req\.user\.role/i, /user\.role/i, /role\s*===/i, /\.role\s*[!=]=\s*[\w'"]/], 20),
+  );
+  const comparedRoles = [...(guardedRoles ?? []), ...textRoles];
 
   const roleSignals = [...unambiguousRoles, ...comparedRoles].slice(0, 20);
   const permissionSignals = await searchInFiles(

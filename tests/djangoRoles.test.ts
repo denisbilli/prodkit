@@ -52,3 +52,30 @@ describe('Django says who may with its own flags', () => {
     expect(await roles('def home(request):\n    return render(request, "home.html")\n')).toBe(false);
   });
 });
+
+/**
+ * The role search over Python never ran at all: the TypeScript tree replaced it for every
+ * repository, including the files it cannot parse. dispatch compares
+ * `self.role == UserRoles.owner` and has a Vue front end beside it.
+ */
+describe('a role compared in Python beside a TypeScript front end', () => {
+  const polyglot = async (python: string) => {
+    const root = await project({
+      'pyproject.toml': '[project]\nname = "incidents"\ndependencies = ["fastapi"]\n',
+      'src/app/permissions.py': python,
+      'web/src/main.ts': 'export const mount = (id: string) => document.getElementById(id);\n',
+    });
+    const present = (await analyzeProject(root)).detectors['authz.roles']?.present;
+    await fs.rm(root, { recursive: true, force: true });
+    return present;
+  };
+
+  it('reads it', async () => {
+    expect(await polyglot('class OwnerPermission:\n    def has_required_permissions(self):\n        return self.role == UserRoles.owner\n')).toBe(true);
+  });
+
+  it('does not read the role of a chat turn', async () => {
+    expect(await polyglot('def last_reply(messages):\n    return [m for m in messages if m.role == "assistant"][-1]\n')).toBe(false);
+  });
+});
+
