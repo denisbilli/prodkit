@@ -47,4 +47,36 @@ describe('a policy is not the code that honours it', () => {
       'src/modals/unitTestUtils.ts': 'export const actions = [{ label: "Delete user data", value: "GDPR_DELETE" }];\n',
     })).toBe(false);
   });
+
+  /**
+   * rallly's privacy policy and DPA are TSX pages, wrapped by Prettier at eighty columns
+   * so no line is a whole sentence. Their headings and fragments were the export and the
+   * retention policy.
+   */
+  it('does not read a legal page written as a component', async () => {
+    const paragraph = Array.from({ length: 12 }, (_, i) =>
+      `            and the right to data portability, erasure and restriction of processing ${i}`).join('\n');
+    const root = await project({
+      'package.json': '{"name":"polls","dependencies":{"next":"^15.0.0","react":"^19.0.0"}}',
+      'app/privacy/page.tsx': `export default function Page() {\n  return (\n    <article>\n      <h2>Retention of personal data</h2>\n      <p>\n${paragraph}\n      </p>\n    </article>\n  );\n}\n`,
+    });
+    const analysis = await analyzeProject(root);
+    await fs.rm(root, { recursive: true, force: true });
+
+    expect(analysis.detectors['gdpr.export.route']?.present).toBe(false);
+    expect(analysis.detectors['gdpr.retention.job']?.present).toBe(false);
+  });
+
+  /** What rallly does do: purge what was marked deleted a week ago. */
+  it('still reads the job that deletes after a number of days', async () => {
+    const root = await project({
+      'package.json': '{"name":"polls","dependencies":{"next":"^15.0.0","@prisma/client":"^6.0.0"}}',
+      'src/poll/mutations.ts': `export async function removeDeletedPolls() {\n  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);\n\n  while (true) {\n    const batch = await prisma.poll.findMany({\n      where: {\n        deleted: true,\n        deletedAt: {\n          lt: sevenDaysAgo,\n        },\n      },\n    });\n    if (batch.length === 0) break;\n    await prisma.poll.deleteMany({ where: { id: { in: batch.map((p) => p.id) } } });\n  }\n}\n`,
+    });
+    const analysis = await analyzeProject(root);
+    await fs.rm(root, { recursive: true, force: true });
+
+    expect(analysis.detectors['gdpr.retention.job']?.present).toBe(true);
+  });
 });
+

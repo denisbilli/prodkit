@@ -269,6 +269,10 @@
     {
       "repo": "writefreely/writefreely",
       "is": "Go blogging platform on gorilla/mux; sends password resets and notices through mailgun-go"
+    },
+    {
+      "repo": "lukevella/rallly",
+      "is": "Next.js scheduling polls with spaces, Stripe and API keys; legal pages written as TSX, and a housekeeping job that purges polls deleted a week ago"
     }
   ]
 }

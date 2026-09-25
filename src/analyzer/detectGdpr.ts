@@ -139,7 +139,12 @@ async function exportsTheCallersRows(ctx: DetectContext): Promise<TextMatch[]> {
  * Go's `AddDate(0, 0, -30)`. Days, not minutes or hours: a rate-limit window cleared every
  * minute is housekeeping, not a period somebody chose for keeping data.
  */
-const AGE_IN_DAYS = /\btimedelta\(\s*days\s*=|\.days\.ago\b|\binterval\s+'\d+\s*days?'|\bsubDays\s*\(|\.AddDate\(\s*0\s*,\s*0\s*,\s*-|\bINTERVAL\s+\d+\s+DAY\b/;
+/*
+ * And JavaScript's own arithmetic, a number of days in milliseconds: rallly purges
+ * polls marked deleted with `new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)`. The
+ * `* 24` is what makes it days rather than a rate-limit window.
+ */
+const AGE_IN_DAYS = /\btimedelta\(\s*days\s*=|\.days\.ago\b|\binterval\s+'\d+\s*days?'|\bsubDays\s*\(|\.AddDate\(\s*0\s*,\s*0\s*,\s*-|\bINTERVAL\s+\d+\s+DAY\b|\*\s*24\s*\*\s*60\s*\*\s*60\s*\*\s*1000\b/;
 const DELETES_ROWS = /\.a?delete\(\)|\._raw_delete\b|\bdelete_all\b|\bdestroy_all\b|\.deleteMany\s*\(|\bDELETE\s+FROM\b|->delete\(\)|\.Delete\(|\bdelete_\w+\s*\(|\bdelete[A-Z]\w*\s*\(/;
 /**
  * The age has to be a cutoff — something is older than it — not a lifetime. A cookie's
@@ -166,7 +171,16 @@ async function deletesByAge(ctx: DetectContext): Promise<TextMatch[]> {
     for (let i = 0; i < lines.length; i++) {
       if (!AGE_IN_DAYS.test(lines[i])) continue;
       const job = lines.slice(i, i + WITHIN_ONE_JOB);
-      if (!job.slice(0, 5).some((line) => OLDER_THAN.test(line))) continue;
+      /*
+       * Or the cutoff compared by the name it was given. rallly computes `sevenDaysAgo`
+       * on one line and compares `deletedAt: { lt: sevenDaysAgo }` seven lines later,
+       * inside the query that selects what to delete.
+       */
+      const cutoff = /(?:const|let|var)\s+(\w+)\s*=|(\w+)\s*:?=/.exec(lines[i]);
+      const name = cutoff?.[1] ?? cutoff?.[2];
+      const comparedByName = name !== undefined
+        && job.some((line) => new RegExp(`(?:\\blte?\\s*:\\s*|__lte?\\s*=\\s*|<=?\\s*)${name}\\b`).test(line));
+      if (!job.slice(0, 5).some((line) => OLDER_THAN.test(line)) && !comparedByName) continue;
       if (!job.some((line) => DELETES_ROWS.test(line))) continue;
       found.push({ file, line: i + 1, snippet: lines[i].trim().slice(0, 200) });
       break;

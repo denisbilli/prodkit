@@ -19,6 +19,7 @@
 export function proseLines(file: string, text: string): Set<number> {
   if (/\.exs?$/i.test(file)) return elixirDocLines(text);
   if (/\.html?$/i.test(file)) return htmlSentenceLines(text);
+  if (/\.(?:jsx|tsx)$/i.test(file)) return componentSentenceLines(text);
 
   const prose = new Set<number>();
   if (!/\.py$/i.test(file)) return messageLines(text);
@@ -146,4 +147,57 @@ function messageLines(text: string): Set<number> {
     if (words.length >= SENTENCE_WORDS) prose.add(i + 1);
   }
   return prose;
+}
+
+/**
+ * A sentence in a component is copy, as it is in a page.
+ *
+ * rallly's marketing site and its data processing agreement are TSX: "Right to data
+ * portability: You have the right…" on the DPA page, and a landing page's
+ * `defaults="Yes. Privacy is central to how we build Rallly … polls on the free plan are
+ * deleted automatically…"`. Those were the evidence that rallly exports personal data and
+ * enforces a retention period.
+ *
+ * Stricter than markup, because a component is also code and a long line of code has
+ * many words: at least twelve that are plain words — letters, an apostrophe, trailing
+ * punctuation — and seven tokens in ten of that kind. `session.user.role !== "admin"`
+ * is three tokens none of which is a word.
+ */
+const PLAIN_WORD = /^[("'“‘]?[A-Za-z][A-Za-z'’-]*[)"'”’.,:;!?]*$/;
+
+function componentSentenceLines(text: string): Set<number> {
+  const prose = new Set<number>();
+  const lines = text.split(/\r?\n/);
+  let textLines = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const tokens = lines[i].replace(/<[^>]*>/g, ' ').trim().split(/\s+/).filter(Boolean);
+    const words = tokens.filter((token) => PLAIN_WORD.test(token));
+    const plain = tokens.length > 0 && words.length / tokens.length >= 0.7;
+    if (plain && words.length >= TEXT_LINE_WORDS) textLines += 1;
+    if (plain && words.length >= SENTENCE_WORDS) prose.add(i + 1);
+  }
+  return wholeDocument(lines, prose, textLines);
+}
+
+/**
+ * A page that is mostly sentences is a document, and its headings are part of it.
+ *
+ * rallly's privacy policy page still counted as a retention policy through
+ * `<h2>Retention of personal data</h2>` — four words, a heading of the document, not a
+ * job that deletes anything. Where three lines in ten are sentences, the file is text
+ * somebody reads, and none of it is the product doing something.
+ */
+const DOCUMENT_SHARE = 0.3;
+
+/**
+ * A line of running text, as a formatter wraps it: Prettier breaks prose at eighty
+ * columns, so a paragraph arrives as lines of nine or ten words, none of them a
+ * twelve-word sentence on its own.
+ */
+const TEXT_LINE_WORDS = 6;
+
+function wholeDocument(lines: string[], sentences: Set<number>, textLines: number): Set<number> {
+  const written = lines.filter((line) => line.trim().length > 0).length;
+  if (written === 0 || textLines / written < DOCUMENT_SHARE) return sentences;
+  return new Set(lines.map((_, i) => i + 1));
 }
