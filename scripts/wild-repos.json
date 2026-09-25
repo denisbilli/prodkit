@@ -232,6 +232,10 @@
     {
       "repo": "forem/forem",
       "is": "Rails community platform with organisations and Stripe; issues API keys as ApiSecret rows read from an api-key header, and has no two-factor sign-in"
+    },
+    {
+      "repo": "pocketbase/pocketbase",
+      "is": "Go backend in one binary, importable as a module and shipped with its own admin UI; receives files as multipart.FileHeader and checks them with mimetype"
     }
   ]
 }

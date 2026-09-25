@@ -187,6 +187,15 @@ const FILE_INTAKE = [
    */
   /=>\s*\[[^\]]*['"](?:file|image)['"]/,
   /\.FormFile\s*\(\s*["']/,
+  /**
+   * Go's standard library hands an uploaded file over as `*multipart.FileHeader`, parsed
+   * out of `Request.MultipartForm`. pocketbase stores every record's files that way —
+   * `NewFileFromMultipart(mh *multipart.FileHeader)`, `UploadMultipart(fh
+   * *multipart.FileHeader, ...)` — and never calls `FormFile`, so a backend whose
+   * collections take file fields was `not_applicable`. A client sending a file writes
+   * it with `multipart.Writer`; only a server receives a `FileHeader`.
+   */
+  /\*multipart\.FileHeader\b/,
   /\bIFormFile\b/,
   /\bMultipartFile\b/,
   /\ballow_upload\s*\(/,

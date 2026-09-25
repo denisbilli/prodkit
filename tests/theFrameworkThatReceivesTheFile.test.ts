@@ -57,6 +57,11 @@ describe('the framework that receives the file', () => {
     expect((await analyzeProject(fixture('go-email-confirm'))).detectors['auth.emailVerification']?.present).toBe(true);
   });
 
+  /** pocketbase's way: the standard library's `*multipart.FileHeader`, with no `FormFile` call. */
+  it('finds a Go server receiving a multipart.FileHeader', async () => {
+    expect((await analyzeProject(fixture('go-multipart-file-header'))).detectors['uploads.exposure']?.present).toBe(true);
+  });
+
   it('finds a Go handler reading a multipart file, and no check on it', async () => {
     const analysis = await analyzeProject(fixture('go-form-file'));
     const uploads = analysis.detectors['uploads.exposure'];
