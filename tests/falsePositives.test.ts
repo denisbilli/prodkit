@@ -211,6 +211,27 @@ describe('marketplace words that mean something else', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  /**
+   * bitwarden/server: resellers who sign their clients up for the product itself, and a
+   * Braintree merchant account. A password manager was a marketplace at high confidence
+   * on those alone.
+   */
+  it('does not read a channel partner or a payment provider as a supply side', async () => {
+    const root = await project({
+      'package.json': '{"name":"app","dependencies":{"express":"^4.0.0"}}',
+      'src/controllers/providers.controller.ts': `export const createReseller = (provider: Provider) => providers.createReseller(provider);\nexport const addToReseller = (id: string, orgs: string[]) => providers.addOrganizationsToReseller(id, orgs);\n`,
+      'src/models/reseller-provider.model.ts': `export const resellerModel = { type: ProviderType.Reseller, billingEmail: "" };\n`,
+      'src/models/billing-settings.model.ts': `export const settings = { braintreeMerchantUrl: process.env.BRAINTREE_URL };\n`,
+
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['marketplace.multiRole']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it('still recognises a product with two sides in two places', async () => {
     const root = await project({
       'package.json': '{"name":"app","dependencies":{"express":"^4.0.0","stripe":"^14.0.0"}}',

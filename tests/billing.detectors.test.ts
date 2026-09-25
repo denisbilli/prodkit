@@ -22,6 +22,20 @@ describe('billing webhook sub-detectors', () => {
     expect(report.findings.find((f) => f.id === 'billing.webhook-signature')?.status).toBe('passed');
   });
 
+  /**
+   * bitwarden/server's shape: `[Route("stripe")]` and `[HttpPost("webhook")]` on the
+   * controller, the body read with a `StreamReader` before `EventUtility.ConstructEvent`.
+   * No path string and no Express spelling, so it was told at `high` that its callbacks
+   * go unverified.
+   */
+  it('passes an ASP.NET controller that verifies Stripe on an attribute route', async () => {
+    const analysis = await analyzeProject(fixture('aspnet-stripe-webhook'));
+
+    expect(analysis.detectors['billing.webhook.route']?.present).toBe(true);
+    expect(analysis.detectors['billing.webhook.rawBody']?.present).toBe(true);
+    expect(analysis.detectors['billing.webhook.signatureValidation']?.present).toBe(true);
+  });
+
   it('passes a FastAPI webhook that awaits request.body()', async () => {
     const analysis = await analyzeProject(fixture('fastapi-stripe-webhook-hardened'));
 

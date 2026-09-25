@@ -60,3 +60,16 @@ describe('the audit table not called audit', () => {
     expect(audit?.present).toBe(false);
   });
 });
+
+/**
+ * PascalCase, which is how C# and Java name a column. bitwarden/server's `Event` has
+ * `IpAddress`, `Date` and `ActingUserId`, and `acting_user` wanted an underscore.
+ */
+describe('an event entity written in C#', () => {
+  it('reads who, when and from where in PascalCase', async () => {
+    const analysis = await analyzeProject(fixture('aspnet-event-entity'));
+
+    expect(analysis.detectors['audit.trail']?.present).toBe(true);
+  });
+});
+

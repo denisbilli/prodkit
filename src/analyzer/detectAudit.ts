@@ -75,8 +75,14 @@ const AUDIT_WRITE = [
  * `act_user`, `actor`, `performed_by` and `changed_by` only, all nine matches are the
  * events table. Across 247 fixtures it matches nothing at all, which is the other half
  * of the measurement: no fixture writes this shape by accident.
+ *
+ * With the separator optional in `acting_user`, because C# and Java write columns in
+ * PascalCase.
+ * bitwarden/server's `Event` entity has `IpAddress`, `Date` and `ActingUserId` — the
+ * organisation event log its admins read — and was told at `high` it keeps no audit
+ * trail: `acting_user` wanted the underscore that `ActingUserId` does not have.
  */
-const ACTOR_COLUMN = /\b(act_?user\w*|actor\w*|performed_by\w*|changed_by\w*|modified_by\w*|acting_user\w*|moderator\w*)\b/i;
+const ACTOR_COLUMN = /\b(act_?user\w*|actor\w*|performed_by\w*|changed_by\w*|modified_by\w*|acting_?user\w*|moderator\w*)\b/i;
 const CALLER_IP_COLUMN = /\b(ip_?address|remote_?addr|client_?ip)\b/i;
 /**
  * A column called just `ip`, which is too short a word to find anywhere else but is

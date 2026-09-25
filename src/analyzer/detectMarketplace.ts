@@ -158,7 +158,13 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
   const notInvoicing = (hit: { file: string; snippet: string }) =>
     !/invoic|(^|\/)tax/i.test(hit.file)
     && !/buyer_?reference|seller_?(?:sub)?region|seller_?(?:country|state|tax)/i.test(hit.snippet)
-    && !/merchant_?id(?:entifier)?\b|MerchantId/i.test(hit.snippet);
+    && !/merchant_?id(?:entifier)?\b|MerchantId/i.test(hit.snippet)
+    /*
+     * The same account under the provider's name. bitwarden/server keeps
+     * `_braintreeMerchantUrl` for the Braintree console of its own merchant account, and
+     * that field was one of the two words that made a password manager a marketplace.
+     */
+    && !/(?:braintree|paypal|stripe|adyen|square|authorize(?:net)?|apple|google)_?merchant/i.test(hit.snippet);
   const sellerHits = (await searchInFiles(ctx.root, scope, SELLER_TERMS, 40)).filter(notInvoicing).slice(0, 20);
   const buyerHits = (await searchInFiles(ctx.root, scope, BUYER_TERMS, 40)).filter(notInvoicing).slice(0, 20);
   /**
@@ -233,7 +239,20 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
   // marketplace is somebody else selling through it. With buyers alone counted, kimai —
   // time tracking whose Customer entity and a migration spell `buyerReference`, the
   // e-invoice field — needed two files of the demand side's word and nothing else.
-  const oneSide = (sellerHits.length > 0 && vocabularyFiles.size >= 2) || connectedHits.length > 0;
+  /**
+   * A reseller sells somebody else's product, and in a SaaS that product is the SaaS.
+   *
+   * bitwarden/server has a Reseller provider type: an MSP that signs its clients up for
+   * Bitwarden organisations — `ResellerClientOrganizationSignUpCommand`,
+   * `AddOrganizationsToReseller`. Twenty lines of it across four files were the whole
+   * supply side that made a password manager a marketplace at high confidence, with no
+   * buyer anywhere. A marketplace's sellers sell their own goods to the platform's
+   * buyers; a channel partner sells the platform. So `reseller` alone no longer makes a
+   * supply side — beside a buyer, where the two sides are both there, it still counts.
+   */
+  const supplyHits = sellerHits.filter((hit) => !/resellers?/i.test(hit.snippet));
+  const supplyVocabularyFiles = new Set([...supplyHits, ...buyerHits].map((hit) => hit.file));
+  const oneSide = (supplyHits.length > 0 && supplyVocabularyFiles.size >= 2) || connectedHits.length > 0;
 
   return {
     key: 'marketplace.multiRole',

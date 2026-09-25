@@ -102,6 +102,15 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
         /\/webhooks?\/stripe/i,
         /app\.post\(\s*['"][^'"]*webhook/i,
         /router\.post\(\s*['"][^'"]*webhook/i,
+        /**
+         * Routes declared on the handler rather than in a path string. bitwarden/server
+         * verifies every Stripe event with `EventUtility.ConstructEvent` and the
+         * `Stripe-Signature` header, behind `[Route("stripe")]` and
+         * `[HttpPost("webhook")]` — no leading slash, so no path above matched — and was
+         * told at `high` that it takes the provider's callbacks unverified. Only ASP.NET's
+         * attribute is here: it is the one a product has been measured missing.
+         */
+        /\[Http(?:Post|Put)\(\s*"[^"]*webhook/i,
       ],
       40
     )
@@ -161,6 +170,9 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
         /\bawait\s+request\.body\(\s*\)/,
         // Go's net/http.
         /io\.ReadAll\(\s*r\.Body\s*\)/,
+        // ASP.NET: the request stream read to the end before any model binding, which is
+        // how bitwarden/server hands Stripe the exact bytes it signed.
+        /new\s+StreamReader\(\s*(?:HttpContext\.)?Request\.Body\b/,
       ],
       20
     )

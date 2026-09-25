@@ -248,6 +248,11 @@
     {
       "repo": "hoppscotch/hoppscotch",
       "is": "NestJS GraphQL API platform with teams; its desktop agent shows a pairing code, which is not a second factor"
+    },
+    {
+      "repo": "bitwarden/server",
+      "is": "ASP.NET password manager backend with organisations, resellers of its own plans, Stripe webhooks verified on an attribute route, and an event log in PascalCase",
+      "name": "bitwarden-server"
     }
   ]
 }
