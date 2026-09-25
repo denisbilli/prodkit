@@ -147,7 +147,12 @@ const DELETES_ROWS = /\.a?delete\(\)|\._raw_delete\b|\bdelete_all\b|\bdestroy_al
  * and is not retention. What a retention job has is a comparison: Django's `__lt=`, Prisma's
  * and Mongo's `lt:` and `$lt`, SQL's `< now()`, ActiveRecord's `< ?`.
  */
-const OLDER_THAN = /__lte?\s*=|\blte?\s*:\s|\$lte?\b|<\s*(?:now|NOW|CURRENT_TIMESTAMP)\b|<\s*\?/;
+/*
+ * Laravel's query builder takes the operator as an argument: BookStack clears its
+ * recycle bin with `Deletion::query()->where('created_at', '<', $clearBeforeDate)`
+ * after `subDays($lifetime)`, and none of the forms above is that one.
+ */
+const OLDER_THAN = /__lte?\s*=|\blte?\s*:\s|\$lte?\b|<\s*(?:now|NOW|CURRENT_TIMESTAMP)\b|<\s*\?|,\s*['"]<=?['"]\s*,/;
 /** Close enough to be one job: the cutoff computed, the query built, the rows deleted in batches. */
 const WITHIN_ONE_JOB = 60;
 

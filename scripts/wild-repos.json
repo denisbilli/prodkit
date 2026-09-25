@@ -240,6 +240,10 @@
     {
       "repo": "Netflix/dispatch",
       "is": "FastAPI and Vue incident management with organisations; decides what owners, managers, admins and members may do with self.role == UserRoles.x in Python"
+    },
+    {
+      "repo": "BookStackApp/BookStack",
+      "is": "Laravel team wiki with MFA, roles and a recycle bin emptied after a configured number of days"
     }
   ]
 }

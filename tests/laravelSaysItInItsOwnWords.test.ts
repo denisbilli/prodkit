@@ -29,4 +29,13 @@ describe('Laravel says it in its own words', () => {
     expect(uploads?.present).toBe(true);
     expect(uploads?.details?.validation).toBe(true);
   });
+
+  /**
+   * BookStack clears its recycle bin of anything older than `recycle_bin_lifetime`
+   * days: `subDays($lifetime)`, then `where('created_at', '<', $date)` — the operator
+   * as an argument, which is how Laravel's query builder writes a comparison.
+   */
+  it('reads a trash emptied after a number of days as retention', async () => {
+    expect((await analyzeProject(fixture('laravel-recycle-bin-lifetime'))).detectors['gdpr.retention.job']?.present).toBe(true);
+  });
 });
