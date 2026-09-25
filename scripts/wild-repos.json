@@ -224,6 +224,10 @@
     {
       "repo": "zulip/zulip",
       "is": "Django team chat that installs Django from a uv dependency group, with a KaTeX renderer on Koa and a per-organisation message retention policy"
+    },
+    {
+      "repo": "appsmithorg/appsmith",
+      "is": "Spring Boot and React low-code builder with workspaces; ships its privacy policy as HTML and plugin fixtures with GDPR_DELETE actions, neither of which is its own erasure"
     }
   ]
 }

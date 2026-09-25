@@ -18,6 +18,7 @@
  */
 export function proseLines(file: string, text: string): Set<number> {
   if (/\.exs?$/i.test(file)) return elixirDocLines(text);
+  if (/\.html?$/i.test(file)) return htmlSentenceLines(text);
 
   const prose = new Set<number>();
   if (!/\.py$/i.test(file)) return prose;
@@ -92,5 +93,31 @@ function elixirDocLines(text: string): Set<number> {
     open = true;
   }
 
+  return prose;
+}
+
+/**
+ * A sentence in a page is something the page says, not something the product does.
+ *
+ * appsmith ships its privacy policy as `app/client/public/privacy-policy.html`, and
+ * one paragraph of it — "Once the retention period expires, Personal Data shall be
+ * deleted. Therefore, the right to access, the right to erasure…" — was the whole
+ * evidence that appsmith exports personal data, erases it and enforces a retention
+ * period. A policy promising a right is not the code that honours it.
+ *
+ * The line is markup around a sentence: tags stripped, at least twelve words. A button
+ * that says "Delete account" is two words and stays readable — in a Django template it
+ * is the interface to the feature — and so does every line of markup that carries an
+ * attribute rather than a paragraph.
+ */
+const SENTENCE_WORDS = 12;
+
+function htmlSentenceLines(text: string): Set<number> {
+  const prose = new Set<number>();
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const words = lines[i].replace(/<[^>]*>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+    if (words.length >= SENTENCE_WORDS) prose.add(i + 1);
+  }
   return prose;
 }

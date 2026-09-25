@@ -258,6 +258,14 @@ function isTestOrExamplePath(file: string): boolean {
      */
     || /[-_]tests?\.(ts|tsx|js|jsx|mjs|cjs|py)$/i.test(file)
     /**
+     * A test's helpers, which Testing Library's own guide names `test-utils`. appsmith's
+     * `PartialExportModal/unitTestUtils.ts` is five thousand lines of plugin
+     * configurations built for one test, and a `GDPR_DELETE` action inside it — the
+     * name of a call to somebody else's API — was the evidence that appsmith erases
+     * personal data and enforces a retention period.
+     */
+    || /(?:^|\/|[a-z])[Tt]est[-_]?[Uu]tils?\.(ts|tsx|js|jsx|mjs|cjs)$/.test(file)
+    /**
      * And the third spelling of it.
      *
      * netbox keeps `netbox/netbox/configuration_testing.py`, whose first three lines
