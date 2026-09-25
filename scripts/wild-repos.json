@@ -228,6 +228,10 @@
     {
       "repo": "appsmithorg/appsmith",
       "is": "Spring Boot and React low-code builder with workspaces; ships its privacy policy as HTML and plugin fixtures with GDPR_DELETE actions, neither of which is its own erasure"
+    },
+    {
+      "repo": "forem/forem",
+      "is": "Rails community platform with organisations and Stripe; issues API keys as ApiSecret rows read from an api-key header, and has no two-factor sign-in"
     }
   ]
 }

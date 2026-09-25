@@ -13,6 +13,14 @@ const fixture = (name: string) => path.resolve(__dirname, 'fixtures', name);
  * for a Twilio key it holds. The verdict was right and the evidence was not.
  */
 describe('a token the product stores', () => {
+  /**
+   * forem reads `request.headers["api-key"]` — no `x-`, which RFC 6648 retired for new
+   * headers — and was told it issues no API keys.
+   */
+  it('reads a key taken from an api-key request header', async () => {
+    expect((await analyzeProject(fixture('rails-reads-an-api-key-header'))).detectors['auth.apiKeys']?.present).toBe(true);
+  });
+
   it('reads a persisted AccessToken model as keys it issues', async () => {
     const analysis = await analyzeProject(fixture('rails-issues-access-tokens'));
 

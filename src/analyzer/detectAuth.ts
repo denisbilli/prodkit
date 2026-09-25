@@ -318,6 +318,14 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        */
       /headers?\s*[[.(]\s*['"]?x-api-key/i,
       /**
+       * Without the `x-`. forem authenticates its API with `request.headers["api-key"]`
+       * looked up in `ApiSecret.find_by(secret: api_key)`, and a community platform that
+       * issues keys from its settings page was told it offers none. The `X-` prefix has
+       * been deprecated for new headers since RFC 6648; the header read out of the
+       * request is the anchor, whichever way it is spelled.
+       */
+      /headers?\s*[[.(]\s*['"]api[-_]key['"]/i,
+      /**
        * A verb on its own does not say which side you are on. `check_api_key(api_key)`
        * in a script that downloads from YouTube is a client making sure its own key
        * looks right before spending a request on it. What it cannot be is a store of
