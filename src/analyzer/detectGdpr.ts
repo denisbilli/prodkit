@@ -101,6 +101,21 @@ const FUNCTION_START = /^\s*(?:async\s+def|def|(?:public\s+|private\s+|protected
 
 async function exportsTheCallersRows(ctx: DetectContext): Promise<TextMatch[]> {
   const found: TextMatch[] = [];
+  /**
+   * NestJS says the same in decorators. ghostfolio's `@Controller('export')` answers a
+   * `@Get()` with the caller's own portfolio — `userId: this.request.user.id`, Passport's
+   * user on the injected request — and was told at `high` it offers no data export.
+   * `/export` alone is what an admin's export of everybody looks like, which is why the
+   * route rule wants a path that names the person; here the query does the naming.
+   */
+  for (const file of ctx.files.source.filter((f) => /\.ts$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+    const controller = /@Controller\(\s*['"`][^'"`]*\bexports?['"`]\s*\)/.exec(text);
+    if (!controller || !/\b(?:this\.)?req(?:uest)?\.user\.id\b/.test(text)) continue;
+    const line = text.slice(0, controller.index).split(/\r?\n/).length;
+    found.push({ file, line, snippet: controller[0] });
+  }
   for (const file of ctx.files.source) {
     if (!/\.(py|rb|php)$/.test(file)) continue;
     const text = await readTextFileSafe(ctx.root, file);

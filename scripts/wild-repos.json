@@ -293,6 +293,10 @@
     {
       "repo": "LemmyNet/lemmy",
       "is": "Rust actix-web federated forum; limits every action with actix-extensible-rate-limit"
+    },
+    {
+      "repo": "ghostfolio/ghostfolio",
+      "is": "NestJS and Angular wealth manager for individuals with Stripe subscriptions; exports the caller's own portfolio from @Controller(export). Read as b2b-saas, though it has no tenants"
     }
   ]
 }
