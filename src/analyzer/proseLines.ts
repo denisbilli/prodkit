@@ -21,7 +21,7 @@ export function proseLines(file: string, text: string): Set<number> {
   if (/\.html?$/i.test(file)) return htmlSentenceLines(text);
 
   const prose = new Set<number>();
-  if (!/\.py$/i.test(file)) return prose;
+  if (!/\.py$/i.test(file)) return messageLines(text);
 
   const lines = text.split(/\r?\n/);
   let openQuote: string | null = null;
@@ -117,6 +117,32 @@ function htmlSentenceLines(text: string): Set<number> {
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const words = lines[i].replace(/<[^>]*>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+    if (words.length >= SENTENCE_WORDS) prose.add(i + 1);
+  }
+  return prose;
+}
+
+/**
+ * A line that is nothing but a sentence in quotes is a message, not an instruction.
+ *
+ * postiz's Bluesky integration answers a failed login with `'We don’t currently support
+ * two-factor authentication. If it’s enabled on Bluesky, you’ll need to disable it.';` —
+ * a line of a string concatenation telling the user that somebody else's second factor
+ * is unsupported. It was the whole evidence that postiz has one.
+ *
+ * The same twelve-word line the HTML rule draws, and only where the line is the string
+ * and nothing else: `key: 'a long description'` or `throw new Error('...')` do something
+ * with the text, and stay readable.
+ */
+const MESSAGE_LINE = /^\s*(['"`])(.*)\1\s*[,;+)]*\s*$/;
+
+function messageLines(text: string): Set<number> {
+  const prose = new Set<number>();
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const literal = MESSAGE_LINE.exec(lines[i]);
+    if (!literal) continue;
+    const words = literal[2].trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
     if (words.length >= SENTENCE_WORDS) prose.add(i + 1);
   }
   return prose;

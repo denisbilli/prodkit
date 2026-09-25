@@ -257,6 +257,10 @@
     {
       "repo": "lldap/lldap",
       "is": "Rust LDAP server with a web UI; a totp_secret column nothing verifies, and one sample PHP config for another application"
+    },
+    {
+      "repo": "gitroomhq/postiz-app",
+      "is": "NestJS and Next.js social scheduling SaaS with organisations, Stripe and AI; says in a message that it does not support Bluesky two-factor"
     }
   ]
 }

@@ -51,5 +51,21 @@ describe('a code on a screen is not a second factor', () => {
       'src/model/columns.rs': 'pub enum Column {\n    UserId,\n    TotpSecret,\n}\n',
     })).toBe(false);
   });
+
+  /**
+   * postiz tells Bluesky users that their second factor is unsupported, on a line that is
+   * nothing but the sentence. A message is not a feature.
+   */
+  it('does not read a sentence in quotes as a second factor', async () => {
+    expect(await mfa({
+      'src/integrations/bluesky.provider.ts': 'const message =\n  "Login failed. " +\n  "We don’t currently support two-factor authentication. If it’s enabled on Bluesky, you’ll need to disable it.";\n',
+    })).toBe(false);
+  });
+
+  it('still reads the same words where the code does something with them', async () => {
+    expect(await mfa({
+      'src/auth/login.ts': 'if (!code) throw new Error("Two-factor authentication is required for this account, enter the code from your app");\n',
+    })).toBe(true);
+  });
 });
 
