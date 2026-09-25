@@ -210,6 +210,13 @@ const PY_FILE_INTAKE = [
   /:\s*UploadFile\b/,
   /\brequest\.FILES\b/,
   /\bmodels\.(?:File|Image)Field\s*\(/,
+  /**
+   * Flask's, lowercase — Werkzeug's `request.files`. CTFd takes challenge files, logos
+   * and backup archives through it and was `not_applicable`, as if a platform that
+   * hosts downloadable challenges accepted no files: the list had Django's uppercase
+   * `request.FILES` and nothing else for Flask.
+   */
+  /\brequest\.files\b/,
 ];
 
 export async function detectUploads(ctx: DetectContext): Promise<DetectorResult> {

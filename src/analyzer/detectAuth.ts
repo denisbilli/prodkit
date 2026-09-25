@@ -641,6 +641,9 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       [
         /requireRole/i,
         /isAdmin/i,
+        // And Python's spelling of the same word. CTFd gates its admin panel with
+        // `if is_admin():` inside `@admins_only` and was told at `high` it checks no roles.
+        /\bis_admin\b/,
         /SUPER_ADMIN/i,
         /roles\.includes\(/i,
         /**

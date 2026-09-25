@@ -48,6 +48,11 @@ describe('Django says who may with its own flags', () => {
     expect(await roles('from rest_framework.permissions import IsAdminUser\n\nclass Reports(APIView):\n    permission_classes = [IsAdminUser]\n')).toBe(true);
   });
 
+  /** CTFd's: `is_admin()`, the snake-case spelling of the `isAdmin` already read. */
+  it('reads an is_admin check', async () => {
+    expect(await roles('def scoreboard(request):\n    if not is_admin():\n        abort(403)\n    return render_template("scoreboard.html")\n')).toBe(true);
+  });
+
   it('finds nothing where nothing is checked', async () => {
     expect(await roles('def home(request):\n    return render(request, "home.html")\n')).toBe(false);
   });

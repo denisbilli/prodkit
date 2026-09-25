@@ -62,6 +62,11 @@ describe('the framework that receives the file', () => {
     expect((await analyzeProject(fixture('go-multipart-file-header'))).detectors['uploads.exposure']?.present).toBe(true);
   });
 
+  /** Flask's `request.files`, lowercase: CTFd's challenge files and logos. */
+  it('finds a Flask view reading request.files', async () => {
+    expect((await analyzeProject(fixture('flask-request-files'))).detectors['uploads.exposure']?.present).toBe(true);
+  });
+
   it('finds a Go handler reading a multipart file, and no check on it', async () => {
     const analysis = await analyzeProject(fixture('go-form-file'));
     const uploads = analysis.detectors['uploads.exposure'];

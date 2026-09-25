@@ -1634,7 +1634,7 @@
       "billing.webhook-integrity": "not_applicable",
       "security.headers": "present",
       "security.cors": "partial",
-      "security.rate-limit": "missing",
+      "security.rate-limit": "present",
       "uploads.protection": "present",
       "observability.health": "present",
       "observability.logging": "present",
@@ -1972,6 +1972,36 @@
       "audit.baseline": "partial",
       "deployment.readiness": "present",
       "deployment.docker": "present"
+    }
+  },
+  "CTFd": {
+    "inferredProfile": "b2b-saas",
+    "inferenceConfidence": "medium",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "auth.api-keys": "missing",
+      "authz.roles": "present",
+      "authz.ownership": "missing",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "missing",
+      "security.rate-limit": "missing",
+      "uploads.protection": "partial",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "partial",
+      "deployment.docker": "partial"
     }
   }
 }
