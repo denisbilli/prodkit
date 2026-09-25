@@ -43,7 +43,9 @@ let failures = 0;
 
 try {
   for (const entry of repos) {
-    const name = entry.repo.split('/')[1];
+    // Two repositories can share a name — gotify/server and bitwarden/server — and the
+    // baseline is keyed by it, so an entry may give its own.
+    const name = entry.name ?? entry.repo.split('/')[1];
     if (only && name !== only) continue;
 
     const dir = path.join(workspace, name);
