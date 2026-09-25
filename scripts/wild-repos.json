@@ -285,6 +285,10 @@
     {
       "repo": "shlinkio/shlink",
       "is": "Mezzio URL shortener API authenticated by issued API keys; its application comes out of the container. Still read as a client app: no profile yet fits an API service"
+    },
+    {
+      "repo": "kanboard/kanboard",
+      "is": "Plain PHP kanban board for teams, no framework; takes attachments through $_FILES. A self-hosted team tool, so its b2c-app profile is the known gap"
     }
   ]
 }

@@ -67,6 +67,11 @@ describe('the framework that receives the file', () => {
     expect((await analyzeProject(fixture('flask-request-files'))).detectors['uploads.exposure']?.present).toBe(true);
   });
 
+  /** Plain PHP, as Kanboard receives attachments: `$_FILES` and `move_uploaded_file()`. */
+  it('finds plain PHP receiving a file', async () => {
+    expect((await analyzeProject(fixture('php-move-uploaded-file'))).detectors['uploads.exposure']?.present).toBe(true);
+  });
+
   it('finds a Go handler reading a multipart file, and no check on it', async () => {
     const analysis = await analyzeProject(fixture('go-form-file'));
     const uploads = analysis.detectors['uploads.exposure'];

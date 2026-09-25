@@ -179,6 +179,12 @@ const FILE_INTAKE = [
   /\bmount_uploaders?\s+:/,
   /\$request->(?:file|hasFile)\s*\(/,
   /**
+   * PHP's own, below any framework: the `$_FILES` superglobal, where the language puts
+   * every file a request carried. Kanboard takes task and project attachments and avatars
+   * that way, through its own Request class, and was `not_applicable`.
+   */
+  /\$_FILES\b/,
+  /**
    * Laravel's `file` and `image` validation rules, which pass only for an uploaded file.
    * koel takes songs through `UploadSongRequest`, whose rules are `'file' => ['required',
    * 'file', new SupportedAudioFile()]`, and reads `$request->file->move(...)` as a
