@@ -68,8 +68,14 @@ function namesACloudStorageRule(text: string, line: number): boolean {
  * `ALLOWED_ORIGINS = ["*"]` are the same decision written in two frameworks, and only
  * the first was being caught.
  */
-/** `== StatusCode::TOO_MANY_REQUESTS` and its spellings: a status being read. */
-const COMPARES_A_STATUS = /[=!]==?\s*(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests|Status429TooManyRequests)|(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests)\s*[=!]==?/;
+/**
+ * `== StatusCode::TOO_MANY_REQUESTS` and its spellings: a status being read.
+ *
+ * A switch arm reads it too. miniflux's feed fetcher has `case http.StatusTooManyRequests:`
+ * to back off from a feed server that refused it, and that was the rate limiting of a
+ * product that limits nothing.
+ */
+const COMPARES_A_STATUS = /^\s*case\s+(?:[\w.]+\s*,\s*)*http\.StatusTooManyRequests\b|[=!]==?\s*(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests|Status429TooManyRequests)|(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests)\s*[=!]==?/;
 
 const WILDCARD_ORIGIN = /(Access-Control-Allow-Origin["'\s:,]+\*)|(["']\*["'])/i;
 

@@ -317,6 +317,11 @@
     {
       "repo": "thedevs-network/kutt",
       "is": "Express URL shortener rendered with Handlebars; /reset-password and a delete_account.hbs settings page"
+    },
+    {
+      "repo": "miniflux/v2",
+      "name": "miniflux",
+      "is": "Go RSS reader; password reset and a user's feed export live only in the operator's flag-driven CLI, and a 429 is read from feed servers"
     }
   ]
 }

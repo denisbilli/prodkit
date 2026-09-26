@@ -5,6 +5,7 @@ import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readRoleChecks } from './structural/roleChecks';
 import { evidenceOrSearch, searchedFor } from './absenceEvidence';
 import { fileNameEvidence, searchFileNames } from './fileNames';
+import { goCommandLineFiles } from './commandLine';
 import { readPackageValueUses } from './structural/valuesFromPackage';
 import { anyFileImportsExpress, readOwnershipChecks } from './structural/ownershipChecks';
 import { wentUnasked } from './readingDepth';
@@ -461,7 +462,9 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       apiKeySignals.push({ file, line: i + 1, snippet: lines[i].trim() });
     }
   }
-  const passwordResetFiles = searchFileNames(sourceFiles, [
+  // A reset typed at the server's terminal is the operator's, not the user's way back in.
+  const commandLineFiles = await goCommandLineFiles(ctx);
+  const passwordResetFiles = searchFileNames(sourceFiles.filter((file) => !commandLineFiles.has(file)), [
     /(password|pwd)[_-]?(reset|recovery)/i,
     /(reset|recover)[_-]?password/i,
     /forgot[_-]?password/i,
