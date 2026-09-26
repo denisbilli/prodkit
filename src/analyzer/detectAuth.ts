@@ -69,6 +69,31 @@ const APPLE_DEVELOPER_TEAM = /(?<![A-Za-z])(?:APPLE|APNS?)_\w*TEAM|\bapple\w*tea
 
 const PRISMA_ISSUED_KEY_MODEL = /^\s*model\s+\w*(?:AccessToken|ApiKey|APIKey|ApiToken|APIToken)\s*\{/;
 
+/**
+ * An Auth.js user with nowhere to keep a password.
+ *
+ * papermark signs people in with Google, LinkedIn, a mailed link, a passkey and SAML, and
+ * uses bcryptjs for the password somebody can put on a shared link. The hashing library
+ * was read as a password of the product's own, and papermark was told at `high` to build
+ * a reset flow for accounts that have no password.
+ *
+ * Auth.js's Prisma adapter fixes the user's shape: `model User` with `accounts Account[]`
+ * beside it. A password it signs in with has to be stored on that model, so when no
+ * column there could hold one, the hash is of something else.
+ */
+async function authJsUserHoldsNoPassword(ctx: DetectContext): Promise<boolean> {
+  for (const file of ctx.files.all.filter((f) => /\.prisma$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    const start = text ? text.search(/^model User \{/m) : -1;
+    if (!text || start === -1) continue;
+    const end = text.indexOf('\n}', start);
+    const block = text.slice(start, end === -1 ? undefined : end);
+    if (!/^\s*accounts\s+Account\[\]/m.test(block)) return false;
+    return !/pass|hash|pwd/i.test(block);
+  }
+  return false;
+}
+
 export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> {
   const sourceFiles = ctx.files.source;
   // Hand-rolled Express auth is only one shape. Most repositories written in the last
@@ -114,7 +139,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
 
   /** And a password of its own, which is what makes a reset flow something to have. */
   const storesAPasswordItself = [
-    ...hasAnyDep(ctx, ['bcrypt', 'bcryptjs', 'argon2', 'scrypt-kdf', 'passport-local']),
+    ...(await authJsUserHoldsNoPassword(ctx) ? [] : hasAnyDep(ctx, ['bcrypt', 'bcryptjs', 'argon2', 'scrypt-kdf'])),
+    ...hasAnyDep(ctx, ['passport-local']),
     ...hasAnyPyDep(ctx, ['django', 'passlib', 'bcrypt', 'argon2-cffi', 'werkzeug']),
     ...hasAnyRustDep(ctx, ['argon2', 'rust-argon2', 'bcrypt', 'scrypt', 'password-hash', 'pbkdf2']),
     ...hasAnyGradleDep(ctx, ['spring-security-crypto', 'org.mindrot:jbcrypt']),

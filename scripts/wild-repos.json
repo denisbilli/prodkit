@@ -326,6 +326,10 @@
     {
       "repo": "photoview/photoview",
       "is": "Go GraphQL photo gallery with a CRA front end; users created by an admin, and CRA's service worker register() is no sign-up"
+    },
+    {
+      "repo": "mfts/papermark",
+      "is": "Next.js document-sharing SaaS on Auth.js; users have no password, bcryptjs hashes shared-link passwords"
     }
   ]
 }
