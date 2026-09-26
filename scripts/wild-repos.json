@@ -386,6 +386,10 @@
     {
       "repo": "hexpm/hexpm",
       "is": "Phoenix package registry; mix.exs declares `defp deps() do` with parentheses"
+    },
+    {
+      "repo": "umputun/remark42",
+      "is": "Go comment engine; throttles with tollbooth/v8, notifies via go-pkgz/notify"
     }
   ]
 }

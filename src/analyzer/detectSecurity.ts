@@ -442,7 +442,12 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
      */
     hasAnyRubyDep(ctx, ['rack-attack', 'rack_attack']).length > 0 ||
     /** Elixir's, which are plugs: `hammer` counts, `plug_attack` and `ex_rated` refuse. */
-    hasAnyElixirDep(ctx, ['hammer', 'plug_attack', 'ex_rated', 'pow_ratelimit']).length > 0;
+    hasAnyElixirDep(ctx, ['hammer', 'plug_attack', 'ex_rated', 'pow_ratelimit']).length > 0 ||
+    /**
+     * Go's, by module path and any major version: remark42 limits its API with
+     * `github.com/didip/tollbooth/v8` and was told at `high` that it does not throttle.
+     */
+    ctx.goDeps.some((dep) => /^github\.com\/didip\/tollbooth(?:\/v\d+)?$/.test(dep));
   /**
    * Throttling by what the protocol says, not by what the variable is called.
    *

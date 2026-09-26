@@ -103,6 +103,8 @@ const EMAIL_GO_DEPS = [
   'gopkg.in/gomail.v2',
   'github.com/wneessen/go-mail',
   'github.com/sendgrid/sendgrid-go',
+  // remark42 tells commenters about replies by email and Telegram through it.
+  'github.com/go-pkgz/notify',
 ];
 
 async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
