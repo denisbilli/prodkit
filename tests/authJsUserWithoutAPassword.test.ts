@@ -53,4 +53,39 @@ describe('an Auth.js user without a password', () => {
 
     expect(analysis.detectors['auth.externalIdentityOnly']?.present).toBe(false);
   });
+
+  describe('in Drizzle', () => {
+    const ADAPTER = 'import { DrizzleAdapter } from "@auth/drizzle-adapter";\nimport { account, user } from "@acme/db/schema";\n\nexport const adapter = DrizzleAdapter(db, {\n  usersTable: user,\n  accountsTable: account,\n});\n';
+    const table = (columns: string) => `import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";\n\nexport const user = sqliteTable(\n  "user",\n  {\n    id: integer("id").primaryKey(),\n    email: text("email").default(""),\n${columns}  },\n);\n\nexport const secrets = sqliteTable("secret", { hash: text("hash") });\n`;
+
+    /** openstatus: Auth.js over Drizzle, bcryptjs for API keys. */
+    it('has no password to reset', async () => {
+      const analysis = await analyze({
+        'apps/dashboard/src/lib/auth/adapter.ts': ADAPTER,
+        'packages/db/src/schema/user.ts': table('    emailVerified: integer("emailVerified"),\n'),
+        'lib/utils.ts': LINK_PASSWORD,
+      });
+
+      expect(analysis.detectors['auth.externalIdentityOnly']?.present).toBe(true);
+    });
+
+    it('has one when the users table keeps a hash', async () => {
+      const analysis = await analyze({
+        'apps/dashboard/src/lib/auth/adapter.ts': ADAPTER,
+        'packages/db/src/schema/user.ts': table('    passwordHash: text("password_hash"),\n'),
+        'lib/utils.ts': LINK_PASSWORD,
+      });
+
+      expect(analysis.detectors['auth.externalIdentityOnly']?.present).toBe(false);
+    });
+
+    it('is only the table the adapter was handed', async () => {
+      const analysis = await analyze({
+        'packages/db/src/schema/user.ts': table(''),
+        'lib/utils.ts': LINK_PASSWORD,
+      });
+
+      expect(analysis.detectors['auth.externalIdentityOnly']?.present).toBe(false);
+    });
+  });
 });

@@ -2411,5 +2411,35 @@
       "deployment.readiness": "present",
       "deployment.docker": "present"
     }
+  },
+  "openstatus": {
+    "inferredProfile": "b2b-saas",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "not_applicable",
+      "auth.email-verification": "present",
+      "auth.api-keys": "present",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "missing",
+      "billing.model": "present",
+      "billing.webhook-integrity": "present",
+      "security.headers": "present",
+      "security.cors": "partial",
+      "security.rate-limit": "present",
+      "uploads.protection": "partial",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
+    }
   }
 }

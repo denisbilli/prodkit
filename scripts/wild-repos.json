@@ -338,6 +338,10 @@
     {
       "repo": "loomio/loomio",
       "is": "Rails group decision tool; ProfileController#destroy hands current_user to a redaction service"
+    },
+    {
+      "repo": "openstatusHQ/openstatus",
+      "is": "Status-page SaaS monorepo; Auth.js over Drizzle with no password column, bcryptjs hashes API keys"
     }
   ]
 }

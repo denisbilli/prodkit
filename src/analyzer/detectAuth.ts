@@ -91,6 +91,37 @@ async function authJsUserHoldsNoPassword(ctx: DetectContext): Promise<boolean> {
     if (!/^\s*accounts\s+Account\[\]/m.test(block)) return false;
     return !/pass|hash|pwd/i.test(block);
   }
+  return drizzleUserHoldsNoPassword(ctx);
+}
+
+/**
+ * The same user, handed to the Drizzle adapter.
+ *
+ * openstatus signs people in through Auth.js with GitHub, Google, OIDC, WorkOS and a
+ * mailed link, and uses bcryptjs to hash API keys. Its schema is Drizzle, not Prisma, and
+ * `DrizzleAdapter(db, { usersTable: user })` is where the adapter is told which table the
+ * users are. That binding is followed to its `…Table(` definition and read the same way.
+ */
+async function drizzleUserHoldsNoPassword(ctx: DetectContext): Promise<boolean> {
+  const scripts = ctx.files.source.filter((f) => /\.[cm]?[jt]sx?$/.test(f));
+  let table: string | undefined;
+  for (const file of scripts) {
+    const text = await readTextFileSafe(ctx.root, file);
+    const adapter = text ? /DrizzleAdapter\([\s\S]{0,400}?\busersTable:\s*(\w+)/.exec(text) : null;
+    if (adapter) {
+      table = adapter[1];
+      break;
+    }
+  }
+  if (!table) return false;
+  const definition = new RegExp(String.raw`^export const ${table}\s*=\s*\w*Table\(`, 'm');
+  for (const file of scripts) {
+    const text = await readTextFileSafe(ctx.root, file);
+    const start = text ? text.search(definition) : -1;
+    if (!text || start === -1) continue;
+    const end = text.indexOf('\n);', start);
+    return !/pass|hash|pwd/i.test(text.slice(start, end === -1 ? undefined : end));
+  }
   return false;
 }
 
