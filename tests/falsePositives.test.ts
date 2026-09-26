@@ -232,6 +232,25 @@ describe('marketplace words that mean something else', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
+  /**
+   * Habitica has party members, so `team_id` counted as a tenant — and the lines were
+   * Sign in with Apple's `APPLE_TEAM_ID` and the push certificate's `APN_TEAM_ID`.
+   */
+  it('does not read Apple\'s developer team as a tenant, even beside team members', async () => {
+    const root = await project({
+      'package.json': '{"name":"habits","dependencies":{"express":"^4.0.0"}}',
+      'server/models/party.js': `export const party = { team_member: [] };\n`,
+      'server/libs/auth/apple.js': `const APPLE_TEAM_ID = nconf.get('APPLE_TEAM_ID');\nexport const token = sign({ team_id: APPLE_TEAM_ID });\n`,
+      'server/libs/push.js': `export const apn = { teamId: nconf.get('PUSH_CONFIGS_APN_TEAM_ID') };\n`,
+    });
+
+    const analysis = await analyzeProject(root);
+
+    expect(analysis.detectors['tenancy.organization']?.present).toBe(false);
+
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   it('still recognises a product with two sides in two places', async () => {
     const root = await project({
       'package.json': '{"name":"app","dependencies":{"express":"^4.0.0","stripe":"^14.0.0"}}',

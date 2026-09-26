@@ -63,6 +63,9 @@ function snippetEvidence(matches: Array<{ snippet: string; file: string; line: n
 /** Files that render an interface rather than decide anything. */
 const INTERFACE_FILE = /\.(?:vue|svelte|jsx|tsx|html?)$/;
 
+/** Apple's developer team, which signs the app and its push certificates. */
+const APPLE_DEVELOPER_TEAM = /(?<![A-Za-z])(?:APPLE|APNS?)_\w*TEAM|\bapple\w*team|\bascProvider\b/i;
+
 const PRISMA_ISSUED_KEY_MODEL = /^\s*model\s+\w*(?:AccessToken|ApiKey|APIKey|ApiToken|APIToken)\s*\{/;
 
 export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> {
@@ -856,8 +859,14 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     [/teamMember/i, /team_member/i, /teamMembership/i],
     10,
   );
+  /*
+   * Apple's team is not the product's, even where the product has teams of its own.
+   * Habitica has party and guild members, so `team_id` counted — and the lines it found
+   * were `team_id: APPLE_TEAM_ID` for Sign in with Apple and `PUSH_CONFIGS_APN_TEAM_ID`
+   * for push notifications, a consumer habit tracker read as a B2B tenant boundary.
+   */
   const teamAsTenant = teamMembership.length > 0
-    ? await searchInFiles(ctx.root, sourceFiles, [/teamId/i, /team_id/i], 25)
+    ? await searchInFiles(ctx.root, sourceFiles, [/teamId/i, /team_id/i], 25, (match) => !APPLE_DEVELOPER_TEAM.test(match.snippet))
     : [];
 
   /**
@@ -933,7 +942,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...companyAsTenant,
     ...accountAsTenant,
   ];
-  const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25);
+  const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25, (match) => !APPLE_DEVELOPER_TEAM.test(match.snippet));
 
   // A weak word never stands on its own, however many files it appears in. Bruno says
   // `workspaceId` in three — it has workspaces, and they are local folders, not

@@ -2137,5 +2137,10 @@
       "deployment.readiness": "partial",
       "deployment.docker": "present"
     }
+  },
+  "habitica": {
+    "inferredProfile": "b2b-saas",
+    "inferenceConfidence": "low",
+    "capabilities": {}
   }
 }

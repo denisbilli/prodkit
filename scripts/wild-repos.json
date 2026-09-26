@@ -297,6 +297,10 @@
     {
       "repo": "ghostfolio/ghostfolio",
       "is": "NestJS and Angular wealth manager for individuals with Stripe subscriptions; exports the caller's own portfolio from @Controller(export). Read as b2b-saas, though it has no tenants"
+    },
+    {
+      "repo": "HabitRPG/habitica",
+      "is": "Express and Vue habit tracker for individuals with subscriptions and group plans; Apple developer team ids for Sign in with Apple and push, which are not tenants"
     }
   ]
 }
