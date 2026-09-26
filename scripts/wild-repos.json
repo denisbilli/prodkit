@@ -301,6 +301,10 @@
     {
       "repo": "HabitRPG/habitica",
       "is": "Express and Vue habit tracker for individuals with subscriptions and group plans; Apple developer team ids for Sign in with Apple and push, which are not tenants"
+    },
+    {
+      "repo": "ToolJet/ToolJet",
+      "is": "NestJS and React low-code builder with workspaces, SSO, AI features and a second factor verified with otpauth"
     }
   ]
 }

@@ -174,7 +174,9 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * with it and has no second factor at all, and was reported as having one.
    */
   const twoFaDeps = [
-    ...hasAnyDep(ctx, ['speakeasy', 'pyotp', '@simplewebauthn/server', 'otplib']),
+    // `otpauth` too: ToolJet's server verifies its codes with it, and the only evidence
+    // cited for ToolJet's second factor was a settings card in the React front end.
+    ...hasAnyDep(ctx, ['speakeasy', 'pyotp', '@simplewebauthn/server', 'otplib', 'otpauth']),
     /** `nimble_totp` is the Elixir one, and plausible ships it. */
     ...hasAnyElixirDep(ctx, ['nimble_totp']),
     /**

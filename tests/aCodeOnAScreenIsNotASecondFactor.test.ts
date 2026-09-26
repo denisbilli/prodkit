@@ -67,5 +67,21 @@ describe('a code on a screen is not a second factor', () => {
       'src/auth/login.ts': 'if (!code) throw new Error("Two-factor authentication is required for this account, enter the code from your app");\n',
     })).toBe(true);
   });
+
+  /** ToolJet verifies codes with `otpauth`; the dependency is the server's second factor. */
+  it('reads the otpauth library as a second factor', async () => {
+    const fs = await import('fs/promises');
+    const os = await import('os');
+    const path = await import('path');
+    const { analyzeProject } = await import('../src/analyzer/analyzeProject');
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'prodkit-otpauth-'));
+    await fs.writeFile(path.join(root, 'package.json'), '{"name":"builder","dependencies":{"express":"^4.19.2","otpauth":"^9.4.1"}}');
+    await fs.mkdir(path.join(root, 'src'), { recursive: true });
+    await fs.writeFile(path.join(root, 'src/server.ts'), 'export const app = express();\n');
+    const analysis = await analyzeProject(root);
+    await fs.rm(root, { recursive: true, force: true });
+
+    expect(analysis.detectors['auth.2fa']?.evidence.some((e) => e.value === 'otpauth')).toBe(true);
+  });
 });
 
