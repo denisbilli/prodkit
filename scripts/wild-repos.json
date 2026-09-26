@@ -359,6 +359,10 @@
     {
       "repo": "babybuddy/babybuddy",
       "is": "Django baby tracker; boto3 only stores pictures in S3 and sends no mail"
+    },
+    {
+      "repo": "SolidInvoice/SolidInvoice",
+      "is": "Symfony invoicing; clients pay through Payum gateways, LemonSqueezy webhook verified in a vendor bundle"
     }
   ]
 }

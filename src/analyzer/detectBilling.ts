@@ -84,7 +84,13 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
   const processorDeps = [
     ...hasAnyPyDep(ctx, [...PROCESSOR_PACKAGES, 'paypalrestsdk', 'paypal-checkout-serversdk', 'mollie-api-python']),
     ...hasAnyRubyDep(ctx, [...PROCESSOR_PACKAGES, 'paypal-sdk-rest']),
-    ...hasAnyPhpDep(ctx, ['stripe/stripe-php', 'paypal/rest-api-sdk-php', 'mollie/mollie-api-php', 'braintree/braintree_php']),
+    /**
+     * Payum is PHP's payment framework: one API over PayPal, Stripe, Klarna,
+     * Authorize.Net and the rest, each a `payum/*` gateway on top of `payum/core`.
+     * SolidInvoice takes its clients' payments through it and was told it has no payment
+     * integration.
+     */
+    ...hasAnyPhpDep(ctx, ['stripe/stripe-php', 'paypal/rest-api-sdk-php', 'mollie/mollie-api-php', 'braintree/braintree_php', 'payum/core']),
     ...hasAnyGradleDep(ctx, ['com.stripe:stripe-java', 'com.braintreepayments']),
     ...hasAnyDotnetDep(ctx, ['Stripe.net', 'Braintree', 'PayPalCheckoutSdk']),
     ...hasAnyRustDep(ctx, ['stripe-rust', 'async-stripe']),
