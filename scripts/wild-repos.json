@@ -342,6 +342,10 @@
     {
       "repo": "openstatusHQ/openstatus",
       "is": "Status-page SaaS monorepo; Auth.js over Drizzle with no password column, bcryptjs hashes API keys"
+    },
+    {
+      "repo": "go-shiori/shiori",
+      "is": "Go bookmarks manager; health at GET /system/liveness"
     }
   ]
 }

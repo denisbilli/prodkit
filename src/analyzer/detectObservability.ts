@@ -47,8 +47,12 @@ const ELIXIR_LOGGING_PACKAGES = ['logger_json', 'logger_file_backend', 'sentry']
  * about an endpoint the *framework* publishes, which no Dropwizard application writes
  * in its own source; a line like dispatch's is somebody declaring the route
  * themselves.
+ *
+ * And Kubernetes' own words for the two probes. shiori answers `GET /system/liveness`
+ * and was told it has no health endpoint, while the file-name rule below already read
+ * `liveness` and `readiness` as health routes.
  */
-const HEALTH_ROUTE = /\/(health|healthz|healthcheck|health[-_]check|readyz|livez|alive)\b/i;
+const HEALTH_ROUTE = /\/(health|healthz|healthcheck|health[-_]check|readyz|livez|alive|liveness|readiness)\b/i;
 
 /**
  * The other name for the same endpoint.
