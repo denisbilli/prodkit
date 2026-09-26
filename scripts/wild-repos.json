@@ -346,6 +346,11 @@
     {
       "repo": "go-shiori/shiori",
       "is": "Go bookmarks manager; health at GET /system/liveness"
+    },
+    {
+      "repo": "fastapi/full-stack-fastapi-template",
+      "name": "full-stack-fastapi-template",
+      "is": "FastAPI + React template; items matched to the caller injected by Depends"
     }
   ]
 }

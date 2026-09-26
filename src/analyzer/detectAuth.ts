@@ -125,6 +125,57 @@ async function drizzleUserHoldsNoPassword(ctx: DetectContext): Promise<boolean> 
   return false;
 }
 
+/**
+ * A row's owner compared with what FastAPI injected.
+ *
+ * FastAPI's template checks every item against its caller —
+ * `if not current_user.is_superuser and (item.owner_id != current_user.id)` — and its
+ * list query is `.where(Item.owner_id == current_user.id)`, and it was told it has no
+ * ownership check. `current_user` is only the name its author chose; what makes it the
+ * caller is FastAPI's `Depends(`, written on the parameter or on an
+ * `Annotated[User, Depends(get_current_user)]` alias the parameter is typed with.
+ *
+ * So a parameter is followed only when FastAPI fills it, and a comparison of some
+ * `…_id` with that parameter's `.id`, inside the function that declares it, is the row
+ * being matched to the one who asked.
+ */
+async function fastapiOwnership(ctx: DetectContext): Promise<TextMatch[]> {
+  const python = ctx.files.source.filter((f) => f.endsWith('.py'));
+  const texts = new Map<string, string>();
+  const injectedTypes = new Set<string>();
+  for (const file of python) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+    texts.set(file, text);
+    for (const alias of text.matchAll(/^(\w+)\s*=\s*Annotated\[[^\n]*\bDepends\(/gm)) injectedTypes.add(alias[1]);
+  }
+  const found: TextMatch[] = [];
+  for (const [file, text] of texts) {
+    const lines = text.split(/\r?\n/);
+    let injected = new Set<string>();
+    for (let i = 0; i < lines.length && found.length < 5; i++) {
+      const def = /^\s*(?:async\s+)?def\s+\w+\s*\(/.exec(lines[i]);
+      if (def) {
+        const signature = lines.slice(i, i + 12).join(' ').split(/\)\s*(?:->[^:]*)?:/)[0];
+        injected = new Set(
+          [...signature.matchAll(/\b(\w+)\s*:\s*([\w.]+)(?:\[[^\]]*\])?\s*(=\s*Depends\()?/g)]
+            .filter((param) => param[3] || injectedTypes.has(param[2]))
+            .map((param) => param[1]),
+        );
+        continue;
+      }
+      for (const name of injected) {
+        const owner = new RegExp(String.raw`\.\w+_id\s*[!=]=\s*${name}\.id\b|\b${name}\.id\s*[!=]=\s*[\w.]+\.\w+_id\b`);
+        if (!owner.test(lines[i])) continue;
+        found.push({ file, line: i + 1, snippet: lines[i].trim().slice(0, 200) });
+        break;
+      }
+    }
+    if (found.length >= 5) break;
+  }
+  return found;
+}
+
 export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> {
   const sourceFiles = ctx.files.source;
   // Hand-rolled Express auth is only one shape. Most repositories written in the last
@@ -861,6 +912,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ],
     20
   );
+  resourceLevelSignals.push(...await fastapiOwnership(ctx));
 
   /**
    * Words that only mean tenancy, and words that usually mean something else.
