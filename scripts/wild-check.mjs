@@ -61,7 +61,7 @@ try {
         // git's own stall detector: abort when the transfer runs under 1 KB/s for a
         // minute. The timeout below is the backstop, and it has to be SIGKILL — on
         // SIGTERM git waits for its HTTP helper, which is the thing that is stuck.
-        execFileSync('git', ['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=60', 'clone', '-q', '--depth', '1', `https://github.com/${entry.repo}`, dir], {
+        execFileSync('git', ['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=60', 'clone', '-q', '--depth', '1', entry.url ?? `https://github.com/${entry.repo}`, dir], {
           stdio: ['ignore', 'ignore', 'inherit'],
           timeout: 10 * 60 * 1000,
           killSignal: 'SIGKILL',

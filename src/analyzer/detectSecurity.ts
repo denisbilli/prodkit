@@ -909,6 +909,30 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   }
 
   /**
+   * Go's answer, rs/cors, which is an options struct.
+   *
+   * gotosocial wraps its API in `cors.New(cors.Options{ AllowOriginFunc: ... })` so
+   * browser clients can reach it, and was told at `high` it has no cross-origin
+   * configuration. `github.com/rs/cors` is the package, and its constructors and field
+   * names are its own: `cors.AllowAll()` and `cors.Default()` — whose default is every
+   * origin — are open; a function that decides is a choice, as `allowed_origin_fn` is in
+   * the Rust branch above. An `AllowedOrigins` list is already read by the allowlist
+   * rules higher up.
+   */
+  for (const file of source.filter((f) => f.endsWith('.go'))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text || !/"github\.com\/rs\/cors"/.test(text)) continue;
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const open = /\bcors\.(?:AllowAll|Default)\s*\(\s*\)/.test(lines[i]);
+      const chosen = /\bAllowOrigin(?:Vary)?(?:Request)?Func\s*:/.test(lines[i]);
+      if (!open && !chosen) continue;
+      const hit: CorsHit = { file, line: i + 1, snippet: lines[i].trim().slice(0, 200) };
+      (open ? corsLoose : corsStrict).push(hit);
+    }
+  }
+
+  /**
    * Rails' answer, which is a gem with a small language of its own.
    *
    * chatwoot scored 98 and `production_ready` with its cross-origin policy reported
