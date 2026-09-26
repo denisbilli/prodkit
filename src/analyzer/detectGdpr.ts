@@ -334,7 +334,13 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
       /data portability/i,
       /export personal data/i,
       /user[_-]?export/i,
-      /export[_-]?(user|account|profile)\b/i,
+      /**
+       * A name in code, not a quoted string. ArchiveBox copies a Chrome browser profile
+       * into `stage / "export_profile"`, a directory name, and that was its data export.
+       * listmonk's `SubscriberExportProfile` and writefreely's `exportUser` are the real
+       * thing and stay: narrowing this to routes and calls lost both.
+       */
+      /(?<!["'`])export[_-]?(user|account|profile)\b/i,
       /download (your|my) data/i,
       /**
        * A route whose path ends at export, below a path that names the person.

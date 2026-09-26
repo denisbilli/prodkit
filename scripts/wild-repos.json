@@ -390,6 +390,10 @@
     {
       "repo": "umputun/remark42",
       "is": "Go comment engine; throttles with tollbooth/v8, notifies via go-pkgz/notify"
+    },
+    {
+      "repo": "ArchiveBox/ArchiveBox",
+      "is": "Django web archiver; an export_profile directory for a Chrome profile is not a personal data export"
     }
   ]
 }
