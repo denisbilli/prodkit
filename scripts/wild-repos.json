@@ -351,6 +351,10 @@
       "repo": "fastapi/full-stack-fastapi-template",
       "name": "full-stack-fastapi-template",
       "is": "FastAPI + React template; items matched to the caller injected by Depends"
+    },
+    {
+      "repo": "jhipster/jhipster-sample-app",
+      "is": "Generated Spring Boot + Angular app; activation key emailed at registration, audited createdBy columns are not ownership checks"
     }
   ]
 }

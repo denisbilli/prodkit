@@ -125,6 +125,8 @@ async function drizzleUserHoldsNoPassword(ctx: DetectContext): Promise<boolean> 
   return false;
 }
 
+const METHOD_DECLARATION = /^\s*(?:(?:public|private|protected|internal)\s+)(?:(?:static|final|async|override|virtual|abstract)\s+)*[\w<>[\],.?\s]*\b\w+\s*\(/;
+
 /**
  * A row's owner compared with what FastAPI injected.
  *
@@ -686,6 +688,26 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     const text = await readTextFileSafe(ctx.root, hit.file);
     if (text && /^\s*devise\s+:/m.test(text)) emailVerificationSignals.push(hit);
   }
+  /**
+   * JHipster activates an account from the emailed key.
+   *
+   * Every JHipster application with its own accounts is generated with
+   * `MailService.sendActivationEmail(user)` at registration and
+   * `UserService.activateRegistration(key)` behind `GET /api/activate`: the account stays
+   * inactive until the link is followed. The sample app was told at `high` it verifies no
+   * addresses. Those names are the generator's, like Devise's `:confirmable`, and count
+   * only where `.yo-rc.json` says `generator-jhipster` wrote the code.
+   */
+  const yoRc = ctx.files.all.find((f) => /(^|\/)\.yo-rc\.json$/.test(f));
+  const yoRcText = yoRc ? await readTextFileSafe(ctx.root, yoRc) : null;
+  if (yoRcText && /"generator-jhipster"/.test(yoRcText)) {
+    emailVerificationSignals.push(...await searchInFiles(
+      ctx.root,
+      sourceFiles.filter((file) => /\.(java|kt)$/.test(file)),
+      [/\bactivateRegistration\s*\(/],
+      3,
+    ));
+  }
   const sessionSignals = await searchInFiles(
     ctx.root,
     sourceFiles,
@@ -852,7 +874,16 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /\bcanAccess\(/i,
       /\bhasAccessTo\(/i,
       /ownerId/i,
-      /createdBy/i,
+      /**
+       * The creator compared, not the column declared.
+       *
+       * `createdBy` anywhere was enough, and JHipster puts one on every entity: Spring
+       * Data's `@CreatedBy` fills it for auditing, and the field, its getter, its setter
+       * and the DTO that copies it were twelve lines of evidence that the sample app checks
+       * who may read a row. It checks nothing of the kind. A creator is an ownership check
+       * when it is compared with somebody.
+       */
+      /(?:\b|(?<=get))created_?By\w*(?:\(\))?\s*(?:[=!]==?|\.equals\()|(?:[=!]==?|\.equals\()\s*[\w.]*created_?By\b/i,
       /req\.user\.id/i,
       /userId\s*===/i,
       /organizationId/i,
@@ -910,7 +941,15 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /\bpolicy_scope\b|\bauthorize\s+@/,
       /\bload_and_authorize_resource\b|\bcan\?\s*[:(]/,
     ],
-    20
+    20,
+    /**
+     * A method being declared is not a check being made. JHipster's login endpoint is
+     * `public ResponseEntity<JWTToken> authorize(@Valid @RequestBody LoginVM loginVM)`,
+     * and it was the sample app's only ownership check once its audited `createdBy`
+     * columns stopped counting. A line that opens with an access modifier is a
+     * signature.
+     */
+    (match) => !METHOD_DECLARATION.test(match.snippet),
   );
   resourceLevelSignals.push(...await fastapiOwnership(ctx));
 
