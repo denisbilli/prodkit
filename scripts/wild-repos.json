@@ -334,6 +334,10 @@
     {
       "repo": "getredash/redash",
       "is": "Flask + React BI tool; security headers from flask-talisman"
+    },
+    {
+      "repo": "loomio/loomio",
+      "is": "Rails group decision tool; ProfileController#destroy hands current_user to a redaction service"
     }
   ]
 }

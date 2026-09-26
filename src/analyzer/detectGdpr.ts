@@ -69,6 +69,45 @@ async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
     }
     if (found.length >= 5) break;
   }
+  return [...found, ...await railsDestroysTheCaller(ctx)].slice(0, 5);
+}
+
+/**
+ * Rails' `destroy` action, handed the caller.
+ *
+ * loomio closes an account in `Api::V1::ProfileController#destroy`, which calls
+ * `service.redact(user: current_user, actor: current_user)` and lets a worker scrub the
+ * row. The caller is never deleted where the line above can see it — it is passed to a
+ * service — and loomio was told at `high` it has no erasure flow.
+ *
+ * `destroy` is the action Rails routes a DELETE to, and `current_user` is Devise's
+ * caller. When the caller is the first thing handed on, it is what the action destroys.
+ * Destroying a comment passes the comment first and the caller as its `actor`, and is
+ * not matched. Devise's own `sign_out(current_user)` is the one call that takes the
+ * caller first and ends a session instead, which is what a sessions controller's
+ * destroy is.
+ *
+ * And the resource a controller loaded lives in an instance variable: loomio's
+ * `@poll_template.discard!(actor: current_user)` destroys the template, with the caller
+ * as the only argument. A line with an `@` receiver or argument is about that resource.
+ */
+const CALLER_HANDED_ON = /\(\s*(?:\w+:\s*)?current_user\s*[,)]/;
+
+async function railsDestroysTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
+  const found: TextMatch[] = [];
+  for (const file of ctx.files.source.filter((f) => /\.rb$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+    const lines = text.split(/\r?\n/);
+    const start = lines.findIndex((line) => /^\s*def destroy\b/.test(line));
+    if (start === -1) continue;
+    for (let j = start + 1; j < lines.length && !/^\s*(?:def|end\s*$)/.test(lines[j]); j++) {
+      if (!CALLER_HANDED_ON.test(lines[j]) || /\bsign_out/.test(lines[j]) || /@\w+/.test(lines[j])) continue;
+      found.push({ file, line: j + 1, snippet: lines[j].trim().slice(0, 200) });
+      break;
+    }
+    if (found.length >= 5) break;
+  }
   return found;
 }
 
