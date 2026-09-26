@@ -34,8 +34,22 @@ function theShippedOne(candidates: string[]): string | undefined {
 
 export async function detectDocker(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
-  const dockerfile = theShippedOne(ctx.files.all.filter((f) => /(^|\/)Dockerfile$/.test(f)));
-  const composeFile = theShippedOne(ctx.files.all.filter((f) => /(^|\/)(docker-compose\.ya?ml|compose\.ya?ml)$/.test(f)));
+  /**
+   * `docker build -f` takes any name, and the convention is a suffix. flaskbb ships
+   * `docker/Dockerfile.release` and `docker/compose.release.yaml` beside their `.dev`
+   * twins, with HEALTHCHECKs in both, and was told it has no container definition. The
+   * plain names still win where they exist, and a `.dev` twin is the development one,
+   * cited only when nothing else is there — the same reason `.devcontainer/` loses.
+   */
+  const plainOrSuffixed = (plain: RegExp, suffixed: RegExp) => {
+    const exact = ctx.files.all.filter((f) => plain.test(f));
+    if (exact.length > 0) return theShippedOne(exact);
+    const named = ctx.files.all.filter((f) => suffixed.test(f));
+    const shipped = named.filter((f) => !/\.(?:dev|development|local)(?:\.ya?ml)?$/i.test(f));
+    return theShippedOne(shipped.length > 0 ? shipped : named);
+  };
+  const dockerfile = plainOrSuffixed(/(^|\/)Dockerfile$/, /(^|\/)Dockerfile\.[\w-]+$/);
+  const composeFile = plainOrSuffixed(/(^|\/)(docker-compose\.ya?ml|compose\.ya?ml)$/, /(^|\/)(docker-)?compose\.[\w-]+\.ya?ml$/);
 
   let hasHealthcheck = false;
   let hasExpose = false;

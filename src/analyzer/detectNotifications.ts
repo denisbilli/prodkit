@@ -33,7 +33,11 @@ const EMAIL_DEPS = [
 ];
 
 const PUSH_DEPS = ['firebase-admin', 'web-push', '@onesignal/node-onesignal', 'expo-server-sdk'];
-const EMAIL_PY_DEPS = ['sendgrid', 'postmarker', 'mailgun', 'django-anymail', 'django-ses'];
+/**
+ * `flask-mail` is Flask's own answer, the extension its tutorial sends mail with. flaskbb
+ * sends every registration and reset mail through it and read as able to send nothing.
+ */
+const EMAIL_PY_DEPS = ['sendgrid', 'postmarker', 'mailgun', 'django-anymail', 'django-ses', 'flask-mail'];
 
 /**
  * boto3 is all of AWS, and email is one service in it.

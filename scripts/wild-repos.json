@@ -378,6 +378,10 @@
       "repo": "superseriousbusiness/gotosocial",
       "is": "Go ActivityPub server; CORS through rs/cors with an origin function",
       "url": "https://codeberg.org/superseriousbusiness/gotosocial"
+    },
+    {
+      "repo": "flaskbb/flaskbb",
+      "is": "Flask forum; mail through Flask-Mail, containers in docker/Dockerfile.release and compose.release.yaml"
     }
   ]
 }
