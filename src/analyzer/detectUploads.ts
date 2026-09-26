@@ -204,6 +204,9 @@ const FILE_INTAKE = [
   /\*multipart\.FileHeader\b/,
   /\bIFormFile\b/,
   /\bMultipartFile\b/,
+  // Spring WebFlux's, by its package: halo takes attachments as `FilePart` from
+  // `org.springframework.http.codec.multipart`, and `MultipartFile` is Spring MVC's.
+  /\borg\.springframework\.http\.codec\.multipart\.FilePart\b/,
   /\ballow_upload\s*\(/,
   /%Plug\.Upload\{/,
 ];

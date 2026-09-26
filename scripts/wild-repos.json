@@ -309,6 +309,10 @@
     {
       "repo": "triggerdotdev/trigger.dev",
       "is": "Remix background-jobs platform with organisations and API keys; signs in by mailed link, GitHub or Google through remix-auth and holds no passwords"
+    },
+    {
+      "repo": "halo-dev/halo",
+      "is": "Spring Boot WebFlux CMS; takes attachments as FilePart and checks their types against an upload policy"
     }
   ]
 }

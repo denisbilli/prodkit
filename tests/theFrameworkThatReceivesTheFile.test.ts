@@ -72,6 +72,11 @@ describe('the framework that receives the file', () => {
     expect((await analyzeProject(fixture('php-move-uploaded-file'))).detectors['uploads.exposure']?.present).toBe(true);
   });
 
+  /** Spring WebFlux's `FilePart`, as halo takes attachments; `MultipartFile` is MVC's. */
+  it('finds a WebFlux handler receiving a FilePart', async () => {
+    expect((await analyzeProject(fixture('spring-webflux-file-part'))).detectors['uploads.exposure']?.present).toBe(true);
+  });
+
   it('finds a Go handler reading a multipart file, and no check on it', async () => {
     const analysis = await analyzeProject(fixture('go-form-file'));
     const uploads = analysis.detectors['uploads.exposure'];
