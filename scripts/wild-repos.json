@@ -330,6 +330,10 @@
     {
       "repo": "mfts/papermark",
       "is": "Next.js document-sharing SaaS on Auth.js; users have no password, bcryptjs hashes shared-link passwords"
+    },
+    {
+      "repo": "getredash/redash",
+      "is": "Flask + React BI tool; security headers from flask-talisman"
     }
   ]
 }

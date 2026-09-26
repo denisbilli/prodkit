@@ -260,7 +260,18 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
   // the same headers itself — in a Next proxy, a Nuxt route rule, a Django setting —
   // and looking only for those two packages reported hardened applications as having
   // no protection at all.
-  const helmetDep = hasDep(ctx, 'helmet') || hasDep(ctx, 'secure') || hasDep(ctx, 'django-csp');
+  /**
+   * The Python packages that set the same headers, read from Python's manifests.
+   *
+   * `django-csp` sat in this list behind `hasDep`, which reads package.json, so it could
+   * never be found. redash wraps its Flask app in `flask-talisman` — CSP, HSTS, frame
+   * options and nosniff in one call — and was told at `high` to add security headers.
+   */
+  const headerDeps = [
+    ...['helmet', 'secure'].filter((name) => hasDep(ctx, name)),
+    ...hasAnyPyDep(ctx, ['django-csp', 'flask-talisman']),
+  ];
+  const helmetDep = headerDeps.length > 0;
   const headerSignals = await searchInFiles(
     ctx.root,
     source,
@@ -703,7 +714,7 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     || (boundLimiterUses ?? []).some((use) => authSurfaceFiles.has(use.file))
     || issuedRateLimits.some((match) => authSurfaceFiles.has(match.file));
 
-  if (helmetDep) evidence.push({ type: 'dependency', value: 'helmet', claim: 'headers' });
+  for (const name of headerDeps) evidence.push({ type: 'dependency', value: name, claim: 'headers' });
   if (rateLimitDep) evidence.push({ type: 'dependency', value: 'rate limiting package', claim: 'rate-limit' });
   for (const m of headerSignals) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'headers' });
   for (const m of issuedRateLimits) evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line, claim: 'rate-limit' });
