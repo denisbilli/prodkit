@@ -648,7 +648,9 @@ export async function analyzeProject(projectPath: string): Promise<ProjectAnalys
      * dependencies with the git ref on lines of their own — so `only:` is looked for
      * in the whole tuple rather than on the line that opens it.
      */
-    const opener = /^(\s*)defp?\s+deps\s+do\s*$/m.exec(raw);
+    // With or without parentheses: hexpm writes `defp deps() do`, and the whole
+    // manifest was skipped — no Phoenix, no backend, no profile for the package registry.
+    const opener = /^(\s*)defp?\s+deps(?:\s*\(\s*\))?\s+do\s*$/m.exec(raw);
     if (!opener) continue;
     const lines = raw.slice(opener.index).split('\n');
     const closer = lines.findIndex((line, i) => i > 0 && line === `${opener[1]}end`);
