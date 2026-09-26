@@ -322,6 +322,10 @@
       "repo": "miniflux/v2",
       "name": "miniflux",
       "is": "Go RSS reader; password reset and a user's feed export live only in the operator's flag-driven CLI, and a 429 is read from feed servers"
+    },
+    {
+      "repo": "photoview/photoview",
+      "is": "Go GraphQL photo gallery with a CRA front end; users created by an admin, and CRA's service worker register() is no sign-up"
     }
   ]
 }

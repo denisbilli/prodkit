@@ -2,6 +2,7 @@ import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
 import { hasAnyDep, hasAnyGoDep, hasAnyGradleDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
+import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { evidenceOrSearch } from './absenceEvidence';
 
 /**
@@ -103,18 +104,39 @@ async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> 
   };
 }
 
+/**
+ * The browser's register, not the user's.
+ *
+ * Create React App generates `serviceWorkerRegistration.ts` (and before it
+ * `registerServiceWorker.js`, and vite-plugin-pwa `registerSW.js`), whose `export function register(config)` hands the app's
+ * service worker to `navigator.serviceWorker.register`. photoview has no sign-up at all —
+ * an administrator creates its users — and that boilerplate was its onboarding. The API is
+ * the Web platform's; a file that calls it is installing a worker, whatever it is named.
+ */
+async function registersAServiceWorker(ctx: DetectContext, file: string): Promise<boolean> {
+  const text = await readTextFileSafe(ctx.root, file);
+  return !!text && /\bnavigator\.serviceWorker\b/.test(text);
+}
+
 async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
+  const candidates = domainFiles(ctx);
+  const namedFiles = ctx.files.all.filter((file) => /(onboarding|signup|sign-up|register)/i.test(file));
+  const serviceWorkerFiles = new Set<string>();
+  for (const file of [...new Set([...candidates, ...namedFiles])].filter((f) => /\.[cm]?[jt]sx?$/.test(f))) {
+    if (await registersAServiceWorker(ctx, file)) serviceWorkerFiles.add(file);
+  }
+
   const hits = await searchInFiles(
     ctx.root,
-    domainFiles(ctx),
+    candidates.filter((file) => !serviceWorkerFiles.has(file)),
     [/\bonboarding\b/i, /\bsign_?up\b/i, /\bregister(ed)?\b/i, /\bwelcome\b/i, /\bfirst_?run\b/i],
     20,
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 
-  const files = ctx.files.all.filter((file) => /(onboarding|signup|sign-up|register)/i.test(file)).slice(0, 20);
+  const files = namedFiles.filter((file) => !serviceWorkerFiles.has(file)).slice(0, 20);
   for (const file of files) evidence.push({ type: 'file', value: file });
 
   const strong = files.length > 0;
