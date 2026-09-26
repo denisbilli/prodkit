@@ -250,6 +250,17 @@ const TEMPLATE_FILE = /\.(?:hbs|handlebars|ejs|pug|njk|liquid|twig|erb|jinja2?|j
 
 const OPERATOR_SCRIPT = /(^|\/)scripts\//;
 
+/**
+ * A migration names the change to the schema, not a feature.
+ *
+ * openfoodnetwork's `db/migrate/20190221131622_delete_account_invoices_preferences.rb`
+ * drops a table called `account_invoices`, and its file name was the whole of the
+ * evidence that people can delete their accounts. Rails keeps migrations in
+ * `db/migrate/`, Django and Laravel in a `migrations/` directory; a file there says
+ * what happened to a table on one day.
+ */
+const SCHEMA_MIGRATION = /(^|\/)(?:db\/migrate|migrations)\//;
+
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
   /**
    * The consent vendors, who name themselves.
@@ -452,7 +463,7 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
    * page is `views/partials/settings/delete_account.hbs`, behind `POST /delete`, and a
    * product that lets you close your account was told at `high` it cannot.
    */
-  const erasureFiles = searchFileNames([...ctx.files.source, ...ctx.files.all.filter((f) => TEMPLATE_FILE.test(f))], [
+  const erasureFiles = searchFileNames([...ctx.files.source.filter((f) => !SCHEMA_MIGRATION.test(f)), ...ctx.files.all.filter((f) => TEMPLATE_FILE.test(f))], [
     /user[_-]?anonymi[sz]/i,
     /anonymi[sz]er/i,
     /(account|user)[_-]?deletion/i,

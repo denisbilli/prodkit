@@ -363,6 +363,11 @@
     {
       "repo": "SolidInvoice/SolidInvoice",
       "is": "Symfony invoicing; clients pay through Payum gateways, LemonSqueezy webhook verified in a vendor bundle"
+    },
+    {
+      "repo": "openfoodfoundation/openfoodnetwork",
+      "name": "openfoodnetwork",
+      "is": "Rails food marketplace, inferred b2c-app; delete_account_* migrations are not erasure"
     }
   ]
 }
