@@ -2175,5 +2175,38 @@
       "deployment.readiness": "present",
       "deployment.docker": "present"
     }
+  },
+  "trigger.dev": {
+    "inferredProfile": "ai-saas",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "not_applicable",
+      "auth.email-verification": "present",
+      "auth.api-keys": "present",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "present",
+      "security.cors": "present",
+      "security.rate-limit": "present",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "partial",
+      "jobs.background": "present",
+      "ai.cost-control": "present",
+      "ai.prompt-safety": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
+    }
   }
 }

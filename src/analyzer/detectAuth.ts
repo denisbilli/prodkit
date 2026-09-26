@@ -97,6 +97,13 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   /** Identity handed to somebody else, in every ecosystem this analyzer reads. */
   const externalIdentityProviders = [
     ...managedAuthDeps,
+    /**
+     * Remix's auth strategies that hold no password: a link mailed to the address, or a
+     * provider's sign-in. trigger.dev signs people in with `remix-auth-email-link`,
+     * GitHub and Google, hashes nothing, and was told at `high` to build a password
+     * reset flow. `remix-auth-form` is left out — it is how a password form is handled.
+     */
+    ...hasAnyDep(ctx, ['remix-auth-email-link', 'remix-auth-github', 'remix-auth-google', 'remix-auth-oauth2', 'remix-auth-microsoft']),
     ...hasAnyPyDep(ctx, ['django-allauth', 'authlib', 'social-auth-app-django']),
     ...hasAnyRustDep(ctx, ['oauth2', 'openidconnect']),
     ...hasAnyGradleDep(ctx, ['spring-boot-starter-oauth2-client', 'com.okta.spring']),

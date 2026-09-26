@@ -305,6 +305,10 @@
     {
       "repo": "ToolJet/ToolJet",
       "is": "NestJS and React low-code builder with workspaces, SSO, AI features and a second factor verified with otpauth"
+    },
+    {
+      "repo": "triggerdotdev/trigger.dev",
+      "is": "Remix background-jobs platform with organisations and API keys; signs in by mailed link, GitHub or Google through remix-auth and holds no passwords"
     }
   ]
 }
