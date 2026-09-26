@@ -313,6 +313,10 @@
     {
       "repo": "halo-dev/halo",
       "is": "Spring Boot WebFlux CMS; takes attachments as FilePart and checks their types against an upload policy"
+    },
+    {
+      "repo": "thedevs-network/kutt",
+      "is": "Express URL shortener rendered with Handlebars; /reset-password and a delete_account.hbs settings page"
     }
   ]
 }

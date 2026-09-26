@@ -484,6 +484,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        * recovery patterns around it and the frameworks that ship the flow.
        */
       /\/password[_-]?resets?\b/i,
+      // And the other order, a path too: kutt sends people to `/reset-password`.
+      /['"`]\/reset[_-]?password\b/i,
       /reset\s*token/i,
       /**
        * Django ships the whole flow — token, expiry, single use — behind one include.

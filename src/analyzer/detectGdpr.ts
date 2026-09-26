@@ -205,6 +205,9 @@ async function deletesByAge(ctx: DetectContext): Promise<TextMatch[]> {
   return found;
 }
 
+/** Server-side templates, which render a product's pages without being source. */
+const TEMPLATE_FILE = /\.(?:hbs|handlebars|ejs|pug|njk|liquid|twig|erb|jinja2?|j2|mustache)$/;
+
 const OPERATOR_SCRIPT = /(^|\/)scripts\//;
 
 export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> {
@@ -402,7 +405,12 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
    * accounts is a different thing: somebody built a feature and called it that.
    */
   const callerDeleted = await deletesTheCaller(ctx);
-  const erasureFiles = searchFileNames(ctx.files.source, [
+  /*
+   * Server-rendered templates are the interface too, and are not source: kutt's delete
+   * page is `views/partials/settings/delete_account.hbs`, behind `POST /delete`, and a
+   * product that lets you close your account was told at `high` it cannot.
+   */
+  const erasureFiles = searchFileNames([...ctx.files.source, ...ctx.files.all.filter((f) => TEMPLATE_FILE.test(f))], [
     /user[_-]?anonymi[sz]/i,
     /anonymi[sz]er/i,
     /(account|user)[_-]?deletion/i,

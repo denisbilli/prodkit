@@ -2236,5 +2236,33 @@
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
+  },
+  "kutt": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "b2c.onboarding": "partial",
+      "b2c.notifications": "present",
+      "authz.ownership": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "present",
+      "security.cors": "partial",
+      "security.rate-limit": "present",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "present",
+      "deployment.docker": "partial"
+    }
   }
 }
