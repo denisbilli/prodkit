@@ -33,7 +33,43 @@ const EMAIL_DEPS = [
 ];
 
 const PUSH_DEPS = ['firebase-admin', 'web-push', '@onesignal/node-onesignal', 'expo-server-sdk'];
-const EMAIL_PY_DEPS = ['sendgrid', 'postmarker', 'mailgun', 'boto3', 'django-anymail'];
+const EMAIL_PY_DEPS = ['sendgrid', 'postmarker', 'mailgun', 'django-anymail', 'django-ses'];
+
+/**
+ * boto3 is all of AWS, and email is one service in it.
+ *
+ * babybuddy depends on boto3 to keep uploaded pictures in S3, sends nothing, and was
+ * credited with the means to notify its users. The SDK sends mail only through an SES
+ * client, so boto3 counts where one is opened: `boto3.client("ses")` or `"sesv2"`.
+ */
+async function sendsThroughSes(ctx: DetectContext): Promise<string[]> {
+  if (!hasAnyPyDep(ctx, ['boto3']).length) return [];
+  const hits = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => file.endsWith('.py')),
+    [/\.client\(\s*["']sesv?2?["']/],
+    1,
+  );
+  return hits.length > 0 ? ['boto3'] : [];
+}
+
+/**
+ * Django sends mail itself.
+ *
+ * `django.core.mail` is the framework's own — `send_mail`, `EmailMessage`,
+ * `get_connection` — and needs no package beside Django. saleor's email plugins import it,
+ * and saleor's capability to reach a user rested on boto3 standing in for it; the absence
+ * message already said `django.core.mail` was searched for, and nothing searched.
+ */
+async function djangoSendsMail(ctx: DetectContext): Promise<string[]> {
+  const hits = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => file.endsWith('.py')),
+    [/^\s*(?:from\s+django\.core\.mail\s+import|import\s+django\.core\.mail)\b/],
+    1,
+  );
+  return hits.length > 0 ? ['django.core.mail'] : [];
+}
 
 /**
  * The JVM's, by coordinate.
@@ -68,7 +104,7 @@ const EMAIL_GO_DEPS = [
 async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
-  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
+  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
   const pushDeps = [...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS)];
   for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
 

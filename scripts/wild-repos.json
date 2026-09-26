@@ -355,6 +355,10 @@
     {
       "repo": "jhipster/jhipster-sample-app",
       "is": "Generated Spring Boot + Angular app; activation key emailed at registration, audited createdBy columns are not ownership checks"
+    },
+    {
+      "repo": "babybuddy/babybuddy",
+      "is": "Django baby tracker; boto3 only stores pictures in S3 and sends no mail"
     }
   ]
 }
