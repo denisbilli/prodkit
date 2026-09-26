@@ -368,6 +368,11 @@
       "repo": "openfoodfoundation/openfoodnetwork",
       "name": "openfoodnetwork",
       "is": "Rails food marketplace, inferred b2c-app; delete_account_* migrations are not erasure"
+    },
+    {
+      "repo": "Kovah/LinkAce",
+      "name": "LinkAce",
+      "is": "Laravel bookmarks; Azure AD and Zitadel tenant settings in config/services.php are not the product's tenancy"
     }
   ]
 }

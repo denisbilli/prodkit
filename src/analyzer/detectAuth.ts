@@ -1098,8 +1098,16 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ? [...userBelongsToAccount, ...(await searchInFiles(ctx.root, sourceFiles, [/\baccount_id\b/], 25))]
     : [];
 
+  /**
+   * Laravel keeps other companies' credentials in `config/services.php`, and their words
+   * are theirs. LinkAce signs people in through Azure AD and Zitadel, configured there as
+   * `'tenant' => env('SSO_AZURE_TENANT_ID')` and `'organization_id' =>
+   * env('SSO_ZITADEL_ORGANIZATION_ID')`: the identity provider's tenant, not LinkAce's.
+   * Those two lines made a self-hosted bookmark manager a multi-tenant B2B SaaS.
+   */
+  const tenancyFiles = sourceFiles.filter((file) => !/(^|\/)config\/services\.php$/.test(file));
   const strongOrganization = [
-    ...(await searchInFiles(ctx.root, sourceFiles, STRONG_TENANCY, 25)),
+    ...(await searchInFiles(ctx.root, tenancyFiles, STRONG_TENANCY, 25)),
     ...teamAsTenant,
     ...companyAsTenant,
     ...accountAsTenant,
