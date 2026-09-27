@@ -416,6 +416,10 @@
       "repo": "pterodactyl/panel",
       "name": "pterodactyl",
       "is": "Laravel game-server panel; ServiceProvider register() is no sign-up, Notification classes send mail"
+    },
+    {
+      "repo": "Flomp/wanderer",
+      "is": "SvelteKit + PocketBase trail manager; a 429 in a multi-line case list is received, migrations register themselves"
     }
   ]
 }

@@ -195,7 +195,9 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
 
   const hits = await searchInFiles(
     ctx.root,
-    candidates.filter((file) => !serviceWorkerFiles.has(file)),
+    // A migration's `Register` is its framework registering a schema change: wanderer's
+    // PocketBase migrations each open with `m.Register(func(app core.App) error {`.
+    candidates.filter((file) => !serviceWorkerFiles.has(file) && !/(^|\/)(?:db\/migrate|migrations)\//.test(file)),
     [/\bonboarding\b/i, /\bsign_?up\b/i, /\bregister(ed)?\b/i, /\bwelcome\b/i, /\bfirst_?run\b/i],
     20,
     /**

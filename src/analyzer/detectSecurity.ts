@@ -73,9 +73,11 @@ function namesACloudStorageRule(text: string, line: number): boolean {
  *
  * A switch arm reads it too. miniflux's feed fetcher has `case http.StatusTooManyRequests:`
  * to back off from a feed server that refused it, and that was the rate limiting of a
- * product that limits nothing.
+ * product that limits nothing. So does a case list that runs over lines: wanderer's media
+ * fetcher retries on `http.StatusTooManyRequests,` alone on its line, between the timeout
+ * and the 500. Writing the status always wraps it in a call.
  */
-const COMPARES_A_STATUS = /^\s*case\s+(?:[\w.]+\s*,\s*)*http\.StatusTooManyRequests\b|[=!]==?\s*(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests|Status429TooManyRequests)|(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests)\s*[=!]==?/;
+const COMPARES_A_STATUS = /^\s*case\s+(?:[\w.]+\s*,\s*)*http\.StatusTooManyRequests\b|^\s*http\.StatusTooManyRequests\s*[,:]\s*$|[=!]==?\s*(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests|Status429TooManyRequests)|(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests)\s*[=!]==?/;
 
 const WILDCARD_ORIGIN = /(Access-Control-Allow-Origin["'\s:,]+\*)|(["']\*["'])/i;
 
