@@ -407,6 +407,10 @@
       "repo": "gristlabs/grist-core",
       "name": "grist-core",
       "is": "TS spreadsheet-database; sign-in through openid-client or saml2-js, uploads parsed by multiparty"
+    },
+    {
+      "repo": "TryGhost/Ghost",
+      "is": "Publishing platform with members and Stripe; sign-in throttled by express-brute"
     }
   ]
 }

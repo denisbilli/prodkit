@@ -427,6 +427,8 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    */
   const rateLimitDep =
     hasDep(ctx, 'express-rate-limit') ||
+    // Ghost's spam prevention: every sign-in and member request passes through express-brute.
+    hasDep(ctx, 'express-brute') ||
     hasDep(ctx, '@upstash/ratelimit') ||
     hasDep(ctx, 'rate-limiter-flexible') ||
     hasDep(ctx, 'next-rate-limit') ||
