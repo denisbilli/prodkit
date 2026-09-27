@@ -450,6 +450,10 @@
     {
       "repo": "navidrome/navidrome",
       "is": "Go + React music server; plugin kit's func Register is a registry, not onboarding"
+    },
+    {
+      "repo": "lnbits/lnbits",
+      "is": "FastAPI Lightning wallet; French 'Devise' is currency, def register(self, extension) is a registry"
     }
   ]
 }

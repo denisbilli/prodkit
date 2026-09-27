@@ -227,7 +227,10 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
        * TaskWorker)` for workers to register themselves, as database/sql does for drivers.
        * A Go func called Register is a sign-up only when it answers a request.
        */
-      && !(/^\s*func\b/.test(match.snippet) && !/\bhttp\.ResponseWriter\b/.test(match.snippet)),
+      && !(/^\s*func\b/.test(match.snippet) && !/\bhttp\.ResponseWriter\b/.test(match.snippet))
+      // And Python's: lnbits registers extensions with `def register(self, extension)`.
+      // A view is handed the request.
+      && !(/^\s*(?:async\s+)?def\s+\w*register\w*\s*\(/i.test(match.snippet) && !/\brequest\b/.test(match.snippet)),
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 

@@ -639,7 +639,13 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /recover(y)?[_-]?password/i,
       /passwordRecovery/,
     ],
-    20
+    20,
+    /**
+     * Devise is a Ruby gem, and the word is also French for currency: lnbits' French
+     * translation says `currency: 'Devise'`, and that was a password reset in a Python
+     * wallet. The gem's name counts in Ruby and nowhere else.
+     */
+    (match) => /\.rb$/.test(match.file) || !/Devise|devise_for/.test(match.snippet),
   );
   /**
    * JAX-RS writes a path in two halves.
