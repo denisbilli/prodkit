@@ -34,3 +34,23 @@ export async function goCommandLineFiles(ctx: DetectContext): Promise<Set<string
   }
   return commandLine;
 }
+
+/**
+ * Laravel's console commands, which Artisan runs for the operator.
+ *
+ * coolify's `app/Console/Commands/Cloud/ExportUsers.php` dumps every user of the hosted
+ * service for its operators, and it was coolify's personal data export. A class that
+ * extends `Illuminate\Console\Command` is run as `php artisan <name>` on the server; the
+ * person whose data it touches never sees it. Symfony's console command is the same thing
+ * under another namespace, and Laravel's is built on it.
+ */
+const CONSOLE_COMMAND_IMPORT = /^\s*use\s+(?:Illuminate\\Console\\Command|Symfony\\Component\\Console\\Command\\Command)\s*;/m;
+
+export async function phpConsoleCommandFiles(ctx: DetectContext): Promise<Set<string>> {
+  const commands = new Set<string>();
+  for (const file of ctx.files.source.filter((f) => f.endsWith('.php'))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (text && CONSOLE_COMMAND_IMPORT.test(text) && /\bextends\s+Command\b/.test(text)) commands.add(file);
+  }
+  return commands;
+}

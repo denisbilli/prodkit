@@ -454,6 +454,10 @@
     {
       "repo": "lnbits/lnbits",
       "is": "FastAPI Lightning wallet; French 'Devise' is currency, def register(self, extension) is a registry"
+    },
+    {
+      "repo": "coollabsio/coolify",
+      "is": "Laravel self-hosting platform; an Artisan ExportUsers command is the operator's, not a personal data export"
     }
   ]
 }

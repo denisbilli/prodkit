@@ -5,7 +5,7 @@ import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { searchedFor } from './absenceEvidence';
 import { fileNameEvidence, searchFileNames } from './fileNames';
-import { goCommandLineFiles } from './commandLine';
+import { goCommandLineFiles, phpConsoleCommandFiles } from './commandLine';
 
 function toEvidence(matches: Array<{ snippet: string; file: string; line: number }>): DetectorEvidence[] {
   return matches.map((m) => ({ type: 'snippet', value: m.snippet, file: m.file, line: m.line }));
@@ -321,7 +321,7 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
    * it holds.
    */
   // So is a Go command line: miniflux's `-export-user-feeds` flag is the operator's.
-  const commandLineFiles = await goCommandLineFiles(ctx);
+  const commandLineFiles = new Set([...await goCommandLineFiles(ctx), ...await phpConsoleCommandFiles(ctx)]);
   const servedFiles = ctx.files.source.filter((file) => !OPERATOR_SCRIPT.test(file) && !commandLineFiles.has(file));
   const exportRoute = await searchInFiles(
     ctx.root,
