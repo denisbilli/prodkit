@@ -106,6 +106,21 @@ async function railsSendsMail(ctx: DetectContext): Promise<string[]> {
   return hits.length > 0 ? ['actionmailer'] : [];
 }
 
+/**
+ * Wasp sends mail itself too: `import { emailSender } from "wasp/server/email"` is the
+ * framework's module, configured once in main.wasp. open-saas mails its customers through
+ * it from the Stripe webhook and was told at `high` it has no way to reach a user.
+ */
+async function waspSendsMail(ctx: DetectContext): Promise<string[]> {
+  const hits = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => /\.[cm]?[jt]sx?$/.test(file)),
+    [/\bfrom\s+["']wasp\/server\/email["']/],
+    1,
+  );
+  return hits.length > 0 ? ['wasp/server/email'] : [];
+}
+
 async function djangoSendsMail(ctx: DetectContext): Promise<string[]> {
   const hits = await searchInFiles(
     ctx.root,
@@ -151,7 +166,7 @@ const EMAIL_GO_DEPS = [
 async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
-  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...await railsSendsMail(ctx), ...await laravelSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
+  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...await railsSendsMail(ctx), ...await waspSendsMail(ctx), ...await laravelSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
   const pushDeps = [...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS)];
   for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
 

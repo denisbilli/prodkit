@@ -3398,5 +3398,33 @@
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
+  },
+  "open-saas": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "partial",
+      "authz.ownership": "missing",
+      "gdpr.consent": "present",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "present",
+      "billing.webhook-integrity": "present",
+      "security.headers": "missing",
+      "security.cors": "not_applicable",
+      "security.rate-limit": "missing",
+      "uploads.protection": "present",
+      "observability.health": "missing",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "present",
+      "deployment.docker": "missing"
+    }
   }
 }
