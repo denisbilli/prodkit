@@ -1133,7 +1133,14 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     tenancyFiles.push(file);
   }
   const strongOrganization = [
-    ...(await searchInFiles(ctx.root, tenancyFiles, STRONG_TENANCY, 25)),
+    /**
+     * A placeholder in somebody's URL format is theirs. changedetection documents Apprise's
+     * Office 365 target as `o365://TenantID:AccountEmail/ClientID/...`, and that help text
+     * made a single-user page monitor multi-tenant. A tenant word that appears only inside a
+     * `scheme://` URL is dropped.
+     */
+    ...(await searchInFiles(ctx.root, tenancyFiles, STRONG_TENANCY, 25, (match) =>
+      STRONG_TENANCY.some((pattern) => pattern.test(match.snippet.replace(/\b[a-z][\w+.-]*:\/\/\S*/gi, ''))))),
     ...teamAsTenant,
     ...companyAsTenant,
     ...accountAsTenant,

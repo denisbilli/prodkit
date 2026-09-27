@@ -437,6 +437,11 @@
     {
       "repo": "zammad/zammad",
       "is": "Rails helpdesk; a destroy action scoping a query with where(user: current_user) is not the caller's erasure"
+    },
+    {
+      "repo": "dgtlmoon/changedetection.io",
+      "name": "changedetection.io",
+      "is": "Flask page monitor; Apprise's o365://TenantID URL format in help text is not tenancy"
     }
   ]
 }
