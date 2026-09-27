@@ -65,6 +65,22 @@ async function sendsThroughSes(ctx: DetectContext): Promise<string[]> {
  * and saleor's capability to reach a user rested on boto3 standing in for it; the absence
  * message already said `django.core.mail` was searched for, and nothing searched.
  */
+/**
+ * Laravel sends mail itself too. A class extending `Illuminate\Notifications\Notification`
+ * or `Illuminate\Mail\Mailable` is the framework's way to write a message; pterodactyl
+ * tells people when their server is installed or they are removed from one, and read as
+ * partial on a `sendmail` option in a settings command.
+ */
+async function laravelSendsMail(ctx: DetectContext): Promise<string[]> {
+  const hits = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => file.endsWith('.php')),
+    [/^\s*use\s+Illuminate\\(?:Notifications\\Notification|Mail\\Mailable)\s*;/],
+    1,
+  );
+  return hits.length > 0 ? ['laravel notifications'] : [];
+}
+
 async function djangoSendsMail(ctx: DetectContext): Promise<string[]> {
   const hits = await searchInFiles(
     ctx.root,
@@ -110,7 +126,7 @@ const EMAIL_GO_DEPS = [
 async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
-  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
+  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...await laravelSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
   const pushDeps = [...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS)];
   for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
 
@@ -157,8 +173,15 @@ async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> 
  */
 async function registersAServiceWorker(ctx: DetectContext, file: string): Promise<boolean> {
   const text = await readTextFileSafe(ctx.root, file);
-  return !!text && /\bnavigator\.serviceWorker\b/.test(text);
+  return !!text && (/\bnavigator\.serviceWorker\b/.test(text) || LARAVEL_SERVICE_PROVIDER.test(text));
 }
+
+/**
+ * And Laravel's register, which is the container's. Every service provider must define
+ * `public function register()` to bind its services; pterodactyl has five, an admin creates
+ * its users, and those five were its onboarding.
+ */
+const LARAVEL_SERVICE_PROVIDER = /\bclass\s+\w+\s+extends\s+(?:\\?Illuminate\\Support\\)?ServiceProvider\b/;
 
 async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
@@ -166,7 +189,7 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
   const candidates = domainFiles(ctx);
   const namedFiles = ctx.files.all.filter((file) => /(onboarding|signup|sign-up|register)/i.test(file));
   const serviceWorkerFiles = new Set<string>();
-  for (const file of [...new Set([...candidates, ...namedFiles])].filter((f) => /\.[cm]?[jt]sx?$/.test(f))) {
+  for (const file of [...new Set([...candidates, ...namedFiles])].filter((f) => /\.(?:[cm]?[jt]sx?|php)$/.test(f))) {
     if (await registersAServiceWorker(ctx, file)) serviceWorkerFiles.add(file);
   }
 

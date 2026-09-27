@@ -411,6 +411,11 @@
     {
       "repo": "TryGhost/Ghost",
       "is": "Publishing platform with members and Stripe; sign-in throttled by express-brute"
+    },
+    {
+      "repo": "pterodactyl/panel",
+      "name": "pterodactyl",
+      "is": "Laravel game-server panel; ServiceProvider register() is no sign-up, Notification classes send mail"
     }
   ]
 }
