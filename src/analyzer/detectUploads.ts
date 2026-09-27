@@ -192,7 +192,8 @@ const FILE_INTAKE = [
    * uploads was `not_applicable`.
    */
   /=>\s*\[[^\]]*['"](?:file|image)['"]/,
-  /\.FormFile\s*\(\s*["']/,
+  // The field named by a constant too: focalboard writes `r.FormFile(UploadFormFileKey)`.
+  /\.FormFile\s*\(\s*(?:["']|[A-Za-z_]\w*\s*\))/,
   /**
    * Go's standard library hands an uploaded file over as `*multipart.FileHeader`, parsed
    * out of `Request.MultipartForm`. pocketbase stores every record's files that way —
