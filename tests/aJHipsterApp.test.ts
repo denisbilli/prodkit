@@ -71,4 +71,13 @@ describe('a JHipster application', () => {
 
     expect(analysis.detectors['authz.resourceLevel']?.present).toBe(false);
   });
+
+  /** fathom's session middleware, declared in Go. */
+  it('does not read a Go func called Authorize as a check', async () => {
+    const analysis = await analyze({
+      'pkg/api/auth.go': 'package api\n\nfunc (api *API) Authorize(next http.Handler) http.Handler {\n\treturn next\n}\n',
+    });
+
+    expect(analysis.detectors['authz.resourceLevel']?.present).toBe(false);
+  });
 });

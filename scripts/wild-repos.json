@@ -398,6 +398,10 @@
     {
       "repo": "Athou/commafeed",
       "is": "Quarkus 3 RSS reader served through quarkus-rest; re-throws feed servers' 429s"
+    },
+    {
+      "repo": "usefathom/fathom",
+      "is": "Go analytics; a func named Authorize is session middleware, not an ownership check"
     }
   ]
 }

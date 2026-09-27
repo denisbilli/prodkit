@@ -125,7 +125,12 @@ async function drizzleUserHoldsNoPassword(ctx: DetectContext): Promise<boolean> 
   return false;
 }
 
-const METHOD_DECLARATION = /^\s*(?:(?:public|private|protected|internal)\s+)(?:(?:static|final|async|override|virtual|abstract)\s+)*[\w<>[\],.?\s]*\b\w+\s*\(/;
+/**
+ * A signature: Java's and C#'s access modifiers, and Go's `func`. fathom's session
+ * middleware is `func (api *API) Authorize(next http.Handler) http.Handler`, a name for
+ * a function that authenticates, and it stood as fathom's check on who owns a site.
+ */
+const METHOD_DECLARATION = /^\s*(?:(?:public|private|protected|internal)\s+)(?:(?:static|final|async|override|virtual|abstract)\s+)*[\w<>[\],.?\s]*\b\w+\s*\(|^\s*func\b/;
 
 /**
  * A row's owner compared with what FastAPI injected.
