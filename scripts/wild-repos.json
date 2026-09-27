@@ -446,6 +446,10 @@
     {
       "repo": "YOURLS/YOURLS",
       "is": "Plain-PHP URL shortener; sign-in known only through password_verify"
+    },
+    {
+      "repo": "navidrome/navidrome",
+      "is": "Go + React music server; plugin kit's func Register is a registry, not onboarding"
     }
   ]
 }

@@ -221,7 +221,13 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
      * An error being raised says what went wrong, not what the product does. pterodactyl's
      * `throw new DisplayException('... no tasks are registered.')` was its onboarding.
      */
-    (match) => !/\bthrow\s+new\s+[\w\\.]+\s*\(|\braise\s+[\w.]+\s*\(/.test(match.snippet),
+    (match) => !/\bthrow\s+new\s+[\w\\.]+\s*\(|\braise\s+[\w.]+\s*\(/.test(match.snippet)
+      /**
+       * Go's registry idiom, too: navidrome's plugin kit declares `func Register(impl
+       * TaskWorker)` for workers to register themselves, as database/sql does for drivers.
+       * A Go func called Register is a sign-up only when it answers a request.
+       */
+      && !(/^\s*func\b/.test(match.snippet) && !/\bhttp\.ResponseWriter\b/.test(match.snippet)),
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 
