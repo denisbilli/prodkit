@@ -1119,7 +1119,19 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * env('SSO_ZITADEL_ORGANIZATION_ID')`: the identity provider's tenant, not LinkAce's.
    * Those two lines made a self-hosted bookmark manager a multi-tenant B2B SaaS.
    */
-  const tenancyFiles = sourceFiles.filter((file) => !/(^|\/)config\/services\.php$/.test(file));
+  const tenancyFiles: string[] = [];
+  for (const file of sourceFiles.filter((f) => !/(^|\/)config\/services\.php$/.test(f))) {
+    /**
+     * schema.org's Organization is the publisher's, told to search engines. karakeep's
+     * landing page declares `"@context": "https://schema.org"` with an
+     * `ORGANIZATION_ID = .../#organization`, and that made a bookmark manager multi-tenant.
+     */
+    if (/\.(?:astro|html?|[jt]sx?|vue|svelte)$/.test(file)) {
+      const text = await readTextFileSafe(ctx.root, file);
+      if (text && /["']@context["']\s*:\s*["']https?:\/\/schema\.org/.test(text)) continue;
+    }
+    tenancyFiles.push(file);
+  }
   const strongOrganization = [
     ...(await searchInFiles(ctx.root, tenancyFiles, STRONG_TENANCY, 25)),
     ...teamAsTenant,

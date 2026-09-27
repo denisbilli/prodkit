@@ -420,6 +420,10 @@
     {
       "repo": "Flomp/wanderer",
       "is": "SvelteKit + PocketBase trail manager; a 429 in a multi-line case list is received, migrations register themselves"
+    },
+    {
+      "repo": "karakeep-app/karakeep",
+      "is": "Next.js + tRPC + Drizzle bookmarks; an LLM prompt mentions cookie consent, the landing page declares a schema.org Organization"
     }
   ]
 }

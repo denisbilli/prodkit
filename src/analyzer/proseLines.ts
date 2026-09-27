@@ -22,6 +22,7 @@ export function proseLines(file: string, text: string): Set<number> {
   if (/\.(?:jsx|tsx)$/i.test(file)) return componentSentenceLines(text);
 
   const prose = new Set<number>();
+  if (/\.[cm]?[jt]s$/i.test(file)) return new Set([...messageLines(text), ...templateSentenceLines(text)]);
   if (!/\.py$/i.test(file)) return messageLines(text);
 
   const lines = text.split(/\r?\n/);
@@ -177,6 +178,30 @@ function componentSentenceLines(text: string): Set<number> {
     if (plain && words.length >= SENTENCE_WORDS) prose.add(i + 1);
   }
   return wholeDocument(lines, prose, textLines);
+}
+
+/**
+ * A sentence inside a template literal is text, as it is in a component.
+ *
+ * karakeep's tagging prompt is a backtick string of instructions to a model: "Boilerplate
+ * content such as cookie consent, login walls, GDPR notices…" on one of its lines, and that
+ * line was karakeep's consent record. The backtick is the language's; a line that opens
+ * inside one, holding a sentence by the same measure as a component's, is prose.
+ */
+function templateSentenceLines(text: string): Set<number> {
+  const prose = new Set<number>();
+  const lines = text.split(/\r?\n/);
+  let inside = false;
+  for (let i = 0; i < lines.length; i++) {
+    const startedInside = inside;
+    const backticks = (lines[i].replace(/\\`/g, '').match(/`/g) ?? []).length;
+    if (backticks % 2 === 1) inside = !inside;
+    if (!startedInside) continue;
+    const tokens = lines[i].trim().split(/\s+/).filter(Boolean);
+    const words = tokens.filter((token) => PLAIN_WORD.test(token));
+    if (tokens.length > 0 && words.length / tokens.length >= 0.7 && words.length >= SENTENCE_WORDS) prose.add(i + 1);
+  }
+  return prose;
 }
 
 /**
