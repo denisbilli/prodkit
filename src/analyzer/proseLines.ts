@@ -23,6 +23,7 @@ export function proseLines(file: string, text: string): Set<number> {
 
   const prose = new Set<number>();
   if (/\.[cm]?[jt]s$/i.test(file)) return new Set([...messageLines(text), ...templateSentenceLines(text)]);
+  if (/\.php$/i.test(file)) return new Set([...messageLines(text), ...markupSentenceLines(text)]);
   if (!/\.py$/i.test(file)) return messageLines(text);
 
   const lines = text.split(/\r?\n/);
@@ -118,6 +119,26 @@ function htmlSentenceLines(text: string): Set<number> {
   const prose = new Set<number>();
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
+    const words = lines[i].replace(/<[^>]*>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+    if (words.length >= SENTENCE_WORDS) prose.add(i + 1);
+  }
+  return prose;
+}
+
+/**
+ * Markup inside PHP is a page, as it is in a template.
+ *
+ * LinkStack seeds its privacy policy from `database/seeders/PageSeeder.php`, one
+ * `<p>We will only keep your personal information for as long as it is necessary…</p>`
+ * after another inside a PHP string, and that was its retention policy. A line that opens
+ * with a tag and holds a sentence once the tags are gone is copy; a line of PHP that does
+ * not open with a tag is left to the rules for code.
+ */
+function markupSentenceLines(text: string): Set<number> {
+  const prose = new Set<number>();
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    if (!/^\s*<[a-z][\w-]*[\s>]/i.test(lines[i])) continue;
     const words = lines[i].replace(/<[^>]*>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').trim().split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
     if (words.length >= SENTENCE_WORDS) prose.add(i + 1);
   }

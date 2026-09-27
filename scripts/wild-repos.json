@@ -458,6 +458,11 @@
     {
       "repo": "coollabsio/coolify",
       "is": "Laravel self-hosting platform; an Artisan ExportUsers command is the operator's, not a personal data export"
+    },
+    {
+      "repo": "LinkStackOrg/LinkStack",
+      "name": "LinkStack",
+      "is": "Laravel link-in-bio; a privacy policy seeded as HTML in PHP is copy, not retention"
     }
   ]
 }
