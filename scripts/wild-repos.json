@@ -442,6 +442,10 @@
       "repo": "dgtlmoon/changedetection.io",
       "name": "changedetection.io",
       "is": "Flask page monitor; Apprise's o365://TenantID URL format in help text is not tenancy"
+    },
+    {
+      "repo": "YOURLS/YOURLS",
+      "is": "Plain-PHP URL shortener; sign-in known only through password_verify"
     }
   ]
 }

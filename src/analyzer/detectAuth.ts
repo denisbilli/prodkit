@@ -1284,7 +1284,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       key: 'auth.core',
       present: hasAuth,
       complete: hasAuth && hasAuthz,
-      evidence: evidenceOrSearch([...depEvidence(authDeps), ...authUseEvidence, ...snippetEvidence(routeSignals), ...snippetEvidence(platformIdentity)], 'a way for somebody to sign in', ['next-auth', 'passport', 'lucia', '@clerk/', '@supabase/auth', 'django.contrib.auth', 'devise', 'jsonwebtoken', 'a /login or /signin route', 'signIn(', 'authenticate(', 'a Cloudflare Access, Google IAP, AWS ALB or Azure Easy Auth identity header']),
+      evidence: evidenceOrSearch([...depEvidence(authDeps), ...authUseEvidence, ...snippetEvidence(routeSignals), ...snippetEvidence(platformIdentity), ...snippetEvidence(passwordHashing)], 'a way for somebody to sign in', ['next-auth', 'passport', 'lucia', '@clerk/', '@supabase/auth', 'django.contrib.auth', 'devise', 'jsonwebtoken', 'a /login or /signin route', 'signIn(', 'authenticate(', 'a Cloudflare Access, Google IAP, AWS ALB or Azure Easy Auth identity header']),
       details: {
         hasAuth,
         hasAuthz,
