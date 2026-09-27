@@ -92,6 +92,20 @@ async function laravelSendsMail(ctx: DetectContext): Promise<string[]> {
   return [...(hits.length > 0 ? ['laravel notifications'] : []), ...(phpMailer.length > 0 ? ['phpmailer'] : [])];
 }
 
+/**
+ * Rails sends mail itself too, through ActionMailer. consul's mailers are
+ * `class Mailer < ApplicationMailer` — the class the Rails generator writes — and it was told at `high` that it has no way to reach a user.
+ */
+async function railsSendsMail(ctx: DetectContext): Promise<string[]> {
+  const hits = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => file.endsWith('.rb')),
+    [/^\s*class\s+\w+\s*<\s*ApplicationMailer\b/],
+    1,
+  );
+  return hits.length > 0 ? ['actionmailer'] : [];
+}
+
 async function djangoSendsMail(ctx: DetectContext): Promise<string[]> {
   const hits = await searchInFiles(
     ctx.root,
@@ -137,7 +151,7 @@ const EMAIL_GO_DEPS = [
 async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
-  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...await laravelSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
+  const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...await railsSendsMail(ctx), ...await laravelSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS)];
   const pushDeps = [...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS)];
   for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
 

@@ -52,4 +52,9 @@ describe("Rails' destroy action handed the caller", () => {
   it('is not a query scoped to the caller', async () => {
     expect(await erasureIn(controller('destroy', 'Mention.where(user: current_user, id: params[:id]).destroy_all'))).toBe(false);
   });
+
+  /** consul's investments#destroy redirects to a URL built from the caller. */
+  it('is not a route helper given the caller', async () => {
+    expect(await erasureIn(controller('destroy', 'redirect_to user_path(current_user, filter: "budget_investments")'))).toBe(false);
+  });
 });

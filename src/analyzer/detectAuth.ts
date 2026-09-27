@@ -294,6 +294,12 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...managedAuthDeps,
     ...managedAuthPyDeps,
     ...elixirAuthDeps,
+    /**
+     * Rails' sign-in, which is a gem. consul declares `gem "devise"` and mounts it from
+     * config/routes/devise.rb, and was read as a client application with nobody to sign in:
+     * the list held npm, Python and Elixir packages and no Ruby at all.
+     */
+    ...hasAnyRubyDep(ctx, ['devise']),
   ];
   const sessionDeps = [...hasAnyDep(ctx, ['express-session', 'cookie-session']), ...managedAuthDeps];
   /**

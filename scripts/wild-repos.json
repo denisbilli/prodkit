@@ -476,6 +476,11 @@
       "repo": "tolgee/tolgee-platform",
       "name": "tolgee",
       "is": "Kotlin Spring localization platform; Kotlin HttpSecurity chain sets headers, jvmErasure is not erasure"
+    },
+    {
+      "repo": "consuldemocracy/consuldemocracy",
+      "name": "consul",
+      "is": "Rails civic participation; gem devise for sign-in, ApplicationMailer for mail, user_path(current_user) is no erasure"
     }
   ]
 }
