@@ -47,4 +47,9 @@ describe("Rails' destroy action handed the caller", () => {
   it('is only the destroy action', async () => {
     expect(await erasureIn(controller('update', 'service.update(user: current_user, params: params)'))).toBe(false);
   });
+
+  /** zammad's MentionsController#destroy deletes one of the caller's mentions. */
+  it('is not a query scoped to the caller', async () => {
+    expect(await erasureIn(controller('destroy', 'Mention.where(user: current_user, id: params[:id]).destroy_all'))).toBe(false);
+  });
 });

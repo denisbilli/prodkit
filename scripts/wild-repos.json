@@ -433,6 +433,10 @@
     {
       "repo": "louislam/uptime-kuma",
       "is": "Node + Vue monitoring; login throttled by limiter, images built from docker/dockerfile"
+    },
+    {
+      "repo": "zammad/zammad",
+      "is": "Rails helpdesk; a destroy action scoping a query with where(user: current_user) is not the caller's erasure"
     }
   ]
 }
