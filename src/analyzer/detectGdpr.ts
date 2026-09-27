@@ -91,13 +91,16 @@ async function deletesTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
  * `Mention.where(user: current_user, id: params[:id]).destroy_all` deletes one of the
  * caller's mentions. ActiveRecord's `where` picks rows; it is not the service the caller is
  * given to. Nor is a route helper: consul's investments#destroy ends with
- * `redirect_to user_path(current_user, ...)`, a URL built from the caller.
+ * `redirect_to user_path(current_user, ...)`, a URL built from the caller. Nor a service
+ * built around the caller: diaspora's aspect_memberships#destroy calls
+ * `AspectsMembershipService.new(current_user).destroy_by_membership_id(...)`, which removes
+ * a contact from a list the caller owns.
  *
  * And the resource a controller loaded lives in an instance variable: loomio's
  * `@poll_template.discard!(actor: current_user)` destroys the template, with the caller
  * as the only argument. A line with an `@` receiver or argument is about that resource.
  */
-const CALLER_HANDED_ON = /(?<!\bwhere!?|_path)\(\s*(?:\w+:\s*)?current_user\s*[,)]/;
+const CALLER_HANDED_ON = /(?<!\bwhere!?|_path|\.new)\(\s*(?:\w+:\s*)?current_user\s*[,)]/;
 
 async function railsDestroysTheCaller(ctx: DetectContext): Promise<TextMatch[]> {
   const found: TextMatch[] = [];

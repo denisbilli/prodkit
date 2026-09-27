@@ -481,6 +481,10 @@
       "repo": "consuldemocracy/consuldemocracy",
       "name": "consul",
       "is": "Rails civic participation; gem devise for sign-in, ApplicationMailer for mail, user_path(current_user) is no erasure"
+    },
+    {
+      "repo": "diaspora/diaspora",
+      "is": "Rails social network; a service built with .new(current_user) in a destroy action is not the caller's erasure"
     }
   ]
 }

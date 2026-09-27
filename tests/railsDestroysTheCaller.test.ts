@@ -57,4 +57,9 @@ describe("Rails' destroy action handed the caller", () => {
   it('is not a route helper given the caller', async () => {
     expect(await erasureIn(controller('destroy', 'redirect_to user_path(current_user, filter: "budget_investments")'))).toBe(false);
   });
+
+  /** diaspora's aspect_memberships#destroy builds a service around the caller. */
+  it('is not a service constructed for the caller', async () => {
+    expect(await erasureIn(controller('destroy', 'delete_results = AspectsMembershipService.new(current_user).destroy_by_membership_id(params[:id])'))).toBe(false);
+  });
 });
