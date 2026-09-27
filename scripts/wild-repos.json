@@ -394,6 +394,10 @@
     {
       "repo": "ArchiveBox/ArchiveBox",
       "is": "Django web archiver; an export_profile directory for a Chrome profile is not a personal data export"
+    },
+    {
+      "repo": "Athou/commafeed",
+      "is": "Quarkus 3 RSS reader served through quarkus-rest; re-throws feed servers' 429s"
     }
   ]
 }

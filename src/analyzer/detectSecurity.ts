@@ -560,7 +560,22 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    * refused by somebody else's, which is what nocodb's webhook invoker does. A
    * comparison is the reading direction; an argument is the writing one.
    */
-  const issuedRateLimits = rateLimitSignals;
+  /**
+   * A refusal re-thrown after reading one. commafeed's feed fetcher writes
+   * `if (code == HttpStatus.SC_TOO_MANY_REQUESTS ...)` and on the next line
+   * `throw new TooManyRequestsException(response.retryAfter())`: the feed server said no,
+   * and the exception carries that back. The throw is only as much a limit as the
+   * comparison in front of it, so a throw whose preceding lines read a 429 is received.
+   */
+  const issuedRateLimits: typeof rateLimitSignals = [];
+  for (const match of rateLimitSignals) {
+    if (/throw new \w*TooManyRequests/.test(match.snippet)) {
+      const lines = ((await readTextFileSafe(ctx.root, match.file)) ?? '').split(/\r?\n/);
+      const before = lines.slice(Math.max(0, match.line - 4), match.line - 1).join('\n');
+      if (/[=!]==?\s*(?:429\b|[\w.]*TOO_MANY_REQUESTS\b)/.test(before)) continue;
+    }
+    issuedRateLimits.push(match);
+  }
   const rateLimit = rateLimitDep || issuedRateLimits.length > 0;
 
   /**

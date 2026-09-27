@@ -78,7 +78,11 @@ export const JVM_BACKEND_FRAMEWORKS: Array<[string, string[]]> = [
     'org.springframework.boot:spring-boot-starter-parent',
     'org.springframework.boot:spring-boot-starter',
   ]],
-  ['quarkus', ['io.quarkus:quarkus-resteasy', 'io.quarkus:quarkus-resteasy-reactive', 'io.quarkus:quarkus-bom']],
+  /**
+   * Quarkus 3 renamed RESTEasy Reactive to `quarkus-rest`. commafeed serves its API
+   * through it and was profiled as a client application with no server at all.
+   */
+  ['quarkus', ['io.quarkus:quarkus-resteasy', 'io.quarkus:quarkus-resteasy-reactive', 'io.quarkus:quarkus-rest', 'io.quarkus:quarkus-bom']],
   ['micronaut', ['io.micronaut:micronaut-http-server-netty', 'io.micronaut:micronaut-inject']],
   ['ktor', ['io.ktor:ktor-server-core', 'io.ktor:ktor-server-netty', 'io.ktor:ktor-server-cio']],
   ['javalin', ['io.javalin:javalin']],
