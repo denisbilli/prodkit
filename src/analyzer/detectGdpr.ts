@@ -478,6 +478,8 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     /user[_-]?anonymi[sz]/i,
     /anonymi[sz]er/i,
     /(account|user)[_-]?deletion/i,
+    // The verb after the noun too: AppFlowy Cloud's is src/biz/user/user_delete.rs.
+    /(?:^|\/)(?:account|user)[_-]?delete$/i,
     /(delete|erase)[_-]?(account|my[_-]?data)/i,
   ]);
   const retention = await searchInFiles(

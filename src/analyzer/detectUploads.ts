@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyPyDep } from './detectContext';
+import { hasAnyDep, hasAnyPyDep, hasAnyRustDep } from './detectContext';
 import type { TextMatch } from '../utils/textSearch';
 import { matchLines } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
@@ -231,7 +231,11 @@ const PY_FILE_INTAKE = [
 export async function detectUploads(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
   // `multiparty` too: grist parses every attachment upload with it and read as taking none.
-  const uploadDeps = hasAnyDep(ctx, ['multer', 'formidable', 'multiparty', '@aws-sdk/client-s3', 'aws-sdk']);
+  const uploadDeps = [
+    ...hasAnyDep(ctx, ['multer', 'formidable', 'multiparty', '@aws-sdk/client-s3', 'aws-sdk']),
+    // actix-web's multipart extractor: AppFlowy Cloud takes file and image uploads through it.
+    ...hasAnyRustDep(ctx, ['actix-multipart']),
+  ];
   const pyUploadDeps = hasAnyPyDep(ctx, ['boto3']);
   const avDeps = hasAnyDep(ctx, ['clamav', 'clamscan']);
 
