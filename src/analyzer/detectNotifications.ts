@@ -78,7 +78,18 @@ async function laravelSendsMail(ctx: DetectContext): Promise<string[]> {
     [/^\s*use\s+Illuminate\\(?:Notifications\\Notification|Mail\\Mailable)\s*;/],
     1,
   );
-  return hits.length > 0 ? ['laravel notifications'] : [];
+  /**
+   * PHPMailer, imported by its namespace. Wallos vendors it rather than declaring it in
+   * Composer, sends password resets, verifications and renewal reminders through it, and
+   * read as partial.
+   */
+  const phpMailer = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => file.endsWith('.php')),
+    [/^\s*use\s+PHPMailer\\PHPMailer\\PHPMailer\s*;/],
+    1,
+  );
+  return [...(hits.length > 0 ? ['laravel notifications'] : []), ...(phpMailer.length > 0 ? ['phpmailer'] : [])];
 }
 
 async function djangoSendsMail(ctx: DetectContext): Promise<string[]> {
@@ -187,7 +198,13 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
   const candidates = domainFiles(ctx);
-  const namedFiles = ctx.files.all.filter((file) => /(onboarding|signup|sign-up|register)/i.test(file));
+  /**
+   * `registration` is not `register` with a suffix: Wallos's sign-up page is registration.php.
+   * Except in Django's `templates/registration/`, the directory django.contrib.auth reads its
+   * login and password-reset pages from — babybuddy's and ArchiveBox's have no sign-up in it.
+   */
+  const namedFiles = ctx.files.all.filter((file) =>
+    /(onboarding|signup|sign-up|register|registration)/i.test(file) && !/(^|\/)templates\/registration\//.test(file));
   const serviceWorkerFiles = new Set<string>();
   for (const file of [...new Set([...candidates, ...namedFiles])].filter((f) => /\.(?:[cm]?[jt]sx?|php)$/.test(f))) {
     if (await registersAServiceWorker(ctx, file)) serviceWorkerFiles.add(file);
