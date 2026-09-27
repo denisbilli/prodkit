@@ -429,6 +429,10 @@
       "repo": "ellite/Wallos",
       "name": "Wallos",
       "is": "Plain-PHP subscription tracker; vendored PHPMailer, sign-up at registration.php"
+    },
+    {
+      "repo": "louislam/uptime-kuma",
+      "is": "Node + Vue monitoring; login throttled by limiter, images built from docker/dockerfile"
     }
   ]
 }

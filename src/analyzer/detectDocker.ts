@@ -48,7 +48,8 @@ export async function detectDocker(ctx: DetectContext): Promise<DetectorResult> 
     const shipped = named.filter((f) => !/\.(?:dev|development|local)(?:\.ya?ml)?$/i.test(f));
     return theShippedOne(shipped.length > 0 ? shipped : named);
   };
-  const dockerfile = plainOrSuffixed(/(^|\/)Dockerfile$/, /(^|\/)Dockerfile\.[\w-]+$/);
+  // Lower case too, and `<name>.dockerfile`: uptime-kuma builds from docker/dockerfile.
+  const dockerfile = plainOrSuffixed(/(^|\/)[Dd]ockerfile$/, /(^|\/)(?:Dockerfile\.[\w-]+|[\w-]+\.dockerfile)$/);
   const composeFile = plainOrSuffixed(/(^|\/)(docker-compose\.ya?ml|compose\.ya?ml)$/, /(^|\/)(docker-)?compose\.[\w-]+\.ya?ml$/);
 
   let hasHealthcheck = false;

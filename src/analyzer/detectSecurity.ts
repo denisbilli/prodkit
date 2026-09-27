@@ -431,6 +431,8 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     hasDep(ctx, 'express-rate-limit') ||
     // Ghost's spam prevention: every sign-in and member request passes through express-brute.
     hasDep(ctx, 'express-brute') ||
+    // A token bucket: uptime-kuma throttles its login and API with `limiter`'s RateLimiter.
+    hasDep(ctx, 'limiter') ||
     hasDep(ctx, '@upstash/ratelimit') ||
     hasDep(ctx, 'rate-limiter-flexible') ||
     hasDep(ctx, 'next-rate-limit') ||
