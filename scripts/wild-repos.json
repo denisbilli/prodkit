@@ -471,6 +471,11 @@
     {
       "repo": "mattermost-community/focalboard",
       "is": "Go + React boards; uploads read with r.FormFile(UploadFormFileKey)"
+    },
+    {
+      "repo": "tolgee/tolgee-platform",
+      "name": "tolgee",
+      "is": "Kotlin Spring localization platform; Kotlin HttpSecurity chain sets headers, jvmErasure is not erasure"
     }
   ]
 }

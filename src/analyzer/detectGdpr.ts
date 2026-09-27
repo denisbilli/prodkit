@@ -393,7 +393,9 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
     ctx.root,
     ctx.files.source,
     [
-      /erasure/i,
+      // Not Kotlin's reflection property `jvmErasure`, which is type erasure: it was tolgee's
+      // erasure flow. `requestErasure` and the like still count.
+      /(?<!jvm)erasure/i,
       /delete account/i,
       /right to be forgotten/i,
       /delete user data/i,

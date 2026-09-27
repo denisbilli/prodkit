@@ -367,7 +367,8 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    */
   const springSecurity = hasAnyGradleDep(ctx, ['spring-boot-starter-security', 'spring-security-config']);
   const springFilterChain = springSecurity.length > 0
-    ? await searchInFiles(ctx.root, source, [/HttpSecurity\s+\w+|\bhttp\s*\n?\s*\.\s*(?:authorizeHttpRequests|authorizeRequests|securityMatcher|antMatcher)/], 2)
+    // Kotlin names the parameter first: tolgee's chain is `fun securityFilterChain(httpSecurity: HttpSecurity)`.
+    ? await searchInFiles(ctx.root, source, [/HttpSecurity\s+\w+|\b\w+\s*:\s*HttpSecurity\b|\bhttp\s*\n?\s*\.\s*(?:authorizeHttpRequests|authorizeRequests|securityMatcher|antMatcher)/], 2)
     : [];
 
   if (springFilterChain.length > 0) {
