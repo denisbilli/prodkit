@@ -402,6 +402,11 @@
     {
       "repo": "usefathom/fathom",
       "is": "Go analytics; a func named Authorize is session middleware, not an ownership check"
+    },
+    {
+      "repo": "gristlabs/grist-core",
+      "name": "grist-core",
+      "is": "TS spreadsheet-database; sign-in through openid-client or saml2-js, uploads parsed by multiparty"
     }
   ]
 }

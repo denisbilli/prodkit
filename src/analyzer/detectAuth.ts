@@ -219,6 +219,11 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
      * reset flow. `remix-auth-form` is left out — it is how a password form is handled.
      */
     ...hasAnyDep(ctx, ['remix-auth-email-link', 'remix-auth-github', 'remix-auth-google', 'remix-auth-oauth2', 'remix-auth-microsoft']),
+    /**
+     * OpenID Connect and SAML clients: grist-core signs people in through `openid-client`
+     * or `saml2-js`, hashes nothing, and was told at `high` to build a password reset.
+     */
+    ...hasAnyDep(ctx, ['openid-client', 'saml2-js']),
     ...hasAnyPyDep(ctx, ['django-allauth', 'authlib', 'social-auth-app-django']),
     ...hasAnyRustDep(ctx, ['oauth2', 'openidconnect']),
     ...hasAnyGradleDep(ctx, ['spring-boot-starter-oauth2-client', 'com.okta.spring']),
@@ -604,7 +609,11 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
       /\/password[_-]?resets?\b/i,
       // And the other order, a path too: kutt sends people to `/reset-password`.
       /['"`]\/reset[_-]?password\b/i,
-      /reset\s*token/i,
+      /**
+       * The token, not a word that begins with it: grist's token field has a method called
+       * `_resetTokenSelection`, and it was the password reset of a product with no passwords.
+       */
+      /reset\s*token\b/i,
       /**
        * Django ships the whole flow — token, expiry, single use — behind one include.
        * A report on a real school platform called password reset missing while

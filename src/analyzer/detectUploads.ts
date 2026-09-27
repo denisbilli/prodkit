@@ -230,7 +230,8 @@ const PY_FILE_INTAKE = [
 
 export async function detectUploads(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
-  const uploadDeps = hasAnyDep(ctx, ['multer', 'formidable', '@aws-sdk/client-s3', 'aws-sdk']);
+  // `multiparty` too: grist parses every attachment upload with it and read as taking none.
+  const uploadDeps = hasAnyDep(ctx, ['multer', 'formidable', 'multiparty', '@aws-sdk/client-s3', 'aws-sdk']);
   const pyUploadDeps = hasAnyPyDep(ctx, ['boto3']);
   const avDeps = hasAnyDep(ctx, ['clamav', 'clamscan']);
 
