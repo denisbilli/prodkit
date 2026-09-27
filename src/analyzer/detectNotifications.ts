@@ -198,6 +198,11 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
     candidates.filter((file) => !serviceWorkerFiles.has(file)),
     [/\bonboarding\b/i, /\bsign_?up\b/i, /\bregister(ed)?\b/i, /\bwelcome\b/i, /\bfirst_?run\b/i],
     20,
+    /**
+     * An error being raised says what went wrong, not what the product does. pterodactyl's
+     * `throw new DisplayException('... no tasks are registered.')` was its onboarding.
+     */
+    (match) => !/\bthrow\s+new\s+[\w\\.]+\s*\(|\braise\s+[\w.]+\s*\(/.test(match.snippet),
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 

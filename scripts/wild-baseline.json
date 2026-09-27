@@ -2906,7 +2906,7 @@
       "auth.mfa": "present",
       "auth.password-reset": "present",
       "auth.email-verification": "missing",
-      "b2c.onboarding": "partial",
+      "b2c.onboarding": "missing",
       "b2c.notifications": "present",
       "authz.ownership": "present",
       "gdpr.consent": "missing",

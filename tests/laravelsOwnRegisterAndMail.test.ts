@@ -44,4 +44,20 @@ describe("Laravel's own words", () => {
 
     expect(analysis.detectors['notifications.transactional']?.details?.emailDependency).toBe(true);
   });
+
+  it('an exception message is not a sign-up', async () => {
+    const analysis = await analyze({
+      'app/Services/ProcessScheduleService.php': "<?php\n\nclass ProcessScheduleService\n{\n    public function handle()\n    {\n        throw new DisplayException('Cannot process schedule for task execution: no tasks are registered.');\n    }\n}\n",
+    });
+
+    expect(analysis.detectors['onboarding.flow']?.present).toBe(false);
+  });
+
+  it('a Python error message is not a sign-up either', async () => {
+    const analysis = await analyze({
+      'app/services/signup_service.py': 'def check(user):\n    raise ValueError("user is already registered")\n',
+    });
+
+    expect(analysis.detectors['onboarding.flow']?.details?.onboardingSignals).toBe(0);
+  });
 });
