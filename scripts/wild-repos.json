@@ -510,6 +510,10 @@
       "repo": "HiEventsDev/hi.events",
       "name": "hi.events",
       "is": "Laravel ticketing with Stripe Connect; getContent() is the raw body, Eloquent accounts hold users"
+    },
+    {
+      "repo": "hedgedoc/hedgedoc",
+      "is": "NestJS on Fastify notes; takes images through @fastify/multipart"
     }
   ]
 }
