@@ -3454,5 +3454,33 @@
       "deployment.readiness": "present",
       "deployment.docker": "missing"
     }
+  },
+  "opensourcepos": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "medium",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "missing",
+      "auth.email-verification": "missing",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "present",
+      "authz.ownership": "missing",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "partial",
+      "security.rate-limit": "missing",
+      "uploads.protection": "present",
+      "observability.health": "missing",
+      "observability.logging": "partial",
+      "audit.baseline": "missing",
+      "deployment.readiness": "present",
+      "deployment.docker": "partial"
+    }
   }
 }

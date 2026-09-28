@@ -89,7 +89,22 @@ async function laravelSendsMail(ctx: DetectContext): Promise<string[]> {
     [/^\s*use\s+PHPMailer\\PHPMailer\\PHPMailer\s*;/],
     1,
   );
-  return [...(hits.length > 0 ? ['laravel notifications'] : []), ...(phpMailer.length > 0 ? ['phpmailer'] : [])];
+  /**
+   * CodeIgniter 4's own mail class. opensourcepos mails receipts and invoices through
+   * `new Email()` after `use CodeIgniter\Email\Email;`, and read as partial on the
+   * framework's mail settings file alone.
+   */
+  const codeIgniter = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => file.endsWith('.php')),
+    [/^\s*use\s+CodeIgniter\\Email\\Email\s*;/],
+    1,
+  );
+  return [
+    ...(hits.length > 0 ? ['laravel notifications'] : []),
+    ...(phpMailer.length > 0 ? ['phpmailer'] : []),
+    ...(codeIgniter.length > 0 ? ['codeigniter email'] : []),
+  ];
 }
 
 /**

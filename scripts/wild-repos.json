@@ -493,6 +493,10 @@
     {
       "repo": "ixartz/SaaS-Boilerplate",
       "is": "Next.js + Clerk + Drizzle; Clerk verifies emails, a sign-up screenshot is no onboarding"
+    },
+    {
+      "repo": "opensourcepos/opensourcepos",
+      "is": "CodeIgniter 4 point of sale; mails receipts through CodeIgniter\\Email\\Email"
     }
   ]
 }
