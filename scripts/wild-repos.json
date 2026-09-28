@@ -505,6 +505,11 @@
     {
       "repo": "grokability/snipe-it",
       "is": "Laravel IT asset management with companies; a supplier of laptops is not a seller"
+    },
+    {
+      "repo": "HiEventsDev/hi.events",
+      "name": "hi.events",
+      "is": "Laravel ticketing with Stripe Connect; getContent() is the raw body, Eloquent accounts hold users"
     }
   ]
 }

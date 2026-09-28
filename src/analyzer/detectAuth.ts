@@ -1093,14 +1093,19 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    * inferred as a consumer app at high confidence.
    *
    * The relationship is the anchor, written the way Ecto and ActiveRecord both write it,
-   * in the file that declares the users: `schema "users"` or `class User`.
+   * in the file that declares the users: `schema "users"` or `class User`. Eloquent writes
+   * it as a method: hi.events' `User` returns `$this->belongsToMany(Account::class,
+   * 'account_users')`, and every organiser and event it holds is scoped by `account_id`.
+   * Only many: monica's User `belongsTo(Account::class)` too, and its account is a
+   * household sharing one address book. A person who can sit in several accounts, and
+   * switch between them, is a member of customers rather than the owner of a login.
    */
   const userBelongsToAccount: TextMatch[] = [];
-  for (const file of sourceFiles.filter((f) => /\.(?:ex|rb)$/.test(f))) {
+  for (const file of sourceFiles.filter((f) => /\.(?:ex|rb|php)$/.test(f))) {
     const text = await readTextFileSafe(ctx.root, file);
-    if (!text || !/schema\s*\(?\s*"users"|^\s*class\s+User\s*</m.test(text)) continue;
+    if (!text || !/schema\s*\(?\s*"users"|^\s*class\s+User\s*<|^\s*(?:final\s+)?class\s+User\s+extends\b/m.test(text)) continue;
     const lines = text.split(/\r?\n/);
-    const at = lines.findIndex((line) => /^\s*belongs_to\s*\(?\s*:account\b/.test(line));
+    const at = lines.findIndex((line) => /^\s*belongs_to\s*\(?\s*:account\b|->belongsToMany\(\s*Account::class\b/.test(line));
     if (at >= 0) userBelongsToAccount.push({ file, line: at + 1, snippet: lines[at].trim() });
   }
   /*
@@ -1113,10 +1118,10 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
    */
   if (userBelongsToAccount.length > 0) {
     let holdsPeople = false;
-    for (const file of sourceFiles.filter((f) => /\.(?:ex|rb)$/.test(f))) {
+    for (const file of sourceFiles.filter((f) => /\.(?:ex|rb|php)$/.test(f))) {
       const text = await readTextFileSafe(ctx.root, file);
-      if (!text || !/schema\s*\(?\s*"accounts"|^\s*class\s+Account\s*</m.test(text)) continue;
-      if (/^\s*has_many\s*\(?\s*:users\b/m.test(text)) { holdsPeople = true; break; }
+      if (!text || !/schema\s*\(?\s*"accounts"|^\s*class\s+Account\s*<|^\s*(?:final\s+)?class\s+Account\s+extends\b/m.test(text)) continue;
+      if (/^\s*has_many\s*\(?\s*:users\b|->(?:hasMany|belongsToMany)\(\s*User::class\b/m.test(text)) { holdsPeople = true; break; }
     }
     if (!holdsPeople) userBelongsToAccount.length = 0;
   }

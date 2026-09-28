@@ -179,6 +179,12 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
         // ASP.NET: the request stream read to the end before any model binding, which is
         // how bitwarden/server hands Stripe the exact bytes it signed.
         /new\s+StreamReader\(\s*(?:HttpContext\.)?Request\.Body\b/,
+        // PHP: Symfony's HttpFoundation, which Laravel's Request extends, and the language's
+        // own input stream. hi.events hands Stripe `$request->getContent()` and was partial.
+        // Not a body decoded where it is read: SolidInvoice's AJAX actions
+        // `json_decode($request->getContent())`, and nothing signed survives that.
+        /(?<!json_decode\(\s*)\$request->getContent\(\s*\)/,
+        /file_get_contents\(\s*['"]php:\/\/input['"]\s*\)/,
       ],
       20
     )

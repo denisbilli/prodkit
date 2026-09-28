@@ -88,5 +88,39 @@ describe('an account the user belongs to', () => {
 
     expect(found).toEqual({ organization: false, membership: false });
   });
-});
 
+  /** hi.events: an Eloquent User belongs to many accounts, and each account to many users. */
+  it('reads the same in an Eloquent User', async () => {
+    const found = await tenancy({
+      'composer.json': '{"require":{"laravel/framework":"^11.0"}}\n',
+      'app/Models/User.php': '<?php\nclass User extends Authenticatable\n{\n    public function accounts(): BelongsToMany\n    {\n        return $this->belongsToMany(Account::class, \'account_users\');\n    }\n}\n',
+      'app/Models/Account.php': '<?php\nclass Account extends Model\n{\n    public function users(): BelongsToMany\n    {\n        return $this->belongsToMany(User::class, \'account_users\');\n    }\n}\n',
+      'app/Repository/EventRepository.php': '<?php\n$query->where(\'account_id\', $accountId);\n',
+    });
+
+    expect(found).toEqual({ organization: true, membership: true });
+  });
+
+  /** monica: one account per household, which is still somebody's own address book. */
+  it('does not read an Eloquent user who belongs to one account as a tenant', async () => {
+    const found = await tenancy({
+      'composer.json': '{"require":{"laravel/framework":"^11.0"}}\n',
+      'app/Models/User.php': '<?php\nclass User extends Authenticatable\n{\n    public function account()\n    {\n        return $this->belongsTo(Account::class);\n    }\n}\n',
+      'app/Models/Account.php': '<?php\nclass Account extends Model\n{\n    public function users()\n    {\n        return $this->hasMany(User::class);\n    }\n}\n',
+      'app/Models/Contact.php': '<?php\n$query->where(\'account_id\', $accountId);\n',
+    });
+
+    expect(found).toEqual({ organization: false, membership: false });
+  });
+
+  it('does not read an Eloquent account that holds one user as a tenant', async () => {
+    const found = await tenancy({
+      'composer.json': '{"require":{"laravel/framework":"^11.0"}}\n',
+      'app/Models/User.php': '<?php\nclass User extends Authenticatable\n{\n    public function accounts()\n    {\n        return $this->belongsToMany(Account::class);\n    }\n}\n',
+      'app/Models/Account.php': '<?php\nclass Account extends Model\n{\n    public function user()\n    {\n        return $this->hasOne(User::class);\n    }\n}\n',
+      'app/Repository/EventRepository.php': '<?php\n$query->where(\'account_id\', $accountId);\n',
+    });
+
+    expect(found).toEqual({ organization: false, membership: false });
+  });
+});
