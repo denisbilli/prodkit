@@ -514,6 +514,10 @@
     {
       "repo": "hedgedoc/hedgedoc",
       "is": "NestJS on Fastify notes; takes images through @fastify/multipart"
+    },
+    {
+      "repo": "redmine/redmine",
+      "is": "Rails project tracker; Mailer < ActionMailer::Base, delivered with deliver_later"
     }
   ]
 }

@@ -115,7 +115,9 @@ async function railsSendsMail(ctx: DetectContext): Promise<string[]> {
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source.filter((file) => file.endsWith('.rb')),
-    [/^\s*class\s+\w+\s*<\s*ApplicationMailer\b/],
+    // Or ActionMailer itself, which ApplicationMailer only wraps: redmine's
+    // `class Mailer < ActionMailer::Base` sends every issue notification.
+    [/^\s*class\s+\w+\s*<\s*(?:ApplicationMailer|ActionMailer::Base)\b/],
     1,
   );
   return hits.length > 0 ? ['actionmailer'] : [];
@@ -188,7 +190,11 @@ async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> 
   const hits = await searchInFiles(
     ctx.root,
     domainFiles(ctx),
-    [/send_?mail/i, /send_?email/i, /\btransactional\b/i, /push_?notification/i, /\bnotify\(/i],
+    [
+      /send_?mail/i, /send_?email/i, /\btransactional\b/i, /push_?notification/i, /\bnotify\(/i,
+      // ActionMailer's own delivery: redmine sends every issue mail with `.deliver_later`.
+      /\.deliver_(?:later|now)\b/,
+    ],
     20,
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });

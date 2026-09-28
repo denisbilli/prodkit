@@ -27,4 +27,27 @@ describe('the devise gem', () => {
 
     expect(analysis.detectors['notifications.transactional']?.details?.emailDependency).toBe(true);
   });
+
+  /** redmine's Mailer subclasses ActionMailer itself, with no ApplicationMailer between. */
+  it('sends mail through ActionMailer::Base', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'prodkit-redmine-'));
+    await fs.writeFile(path.join(root, 'Gemfile'), 'source "https://rubygems.org"\n\ngem "rails", "~> 7.2.0"\n');
+    await fs.mkdir(path.join(root, 'app/models'), { recursive: true });
+    await fs.writeFile(path.join(root, 'app/models/mailer.rb'), 'class Mailer < ActionMailer::Base\n  def issue_add(user, issue)\n    mail(to: user)\n  end\nend\n');
+    const analysis = await analyzeProject(root);
+    await fs.rm(root, { recursive: true, force: true });
+
+    expect(analysis.detectors['notifications.transactional']?.details?.emailDependency).toBe(true);
+  });
+
+  it('sends it where ActionMailer delivers', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'prodkit-redmine-'));
+    await fs.writeFile(path.join(root, 'Gemfile'), 'source "https://rubygems.org"\n\ngem "rails", "~> 7.2.0"\n');
+    await fs.mkdir(path.join(root, 'app/models'), { recursive: true });
+    await fs.writeFile(path.join(root, 'app/models/issue.rb'), 'class Issue < ApplicationRecord\n  after_create { IssueMailer.issue_add(self).deliver_later }\nend\n');
+    const analysis = await analyzeProject(root);
+    await fs.rm(root, { recursive: true, force: true });
+
+    expect(analysis.detectors['notifications.transactional']?.details?.sendSites).toBeGreaterThan(0);
+  });
 });

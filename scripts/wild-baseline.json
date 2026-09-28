@@ -670,7 +670,7 @@
       "auth.password-reset": "present",
       "auth.email-verification": "present",
       "b2c.onboarding": "present",
-      "b2c.notifications": "partial",
+      "b2c.notifications": "present",
       "authz.ownership": "present",
       "gdpr.consent": "missing",
       "gdpr.export": "present",
@@ -3352,7 +3352,7 @@
       "auth.password-reset": "present",
       "auth.email-verification": "present",
       "b2c.onboarding": "present",
-      "b2c.notifications": "partial",
+      "b2c.notifications": "present",
       "authz.ownership": "present",
       "gdpr.consent": "missing",
       "gdpr.export": "unknown",
@@ -3607,6 +3607,34 @@
       "audit.baseline": "missing",
       "deployment.readiness": "present",
       "deployment.docker": "partial"
+    }
+  },
+  "redmine": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "missing",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "present",
+      "authz.ownership": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "present",
+      "security.cors": "not_applicable",
+      "security.rate-limit": "missing",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "partial",
+      "deployment.readiness": "partial",
+      "deployment.docker": "missing"
     }
   }
 }
