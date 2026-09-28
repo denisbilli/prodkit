@@ -292,6 +292,18 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
     if (!text) continue;
 
     validationSignals.push(...matchLines(text, /\.exs?$/.test(file) ? [...UPLOAD_VALIDATION, ...EX_UPLOAD_VALIDATION] : UPLOAD_VALIDATION, file));
+    /**
+     * busboy's size limit, `limits: { fileSize }`, the options object multer, @fastify/multipart
+     * and express-fileupload all pass through: wiki.js caps every upload that way and was
+     * told its uploads were not validated. Read from the object, not line by line:
+     * `fileSize: config.maxFileSize` is a line the citation filter drops as a value named
+     * after its own key.
+     */
+    const limit = /\blimits\s*:\s*\{[^}]*?\bfileSize\s*:/.exec(text);
+    if (limit) {
+      const line = text.slice(0, limit.index + limit[0].length).split(/\r?\n/).length;
+      validationSignals.push({ file, line, snippet: text.split(/\r?\n/)[line - 1].trim().slice(0, 200) });
+    }
     if (intakeSignals.length < 10) {
       intakeSignals.push(...matchLines(text, file.endsWith('.py') ? [...FILE_INTAKE, ...PY_FILE_INTAKE] : FILE_INTAKE, file));
     }
