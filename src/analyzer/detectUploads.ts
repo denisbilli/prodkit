@@ -177,6 +177,9 @@ const FILE_INTAKE = [
   // Paperclip (and its kt-paperclip fork), which mastodon stores every media file with.
   /\bhas_attached_file\s+:/,
   /\bmount_uploaders?\s+:/,
+  // Shrine's, which manyfold stores every uploaded 3D model with:
+  // `include ModelFileUploader::Attachment(:attachment)`.
+  /\binclude\s+[\w:]+::Attachment\s*\(/,
   /\$request->(?:file|hasFile)\s*\(/,
   /**
    * PHP's own, below any framework: the `$_FILES` superglobal, where the language puts

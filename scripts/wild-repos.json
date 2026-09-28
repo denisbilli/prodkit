@@ -539,6 +539,10 @@
     {
       "repo": "bigcapitalhq/bigcapital",
       "is": "accounting SaaS; connects its customers' own standard Stripe accounts, type on the next line"
+    },
+    {
+      "repo": "manyfold3d/manyfold",
+      "is": "Rails 3D model library; stores uploads through Shrine's Attachment module"
     }
   ]
 }
