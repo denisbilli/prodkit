@@ -80,6 +80,14 @@ function deriveStatus(analysis: ProjectAnalysis, capability: ExpectedCapability)
     case 'auth.email-verification': {
       if (detector(analysis, 'auth.emailVerification')?.present) return 'present';
 
+      /**
+       * The same provider verifies the address. SaaS-Boilerplate signs people in through
+       * Clerk, which confirms every email before the account exists, and was told at `high`
+       * to build email verification for addresses it never handles.
+       */
+      const managedOnly = detector(analysis, 'auth.externalIdentityOnly')?.present === true;
+      if (managedOnly && detector(analysis, 'auth.core')?.present === true) return 'not_applicable';
+
       return routesWentUnread(analysis) ? 'unknown' : 'missing';
     }
     case 'authz.roles': {

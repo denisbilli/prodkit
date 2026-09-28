@@ -489,6 +489,10 @@
     {
       "repo": "wasp-lang/open-saas",
       "is": "Wasp SaaS template; mail through wasp/server/email"
+    },
+    {
+      "repo": "ixartz/SaaS-Boilerplate",
+      "is": "Next.js + Clerk + Drizzle; Clerk verifies emails, a sign-up screenshot is no onboarding"
     }
   ]
 }

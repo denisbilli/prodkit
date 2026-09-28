@@ -297,6 +297,17 @@ describe('framework-native observability and identity', () => {
     expect(capability?.status).toBe('not_applicable');
   });
 
+  it('does not demand email verification from an OAuth-only product', async () => {
+    const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'nextjs-managed-auth'));
+    const report = buildReport(analysis, { profile: 'b2b-saas' });
+
+    // The identity provider confirms the address; there is none here to verify.
+    const capability = report.productProfile?.capabilities.find(
+      (entry) => entry.capabilityId === 'auth.email-verification',
+    );
+    expect(capability?.status).toBe('not_applicable');
+  });
+
   it('still demands a password reset where passwords are stored locally', async () => {
     const analysis = await analyzeProject(path.resolve(__dirname, 'fixtures', 'express-basic'));
     const report = buildReport(analysis, { profile: 'b2b-saas' });

@@ -233,7 +233,10 @@ async function detectOnboarding(ctx: DetectContext): Promise<DetectorResult> {
    * login and password-reset pages from — babybuddy's and ArchiveBox's have no sign-up in it.
    */
   const namedFiles = ctx.files.all.filter((file) =>
-    /(onboarding|signup|sign-up|register|registration)/i.test(file) && !/(^|\/)templates\/registration\//.test(file));
+    /(onboarding|signup|sign-up|register|registration)/i.test(file) && !/(^|\/)templates\/registration\//.test(file)
+    // A picture of a sign-up page is not one: SaaS-Boilerplate ships
+    // public/assets/images/nextjs-boilerplate-saas-sign-up.png for its README.
+    && !/\.(?:png|jpe?g|gif|webp|svg|ico|avif)$/i.test(file));
   const serviceWorkerFiles = new Set<string>();
   for (const file of [...new Set([...candidates, ...namedFiles])].filter((f) => /\.(?:[cm]?[jt]sx?|php)$/.test(f))) {
     if (await registersAServiceWorker(ctx, file)) serviceWorkerFiles.add(file);
