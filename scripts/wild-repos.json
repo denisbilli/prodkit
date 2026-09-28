@@ -526,6 +526,10 @@
     {
       "repo": "chaskiq/chaskiq",
       "is": "Rails support messaging; Devise :lockable locks agents after failed sign-ins"
+    },
+    {
+      "repo": "erxes/erxes",
+      "is": "business OS with CRM, POS and accounting plugins; a ledger account and a merchant's tax number are not a marketplace"
     }
   ]
 }

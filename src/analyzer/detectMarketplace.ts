@@ -160,11 +160,13 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
    * Tax code speaks the same way: invoiceninja's TaxModel has a `seller_subregion`, the
    * seller's jurisdiction for a sales-tax rule. And `merchant` in a payment provider's
    * identifier — `AppleMerchantId`, `merchant_id` — is the product's own merchant account
-   * with Apple Pay or PayPal, not a merchant selling through it.
+   * with Apple Pay or PayPal, not a merchant selling through it. Nor is a merchant's tax
+   * number: erxes' point of sale prints `merchantTin`, the shop's own taxpayer number, on
+   * every receipt it registers with the tax office.
    */
   const notInvoicing = (hit: { file: string; snippet: string }) =>
     !/invoic|(^|\/)tax/i.test(hit.file)
-    && !/buyer_?reference|seller_?(?:sub)?region|seller_?(?:country|state|tax)/i.test(hit.snippet)
+    && !/buyer_?reference|seller_?(?:sub)?region|seller_?(?:country|state|tax)|merchant_?tin/i.test(hit.snippet)
     && !/merchant_?id(?:entifier)?\b|MerchantId/i.test(hit.snippet)
     /*
      * The same account under the provider's name. bitwarden/server keeps
@@ -301,7 +303,17 @@ async function detectPayout(ctx: DetectContext): Promise<DetectorResult> {
   const hits = await searchInFiles(
     ctx.root,
     ctx.files.source,
-    [/\bpayout/i, /\btransfer(s)?\.create/i, /stripe\s*connect/i, /\baccounts(?:\.|->)create/i, /destination_account/i, /application_fee/i],
+    [
+      /\bpayout/i, /\btransfer(s)?\.create/i, /stripe\s*connect/i,
+      /**
+       * Stripe's own call, as its SDK spells it: `stripe.accounts.create(`,
+       * `$stripe->accounts->create(`. Not in any case and not as a prefix: erxes keeps its
+       * ledger in a Mongoose model, `models.Accounts.create(` and `createAccount(`, and those
+       * were the payouts of a CRM read as a marketplace.
+       */
+      /\baccounts(?:\.|->)create\b/,
+      /destination_account/i, /application_fee/i,
+    ],
     20,
     // A referral or affiliate programme pays the people who brought customers in; it is
     // not a supply side being paid. invoiceninja's only "payouts" were its referral report.
