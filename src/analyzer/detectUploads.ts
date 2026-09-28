@@ -204,6 +204,9 @@ const FILE_INTAKE = [
   /=>\s*\[[^\]]*['"](?:file|image)['"]/,
   // The field named by a constant too: focalboard writes `r.FormFile(UploadFormFileKey)`.
   /\.FormFile\s*\(\s*(?:["']|[A-Za-z_]\w*\s*\))/,
+  // Gin's own, which writes an uploaded file to disk: PhotoPrism takes every photo and
+  // avatar through `c.MultipartForm()` and `c.SaveUploadedFile(file, dest)`.
+  /\.SaveUploadedFile\s*\(/,
   /**
    * Go's standard library hands an uploaded file over as `*multipart.FileHeader`, parsed
    * out of `Request.MultipartForm`. pocketbase stores every record's files that way —

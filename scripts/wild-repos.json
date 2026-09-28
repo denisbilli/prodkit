@@ -547,6 +547,10 @@
     {
       "repo": "discourse/discourse",
       "is": "Rails forum; takes uploads as Rack UploadedFile, read through .tempfile"
+    },
+    {
+      "repo": "photoprism/photoprism",
+      "is": "Go photo library on Gin; takes photos with c.SaveUploadedFile"
     }
   ]
 }
