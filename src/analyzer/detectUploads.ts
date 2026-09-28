@@ -239,6 +239,14 @@ const PY_FILE_INTAKE = [
   /\brequest\.files\b/,
 ];
 
+/**
+ * Rack's, read only from Ruby: an uploaded parameter arrives as an
+ * `ActionDispatch::Http::UploadedFile`, and `.tempfile` is where its bytes are. discourse
+ * takes every image and attachment in `UploadsController#create` with `file.tempfile` and
+ * read as taking no uploads.
+ */
+const RB_FILE_INTAKE = [/\.tempfile/];
+
 export async function detectUploads(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
   // `multiparty` too: grist parses every attachment upload with it and read as taking none.
@@ -308,7 +316,8 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
       validationSignals.push({ file, line, snippet: text.split(/\r?\n/)[line - 1].trim().slice(0, 200) });
     }
     if (intakeSignals.length < 10) {
-      intakeSignals.push(...matchLines(text, file.endsWith('.py') ? [...FILE_INTAKE, ...PY_FILE_INTAKE] : FILE_INTAKE, file));
+      const intake = file.endsWith('.py') ? [...FILE_INTAKE, ...PY_FILE_INTAKE] : file.endsWith('.rb') ? [...FILE_INTAKE, ...RB_FILE_INTAKE] : FILE_INTAKE;
+      intakeSignals.push(...matchLines(text, intake, file));
     }
 
     if (!file.endsWith('.py')) continue;

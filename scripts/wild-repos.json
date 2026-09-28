@@ -543,6 +543,10 @@
     {
       "repo": "manyfold3d/manyfold",
       "is": "Rails 3D model library; stores uploads through Shrine's Attachment module"
+    },
+    {
+      "repo": "discourse/discourse",
+      "is": "Rails forum; takes uploads as Rack UploadedFile, read through .tempfile"
     }
   ]
 }
