@@ -545,6 +545,13 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
        * Firefly III guards its login that way and was told at `high` it limits nothing.
        */
       /^\s*use\s+ThrottlesLogins\s*;/,
+      /**
+       * Devise's, the same lockout for Rails: `:lockable` among a model's `devise` modules
+       * locks the account after failed sign-ins. chaskiq's agents are lockable, and it read
+       * as limiting nothing. The module list only: a line that starts with `:lockable` or
+       * with `devise`, not the symbol in an expression.
+       */
+      /^\s*(?:devise\b.*)?:lockable\b/,
       /StatusCode::TOO_MANY_REQUESTS/,
       // actix-web's builder for the same answer, a limit written by hand:
       // `return HttpResponse::TooManyRequests().finish();`.

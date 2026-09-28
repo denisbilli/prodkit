@@ -522,6 +522,10 @@
     {
       "repo": "activepieces/activepieces",
       "is": "workflow automation with 700+ pieces; a piece's provider vocabulary is not a marketplace"
+    },
+    {
+      "repo": "chaskiq/chaskiq",
+      "is": "Rails support messaging; Devise :lockable locks agents after failed sign-ins"
     }
   ]
 }

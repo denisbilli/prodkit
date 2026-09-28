@@ -3362,7 +3362,7 @@
       "billing.webhook-integrity": "not_applicable",
       "security.headers": "missing",
       "security.cors": "missing",
-      "security.rate-limit": "missing",
+      "security.rate-limit": "present",
       "uploads.protection": "present",
       "observability.health": "missing",
       "observability.logging": "present",
@@ -3666,6 +3666,34 @@
       "jobs.background": "present",
       "ai.cost-control": "present",
       "ai.prompt-safety": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
+    }
+  },
+  "chaskiq": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "medium",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "missing",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "present",
+      "authz.ownership": "missing",
+      "gdpr.consent": "present",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "present",
+      "billing.webhook-integrity": "partial",
+      "security.headers": "present",
+      "security.cors": "present",
+      "security.rate-limit": "present",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "partial",
       "deployment.readiness": "present",
       "deployment.docker": "present"
     }
