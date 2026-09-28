@@ -535,6 +535,10 @@
       "repo": "requarks/wiki",
       "name": "wiki.js",
       "is": "Node wiki; caps uploads with multer's limits.fileSize"
+    },
+    {
+      "repo": "bigcapitalhq/bigcapital",
+      "is": "accounting SaaS; connects its customers' own standard Stripe accounts, type on the next line"
     }
   ]
 }

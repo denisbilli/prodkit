@@ -87,6 +87,25 @@ const CONNECTED_ACCOUNT = [
 /** A `standard` account is a SaaS customer's own Stripe, connected — see above. */
 const STANDARD_ACCOUNT = /['"]?type['"]?\s*(?::|=>|=)\s*['"]standard['"]/;
 
+const ACCOUNT_CREATION = /\baccounts(?:\.|->)create\s*\(/;
+const ACCOUNT_EVENT = /['"`]account\.updated['"`]/;
+
+/** A call's arguments from the line it opens on to the parenthesis that closes it. */
+function callArguments(text: string, line: number): string {
+  const lines = text.split(/\r?\n/).slice(line - 1, line + 11);
+  let depth = 0;
+  const taken: string[] = [];
+  for (const current of lines) {
+    taken.push(current);
+    for (const char of current) {
+      if (char === '(') depth++;
+      else if (char === ')') depth--;
+    }
+    if (depth <= 0) break;
+  }
+  return taken.join('\n');
+}
+
 /** The ones that name Stripe or its API; the last pattern is only a word. */
 const STRIPE_CONNECT_CALLS = CONNECTED_ACCOUNT.slice(0, -1);
 
@@ -197,9 +216,27 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
    * linked. It was inferred as a marketplace at high confidence. The word counts in a
    * file that talks to Stripe; the calls that are Stripe's own count anywhere.
    */
-  const connectedHits: TextMatch[] = [];
+  /**
+   * The account type is read from the whole call, not its first line. bigcapital — an
+   * accounting product whose customers take invoice payments through their own Stripe —
+   * writes `this.stripe.accounts.create({` with `type: 'standard'` on the line below, and
+   * was a marketplace at high confidence.
+   *
+   * And where every account the product creates is `standard`, the `account.updated`
+   * event it listens for is about those accounts: Stripe sends it for a connected standard
+   * account just as for an express one.
+   */
+  const candidates: Array<{ hit: TextMatch; standard: boolean }> = [];
   for (const hit of await searchInFiles(ctx.root, ctx.files.source, CONNECTED_ACCOUNT, 40)) {
-    if (STANDARD_ACCOUNT.test(hit.snippet)) continue;
+    const text = (await readTextFileSafe(ctx.root, hit.file)) ?? '';
+    candidates.push({ hit, standard: STANDARD_ACCOUNT.test(callArguments(text, hit.line)) });
+  }
+  const creates = candidates.filter(({ hit }) => ACCOUNT_CREATION.test(hit.snippet));
+  const onlyStandard = creates.length > 0 && creates.every(({ standard }) => standard);
+  const connectedHits: TextMatch[] = [];
+  for (const { hit, standard } of candidates) {
+    if (standard) continue;
+    if (onlyStandard && ACCOUNT_EVENT.test(hit.snippet)) continue;
     const stripesOwn = STRIPE_CONNECT_CALLS.some((pattern) => pattern.test(hit.snippet));
     if (stripesOwn || /stripe/i.test((await readTextFileSafe(ctx.root, hit.file)) ?? '')) connectedHits.push(hit);
     if (connectedHits.length >= 20) break;
