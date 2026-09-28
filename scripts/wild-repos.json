@@ -501,6 +501,10 @@
     {
       "repo": "dubinc/dub",
       "is": "Next.js link management with a partner program; takes a CSV through FormData as a File"
+    },
+    {
+      "repo": "grokability/snipe-it",
+      "is": "Laravel IT asset management with companies; a supplier of laptops is not a seller"
     }
   ]
 }

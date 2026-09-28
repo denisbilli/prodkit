@@ -3457,7 +3457,7 @@
   },
   "opensourcepos": {
     "inferredProfile": "b2c-app",
-    "inferenceConfidence": "medium",
+    "inferenceConfidence": "high",
     "capabilities": {
       "auth.baseline": "present",
       "auth.mfa": "missing",
@@ -3515,6 +3515,36 @@
       "audit.baseline": "present",
       "deployment.readiness": "present",
       "deployment.docker": "partial"
+    }
+  },
+  "snipe-it": {
+    "inferredProfile": "b2b-saas",
+    "inferenceConfidence": "medium",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "missing",
+      "auth.api-keys": "present",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "missing",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "present",
+      "security.cors": "partial",
+      "security.rate-limit": "present",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
     }
   }
 }

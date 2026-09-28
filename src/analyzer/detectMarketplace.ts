@@ -113,7 +113,13 @@ function identifierWord(word: string): RegExp {
   return new RegExp(`(?:[${initial.toLowerCase()}${initial.toUpperCase()}]${word.slice(1)}|${word.toUpperCase()})s?(?![a-z])`);
 }
 
-const SELLER_TERMS = ['seller', 'merchant', 'storefront', 'supplier'].map(identifierWord);
+/**
+ * Not `supplier`: a supplier is who the product's own user buys from. snipe-it records the
+ * supplier of every laptop and licence it tracks, opensourcepos the supplier of every
+ * item on its shelves; neither has anybody selling through it, and snipe-it was inferred
+ * as a marketplace on that word alone.
+ */
+const SELLER_TERMS = ['seller', 'merchant', 'storefront'].map(identifierWord);
 const BUYER_TERMS = ['buyer', 'purchaser', 'shopper'].map(identifierWord);
 
 /** Files where a domain concept is declared rather than merely mentioned. */
