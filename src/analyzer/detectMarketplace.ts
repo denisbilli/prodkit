@@ -4,6 +4,7 @@ import { hasAnyDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles, type TextMatch } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { evidenceOrSearch } from './absenceEvidence';
+import { connectorPackageFiles } from './connectors';
 
 /**
  * Marketplace-specific signals.
@@ -403,7 +404,16 @@ async function detectDispute(ctx: DetectContext, vocabularyUnread: boolean): Pro
   };
 }
 
-export async function detectMarketplace(ctx: DetectContext): Promise<DetectorResult[]> {
+export async function detectMarketplace(context: DetectContext): Promise<DetectorResult[]> {
+  // An integration's code speaks its provider's vocabulary; see `connectorPackageFiles`.
+  const connectors = await connectorPackageFiles(context);
+  const ctx: DetectContext = connectors.size === 0 ? context : {
+    ...context,
+    files: {
+      ...context.files,
+      source: context.files.source.filter((file) => !connectors.has(file)),
+    },
+  };
   const multiRole = await detectMultiRole(ctx);
   const vocabularyUnread = multiRole.details?.vocabularyUnread === true;
 
