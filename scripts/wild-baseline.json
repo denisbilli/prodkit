@@ -3482,5 +3482,39 @@
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
+  },
+  "dub": {
+    "inferredProfile": "marketplace",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "b2c.notifications": "present",
+      "marketplace.multi-role": "partial",
+      "marketplace.payout": "present",
+      "marketplace.commission": "present",
+      "marketplace.dispute": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "present",
+      "billing.model": "present",
+      "billing.webhook-integrity": "present",
+      "security.headers": "present",
+      "security.cors": "present",
+      "security.rate-limit": "present",
+      "uploads.protection": "present",
+      "observability.health": "missing",
+      "observability.logging": "partial",
+      "audit.baseline": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "partial"
+    }
   }
 }

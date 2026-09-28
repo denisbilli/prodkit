@@ -185,6 +185,13 @@ const FILE_INTAKE = [
    */
   /\$_FILES\b/,
   /**
+   * The web platform's own: a `FormData` field read as a `File`. Route handlers in Next.js,
+   * Remix and Hono receive a standard `Request`, and `await req.formData()` is how a file
+   * arrives. dub imports links from an uploaded CSV with `formData.get("file") as File` and
+   * was `not_applicable`.
+   */
+  /\.get\(\s*["'][^"']+["']\s*\)\s+as\s+File\b/,
+  /**
    * Laravel's `file` and `image` validation rules, which pass only for an uploaded file.
    * koel takes songs through `UploadSongRequest`, whose rules are `'file' => ['required',
    * 'file', new SupportedAudioFile()]`, and reads `$request->file->move(...)` as a

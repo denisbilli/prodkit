@@ -497,6 +497,10 @@
     {
       "repo": "opensourcepos/opensourcepos",
       "is": "CodeIgniter 4 point of sale; mails receipts through CodeIgniter\\Email\\Email"
+    },
+    {
+      "repo": "dubinc/dub",
+      "is": "Next.js link management with a partner program; takes a CSV through FormData as a File"
     }
   ]
 }
