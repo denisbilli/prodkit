@@ -597,6 +597,10 @@
     {
       "repo": "shaarli/Shaarli",
       "is": "Slim bookmarks manager; imports files through PSR-7 getUploadedFiles"
+    },
+    {
+      "repo": "pretalx/pretalx",
+      "is": "Django conference CfP; serves path(\"healthcheck/\") without a leading slash"
     }
   ]
 }

@@ -52,7 +52,12 @@ const ELIXIR_LOGGING_PACKAGES = ['logger_json', 'logger_file_backend', 'sentry']
  * and was told it has no health endpoint, while the file-name rule below already read
  * `liveness` and `readiness` as health routes.
  */
-const HEALTH_ROUTE = /\/(health|healthz|healthcheck|health[-_]check|readyz|livez|alive|liveness|readiness)\b/i;
+/**
+ * Or a route written without its leading slash, the way Django's `path()` takes one:
+ * pretalx serves `path("healthcheck/", admin.healthcheck)`. Quoted and ending in a slash, so
+ * the bare word in a string — a `"health"` label, a component name — is not a route.
+ */
+const HEALTH_ROUTE = /(?:\/|["'`]\^?(?=[\w-]+\/["'`$]))(health|healthz|healthcheck|health[-_]check|readyz|livez|alive|liveness|readiness)\b/i;
 
 /**
  * The other name for the same endpoint.
