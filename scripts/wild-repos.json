@@ -551,6 +551,10 @@
     {
       "repo": "photoprism/photoprism",
       "is": "Go photo library on Gin; takes photos with c.SaveUploadedFile"
+    },
+    {
+      "repo": "ente-io/ente",
+      "is": "end-to-end encrypted photos; verifies Stripe in Gin with stripe-go and a secret from viper"
     }
   ]
 }

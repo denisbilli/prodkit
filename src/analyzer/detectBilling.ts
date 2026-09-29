@@ -94,6 +94,9 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     ...hasAnyGradleDep(ctx, ['com.stripe:stripe-java', 'com.braintreepayments']),
     ...hasAnyDotnetDep(ctx, ['Stripe.net', 'Braintree', 'PayPalCheckoutSdk']),
     ...hasAnyRustDep(ctx, ['stripe-rust', 'async-stripe']),
+    // Go's, whose module path carries its major version: ente's server bills through
+    // `github.com/stripe/stripe-go/v72`.
+    ...ctx.goDeps.filter((dep) => /^github\.com\/stripe\/stripe-go(?:\/v\d+)?$/.test(dep)),
   ];
   for (const dep of processorDeps) evidence.push({ type: 'dependency', value: dep });
 
@@ -175,7 +178,8 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
         /\brequest\.get_data\(/,
         /\bawait\s+request\.body\(\s*\)/,
         // Go's net/http.
-        /io\.ReadAll\(\s*r\.Body\s*\)/,
+        // Gin keeps the same body on its context: ente reads `io.ReadAll(c.Request.Body)`.
+        /io\.ReadAll\(\s*(?:r|c\.Request)\.Body\s*\)/,
         // ASP.NET: the request stream read to the end before any model binding, which is
         // how bitwarden/server hands Stripe the exact bytes it signed.
         /new\s+StreamReader\(\s*(?:HttpContext\.)?Request\.Body\b/,
@@ -190,8 +194,22 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
     )
     : [];
 
+  /**
+   * The same key in a configuration file rather than the environment: ente reads
+   * `viper.GetString("stripe.us.webhook-secret")` and read as having no secret. A quoted
+   * key, so a literal `'whsec_local'` handed straight to the call still does not count;
+   * and in a file that names the processor, because most products have webhooks of their
+   * own — rallly's form field, ToolJet's git-sync column and zulip's integration query
+   * parameter are all `webhook_secret`, and none of them is what a payment is signed with.
+   */
+  const configuredSecret = /["'][\w.-]*webhook[-_.]?secret["']/i;
+  const namesAProcessor = new RegExp(PROCESSOR_PACKAGES.join('|'), 'i');
   const secretHits = hasStrongStripeSignal
-    ? await searchInFiles(ctx.root, ctx.files.source, [/STRIPE_WEBHOOK_SECRET/i, /stripeWebhookSecret/i], 20)
+    ? [
+      ...await searchInFiles(ctx.root, ctx.files.source, [/STRIPE_WEBHOOK_SECRET/i, /stripeWebhookSecret/i], 20),
+      ...(await searchInFiles(ctx.root, ctx.files.source, [configuredSecret], 20))
+        .filter((hit) => namesAProcessor.test(hit.file) || namesAProcessor.test(hit.snippet)),
+    ]
     : [];
 
   const signatureHits = hasStrongStripeSignal
