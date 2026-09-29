@@ -331,8 +331,18 @@ function isTestOrExamplePath(file: string): boolean {
  */
 const SOURCE_EXTENSIONS = /\.(ts|tsx|js|jsx|mjs|cjs|py|php|go|rb|java|cs|rs|kt|swift|dart|ex|exs|html?|vue|svelte|astro)$/;
 
+/**
+ * laravel-ide-helper's output, generated for an editor to autocomplete against.
+ *
+ * `_ide_helper.php` declares a stub for every method the framework's facades expose —
+ * `Router::emailVerification()` among them — whether the application calls any of them or
+ * not. Heimdall has no email at all and was credited with email verification from that
+ * file. The names are the package's defaults.
+ */
+const IDE_HELPER = /(^|\/)_ide_helper\.php$/;
+
 function pickSource(files: string[]): string[] {
-  return files.filter((f) => SOURCE_EXTENSIONS.test(f) && !isTestOrExamplePath(f));
+  return files.filter((f) => SOURCE_EXTENSIONS.test(f) && !isTestOrExamplePath(f) && !IDE_HELPER.test(f));
 }
 
 /**

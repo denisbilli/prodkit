@@ -576,6 +576,10 @@
     {
       "repo": "alexjustesen/speedtest-tracker",
       "is": "Laravel speed monitor; prunes old results with Eloquent's Prunable and model:prune"
+    },
+    {
+      "repo": "linuxserver/Heimdall",
+      "is": "Laravel app dashboard with no email; laravel-ide-helper's stubs are not its code"
     }
   ]
 }
