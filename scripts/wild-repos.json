@@ -589,6 +589,10 @@
       "repo": "getlago/lago-api",
       "name": "lago",
       "is": "Rails usage-based billing; checks Stripe webhooks with Signature.verify_header"
+    },
+    {
+      "repo": "LycheeOrg/Lychee",
+      "is": "Laravel photo gallery; passkeys through laragear/webauthn"
     }
   ]
 }

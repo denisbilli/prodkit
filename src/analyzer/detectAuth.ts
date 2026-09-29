@@ -325,7 +325,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...hasAnyGoDep(ctx, ['github.com/pquerna/otp', 'github.com/xlzd/gotp']),
     ...hasAnyGradleDep(ctx, ['com.warrenstrange:googleauth', 'dev.samstevens.totp:totp', 'com.eatthepath:java-otp']),
     ...hasAnyRubyDep(ctx, ['rotp', 'devise-two-factor']),
-    ...hasAnyPhpDep(ctx, ['pragmarx/google2fa', 'spomky-labs/otphp', 'scheb/2fa-bundle', 'scheb/2fa-totp']),
+    // And passkeys, which Lychee signs people in with through `laragear/webauthn`.
+    ...hasAnyPhpDep(ctx, ['pragmarx/google2fa', 'spomky-labs/otphp', 'scheb/2fa-bundle', 'scheb/2fa-totp', 'laragear/webauthn']),
     ...hasAnyDotnetDep(ctx, ['Otp.NET']),
     ...hasAnyRustDep(ctx, ['totp-rs']),
     ...hasAnyPyDep(ctx, ['django-otp']),
