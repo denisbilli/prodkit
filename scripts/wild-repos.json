@@ -567,6 +567,11 @@
     {
       "repo": "InvoicePlane/InvoicePlane",
       "is": "PHP invoicing; logs gateway merchant responses and reads a session's application fee, neither a marketplace"
+    },
+    {
+      "repo": "danielbrendel/hortusfox-web",
+      "name": "hortusfox",
+      "is": "PHP plant manager on Asatru; resets at /password/reset, mails through a Composer PHPMailer"
     }
   ]
 }

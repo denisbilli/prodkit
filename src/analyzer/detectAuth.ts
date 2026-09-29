@@ -612,7 +612,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        * to — `/password-reset`, `/password_resets` — beside the forgot, token and
        * recovery patterns around it and the frameworks that ship the flow.
        */
-      /\/password[_-]?resets?\b/i,
+      // With the words as two segments too: HortusFox routes `'/password/reset'`.
+      /\/password[_/-]?resets?\b/i,
       // And the other order, a path too: kutt sends people to `/reset-password`.
       /['"`]\/reset[_-]?password\b/i,
       /**
