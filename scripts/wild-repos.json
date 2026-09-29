@@ -563,6 +563,10 @@
     {
       "repo": "benjaminjonard/koillection",
       "is": "Symfony collection manager; images through FileType, checked with Assert\\Image"
+    },
+    {
+      "repo": "InvoicePlane/InvoicePlane",
+      "is": "PHP invoicing; logs gateway merchant responses and reads a session's application fee, neither a marketplace"
     }
   ]
 }

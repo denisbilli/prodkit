@@ -87,6 +87,24 @@ const CONNECTED_ACCOUNT = [
 /** A `standard` account is a SaaS customer's own Stripe, connected — see above. */
 const STANDARD_ACCOUNT = /['"]?type['"]?\s*(?::|=>|=)\s*['"]standard['"]/;
 
+/**
+ * A Stripe restricted-key permission, which Stripe names `<resource>_read` and
+ * `<resource>_write`. Infisical rotates its customers' Stripe keys and lists the scopes a
+ * key may hold — `connected_account_read`, `payout_write`, `application_fee_write` — and a
+ * secrets manager became a marketplace. A line that names a permission is about what a key
+ * may do, not money moving through the product.
+ */
+const STRIPE_PERMISSION = /["'`]\w+_(?:read|write)["'`]/;
+
+/**
+ * A fee the platform sets, not one it reads back. InvoicePlane logs
+ * `$session->application_fee_amount` off a Checkout session its customer was paid through,
+ * and that line was both a payout and a commission. A cut is taken by passing
+ * `application_fee_amount` when the payment is created — a key, a keyword argument or a
+ * property being written — never by reading the field off the object Stripe returned.
+ */
+const APPLICATION_FEE = /(?<!->|\.)application_fee/i;
+
 const ACCOUNT_CREATION = /\baccounts(?:\.|->)create\s*\(/;
 const ACCOUNT_EVENT = /['"`]account\.updated['"`]/;
 
@@ -187,6 +205,9 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
     !/invoic|(^|\/)tax/i.test(hit.file)
     && !/buyer_?reference|seller_?(?:sub)?region|seller_?(?:country|state|tax)|merchant_?tin/i.test(hit.snippet)
     && !/merchant_?id(?:entifier)?\b|MerchantId/i.test(hit.snippet)
+    // And what the gateway answered that account: InvoicePlane logs every PayPal and Stripe
+    // capture in `ip_merchant_responses`, and they were the supply side of invoicing software.
+    && !/merchant_?response/i.test(hit.snippet)
     /*
      * The same account under the provider's name. bitwarden/server keeps
      * `_braintreeMerchantUrl` for the Braintree console of its own merchant account, and
@@ -228,6 +249,7 @@ async function detectMultiRole(ctx: DetectContext): Promise<DetectorResult> {
    */
   const candidates: Array<{ hit: TextMatch; standard: boolean }> = [];
   for (const hit of await searchInFiles(ctx.root, ctx.files.source, CONNECTED_ACCOUNT, 40)) {
+    if (STRIPE_PERMISSION.test(hit.snippet)) continue;
     const text = (await readTextFileSafe(ctx.root, hit.file)) ?? '';
     candidates.push({ hit, standard: STANDARD_ACCOUNT.test(callArguments(text, hit.line)) });
   }
@@ -349,12 +371,13 @@ async function detectPayout(ctx: DetectContext): Promise<DetectorResult> {
        * were the payouts of a CRM read as a marketplace.
        */
       /\baccounts(?:\.|->)create\b/,
-      /destination_account/i, /application_fee/i,
+      /destination_account/i, APPLICATION_FEE,
     ],
     20,
     // A referral or affiliate programme pays the people who brought customers in; it is
     // not a supply side being paid. invoiceninja's only "payouts" were its referral report.
-    (hit) => !/referral|affiliate/i.test(hit.file) && !/referral|affiliate/i.test(hit.snippet) && !STANDARD_ACCOUNT.test(hit.snippet),
+    (hit) => !/referral|affiliate/i.test(hit.file) && !/referral|affiliate/i.test(hit.snippet) && !STANDARD_ACCOUNT.test(hit.snippet)
+      && !STRIPE_PERMISSION.test(hit.snippet),
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 
@@ -392,7 +415,7 @@ async function detectCommission(ctx: DetectContext, vocabularyUnread: boolean): 
       /commission[_\s]?(rate|fee|percent|amount|bps)/i,
       /(rate|fee|percent|amount)[_\s]?commission/i,
       /\bcommission[A-Z]/,
-      /application_fee/i,
+      APPLICATION_FEE,
       /\bplatform_?fee/i,
       /\btake_?rate/i,
       /\bservice_?fee/i,
@@ -400,7 +423,7 @@ async function detectCommission(ctx: DetectContext, vocabularyUnread: boolean): 
     20,
     // And the rate a referral programme pays out is a commission to a referrer, not a cut
     // the platform keeps.
-    (hit) => !/referral|affiliate/i.test(hit.file) && !/referral|affiliate/i.test(hit.snippet),
+    (hit) => !/referral|affiliate/i.test(hit.file) && !/referral|affiliate/i.test(hit.snippet) && !STRIPE_PERMISSION.test(hit.snippet),
   );
   for (const hit of hits) evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
 
