@@ -231,6 +231,9 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
          * payload whose signature does not match; none is a name the author chose.
          */
         /\bconstruct_event\s*\(/,
+        // The lower-level check the SDKs expose: lago verifies with Ruby's
+        // `Stripe::Webhook::Signature.verify_header(` and read as not checking at all.
+        /\bverify_?header\s*\(/i,
         /\bparse_?thin_?event\s*\(/i,
         /['"]stripe-signature['"]/i,
         /validateSignature/i,

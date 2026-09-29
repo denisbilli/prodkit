@@ -584,6 +584,11 @@
     {
       "repo": "tubearchivist/tubearchivist",
       "is": "Django video archiver; notifies through apprise"
+    },
+    {
+      "repo": "getlago/lago-api",
+      "name": "lago",
+      "is": "Rails usage-based billing; checks Stripe webhooks with Signature.verify_header"
     }
   ]
 }
