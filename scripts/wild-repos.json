@@ -559,6 +559,10 @@
     {
       "repo": "advplyr/audiobookshelf",
       "is": "Node audiobook server; vendors express-fileupload and takes uploads from req.files"
+    },
+    {
+      "repo": "benjaminjonard/koillection",
+      "is": "Symfony collection manager; images through FileType, checked with Assert\\Image"
     }
   ]
 }

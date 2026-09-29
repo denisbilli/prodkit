@@ -135,6 +135,9 @@ const UPLOAD_VALIDATION = [
    */
   /\bvalidates_attachment(?:_content_type\s+:\w+|\s+:\w+.*\bcontent_type:)/,
   /['"|]mimes(?:types)?:/,
+  // Symfony's validator constraints on a file: Koillection checks every image with
+  // `#[Assert\Image(mimeTypes: [...])]` on the entity that holds it.
+  /\bAssert\\(?:Image|File)\s*\(/,
   // Laravel's File facade reads the type from the content, as koel's SupportedAudioFile does.
   /\bFile::mimeType\s*\(/,
   /\bhttp\.DetectContentType\s*\(/,
@@ -187,6 +190,12 @@ const FILE_INTAKE = [
    * that way, through its own Request class, and was `not_applicable`.
    */
   /\$_FILES\b/,
+  /**
+   * Symfony's form field for a file, by the form component's own namespace. Koillection
+   * takes every collection, item and tag image through `->add('file', FileType::class)`
+   * and read as taking no uploads.
+   */
+  /^\s*use\s+Symfony\\Component\\Form\\Extension\\Core\\Type\\FileType\s*;/,
   /**
    * The web platform's own: a `FormData` field read as a `File`. Route handlers in Next.js,
    * Remix and Hono receive a standard `Request`, and `await req.formData()` is how a file
