@@ -499,7 +499,7 @@
       "gdpr.consent": "missing",
       "gdpr.export": "missing",
       "gdpr.erasure": "present",
-      "gdpr.retention": "missing",
+      "gdpr.retention": "present",
       "billing.model": "missing",
       "billing.webhook-integrity": "not_applicable",
       "security.headers": "present",
@@ -1566,7 +1566,7 @@
       "gdpr.consent": "missing",
       "gdpr.export": "missing",
       "gdpr.erasure": "present",
-      "gdpr.retention": "missing",
+      "gdpr.retention": "present",
       "billing.model": "missing",
       "billing.webhook-integrity": "not_applicable",
       "security.headers": "missing",
@@ -2912,7 +2912,7 @@
       "gdpr.consent": "missing",
       "gdpr.export": "missing",
       "gdpr.erasure": "present",
-      "gdpr.retention": "missing",
+      "gdpr.retention": "present",
       "billing.model": "missing",
       "billing.webhook-integrity": "not_applicable",
       "security.headers": "present",
@@ -4010,6 +4010,34 @@
       "audit.baseline": "missing",
       "deployment.readiness": "partial",
       "deployment.docker": "partial"
+    }
+  },
+  "speedtest-tracker": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "missing",
+      "b2c.onboarding": "missing",
+      "b2c.notifications": "present",
+      "authz.ownership": "missing",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "present",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "missing",
+      "security.cors": "missing",
+      "security.rate-limit": "present",
+      "uploads.protection": "not_applicable",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "partial",
+      "deployment.readiness": "partial",
+      "deployment.docker": "present"
     }
   }
 }

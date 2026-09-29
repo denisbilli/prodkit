@@ -510,6 +510,12 @@ export async function detectGdpr(ctx: DetectContext): Promise<DetectorResult[]> 
        * Python's form is here because only a Python product has been measured missing it.
        */
       /\btimedelta\(\s*days\s*=\s*[\w.]*retention\w*/i,
+      /**
+       * Laravel's own: a model that uses the `Prunable` trait says in `prunable()` which of
+       * its rows have outlived their use, and `model:prune` deletes them. speedtest-tracker
+       * prunes its old results that way on a schedule and read as keeping them forever.
+       */
+      /^\s*use\s+Illuminate\\Database\\Eloquent\\(?:Mass)?Prunable\s*;/,
     ],
     20
   );

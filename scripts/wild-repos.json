@@ -572,6 +572,10 @@
       "repo": "danielbrendel/hortusfox-web",
       "name": "hortusfox",
       "is": "PHP plant manager on Asatru; resets at /password/reset, mails through a Composer PHPMailer"
+    },
+    {
+      "repo": "alexjustesen/speedtest-tracker",
+      "is": "Laravel speed monitor; prunes old results with Eloquent's Prunable and model:prune"
     }
   ]
 }
