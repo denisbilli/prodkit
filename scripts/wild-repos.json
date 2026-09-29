@@ -593,6 +593,10 @@
     {
       "repo": "LycheeOrg/Lychee",
       "is": "Laravel photo gallery; passkeys through laragear/webauthn"
+    },
+    {
+      "repo": "shaarli/Shaarli",
+      "is": "Slim bookmarks manager; imports files through PSR-7 getUploadedFiles"
     }
   ]
 }

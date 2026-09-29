@@ -190,6 +190,9 @@ const FILE_INTAKE = [
    * that way, through its own Request class, and was `not_applicable`.
    */
   /\$_FILES\b/,
+  // PSR-7's, which Slim, Mezzio and Laminas all hand a controller: Shaarli imports a
+  // bookmarks file from `$request->getUploadedFiles()['filetoupload']`.
+  /\bgetUploadedFiles\s*\(/,
   /**
    * Symfony's form field for a file, by the form component's own namespace. Koillection
    * takes every collection, item and tag image through `->add('file', FileType::class)`
