@@ -187,7 +187,12 @@ async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> 
     // PHPMailer declared in Composer: HortusFox sends its reminders and resets through its
     // framework's SMTPMailer, which wraps it, and never imports PHPMailer itself.
     ...hasAnyPhpDep(ctx, ['phpmailer/phpmailer'])];
-  const pushDeps = [...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS)];
+  const pushDeps = [
+    ...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS),
+    // Python's notification library, one API over email, Discord, Telegram and a hundred
+    // more: Tube Archivist tells people when their downloads finish through apprise.
+    ...hasAnyPyDep(ctx, ['apprise']),
+  ];
   for (const dep of [...emailDeps, ...pushDeps]) evidence.push({ type: 'dependency', value: dep });
 
   const hits = await searchInFiles(

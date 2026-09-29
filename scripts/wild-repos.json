@@ -580,6 +580,10 @@
     {
       "repo": "linuxserver/Heimdall",
       "is": "Laravel app dashboard with no email; laravel-ide-helper's stubs are not its code"
+    },
+    {
+      "repo": "tubearchivist/tubearchivist",
+      "is": "Django video archiver; notifies through apprise"
     }
   ]
 }
