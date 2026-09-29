@@ -555,6 +555,10 @@
     {
       "repo": "ente-io/ente",
       "is": "end-to-end encrypted photos; verifies Stripe in Gin with stripe-go and a secret from viper"
+    },
+    {
+      "repo": "advplyr/audiobookshelf",
+      "is": "Node audiobook server; vendors express-fileupload and takes uploads from req.files"
     }
   ]
 }

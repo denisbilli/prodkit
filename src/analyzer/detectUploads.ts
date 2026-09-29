@@ -208,6 +208,12 @@ const FILE_INTAKE = [
   // avatar through `c.MultipartForm()` and `c.SaveUploadedFile(file, dest)`.
   /\.SaveUploadedFile\s*\(/,
   /**
+   * Express's, where express-fileupload and multer's array mode both put what arrived.
+   * audiobookshelf vendors express-fileupload and takes covers, backups and whole
+   * audiobooks from `req.files`, and read as taking no uploads.
+   */
+  /req\.files/,
+  /**
    * Go's standard library hands an uploaded file over as `*multipart.FileHeader`, parsed
    * out of `Request.MultipartForm`. pocketbase stores every record's files that way —
    * `NewFileFromMultipart(mh *multipart.FileHeader)`, `UploadMultipart(fh
