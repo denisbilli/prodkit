@@ -22,8 +22,15 @@ import { evidenceOrFileNameSearch } from './absenceEvidence';
  */
 const DEVELOPMENT_CONTAINER = /(^|\/)\.devcontainer\//;
 
+/**
+ * And a directory named for development, the same convention as a `.dev` suffix below.
+ * InvoiceShelf keeps `docker/development/` and `docker/production/` side by side, each
+ * with a Dockerfile at the same depth, and path order cited the development one.
+ */
+const DEVELOPMENT_DIRECTORY = /(^|\/)development\//;
+
 function theShippedOne(candidates: string[]): string | undefined {
-  const shipped = candidates.filter((file) => !DEVELOPMENT_CONTAINER.test(file));
+  const shipped = candidates.filter((file) => !DEVELOPMENT_CONTAINER.test(file) && !DEVELOPMENT_DIRECTORY.test(file));
   const pool = shipped.length > 0 ? shipped : candidates;
 
   return pool.reduce<string | undefined>(

@@ -648,6 +648,14 @@
     {
       "repo": "unkeyed/unkey",
       "is": "Go and Next.js API key platform with workspaces; runs deployments as Restate workflows, and searches logs through OpenAI"
+    },
+    {
+      "repo": "rubyforgood/human-essentials",
+      "is": "Rails 8 diaper-bank inventory for organisations and partners; Devise invitable and registerable without confirmable, lograge without a request id, no health route"
+    },
+    {
+      "repo": "InvoiceShelf/InvoiceShelf",
+      "is": "Laravel and Vue invoicing for companies; docker/development and docker/production side by side, the production image checked through its compose healthcheck"
     }
   ]
 }
