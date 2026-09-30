@@ -656,6 +656,14 @@
     {
       "repo": "InvoiceShelf/InvoiceShelf",
       "is": "Laravel and Vue invoicing for companies; docker/development and docker/production side by side, the production image checked through its compose healthcheck"
+    },
+    {
+      "repo": "go-vikunja/vikunja",
+      "is": "Go and Vue task manager with teams, TOTP, API tokens and an audit writer; its Trello importer speaks Trello's organizations"
+    },
+    {
+      "repo": "Chocobozzz/PeerTube",
+      "is": "Express and Angular federated video platform; an audit log to a rotating file, and a Gitpod workspace image beside the production one"
     }
   ]
 }

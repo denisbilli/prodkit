@@ -29,8 +29,10 @@ const DEVELOPMENT_CONTAINER = /(^|\/)\.devcontainer\//;
  */
 const DEVELOPMENT_DIRECTORY = /(^|\/)development\//;
 
-function theShippedOne(candidates: string[]): string | undefined {
-  const shipped = candidates.filter((file) => !DEVELOPMENT_CONTAINER.test(file) && !DEVELOPMENT_DIRECTORY.test(file));
+function theShippedOne(candidates: string[], workspaceImages: string[] = []): string | undefined {
+  const shipped = candidates.filter(
+    (file) => !DEVELOPMENT_CONTAINER.test(file) && !DEVELOPMENT_DIRECTORY.test(file) && !workspaceImages.includes(file),
+  );
   const pool = shipped.length > 0 ? shipped : candidates;
 
   return pool.reduce<string | undefined>(
@@ -39,8 +41,22 @@ function theShippedOne(candidates: string[]): string | undefined {
   );
 }
 
+/**
+ * The image Gitpod builds a workspace from, named in `.gitpod.yml` as `image: file: <path>`.
+ *
+ * PeerTube keeps `support/docker/gitpod/Dockerfile` beside `support/docker/production/`,
+ * at the same depth, and path order cited the Gitpod one — the contributor's cloud editor,
+ * which `.gitpod.yml` says in so many words.
+ */
+async function gitpodImages(ctx: DetectContext): Promise<string[]> {
+  const text = (await readTextFileSafe(ctx.root, '.gitpod.yml')) ?? '';
+  const named = /^image:\s*\n\s+file:\s*(\S+)/m.exec(text);
+  return named ? [named[1]] : [];
+}
+
 export async function detectDocker(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
+  const workspaceImages = await gitpodImages(ctx);
   /**
    * `docker build -f` takes any name, and the convention is a suffix. flaskbb ships
    * `docker/Dockerfile.release` and `docker/compose.release.yaml` beside their `.dev`
@@ -50,7 +66,7 @@ export async function detectDocker(ctx: DetectContext): Promise<DetectorResult> 
    */
   const plainOrSuffixed = (plain: RegExp, suffixed: RegExp) => {
     const exact = ctx.files.all.filter((f) => plain.test(f));
-    if (exact.length > 0) return theShippedOne(exact);
+    if (exact.length > 0) return theShippedOne(exact, workspaceImages);
     const named = ctx.files.all.filter((f) => suffixed.test(f));
     const shipped = named.filter((f) => !/\.(?:dev|development|local)(?:\.ya?ml)?$/i.test(f));
     return theShippedOne(shipped.length > 0 ? shipped : named);

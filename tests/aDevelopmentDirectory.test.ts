@@ -45,3 +45,21 @@ describe('A commented healthcheck', () => {
     expect(found?.complete).toBe(true);
   });
 });
+
+/** PeerTube's Gitpod workspace image sat beside its production one and was cited instead. */
+describe("Gitpod's workspace image", () => {
+  const images = {
+    'support/docker/gitpod/Dockerfile': 'FROM gitpod/workspace-postgres\n',
+    'support/docker/production/Dockerfile': 'FROM node:20\nHEALTHCHECK CMD curl -f http://localhost:9000 || exit 1\n',
+  };
+
+  it('is not the image that ships', async () => {
+    const found = await docker({ ...images, '.gitpod.yml': 'image:\n  file: support/docker/gitpod/Dockerfile\nports:\n- port: 3000\n' });
+    expect(found?.complete).toBe(true);
+  });
+
+  it('is only the one .gitpod.yml names', async () => {
+    const found = await docker({ ...images, '.gitpod.yml': 'image:\n  file: support/docker/other/Dockerfile\n' });
+    expect(found?.complete).toBe(false);
+  });
+});
