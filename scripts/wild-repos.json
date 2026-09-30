@@ -618,6 +618,10 @@
       "repo": "apptension/saas-boilerplate",
       "name": "apptension-saas-boilerplate",
       "is": "Django and React SaaS starter; Stripe webhooks through dj-stripe's own verified endpoint"
+    },
+    {
+      "repo": "thedevdojo/wave",
+      "is": "Laravel SaaS starter; takes images through Filament's FileUpload"
     }
   ]
 }

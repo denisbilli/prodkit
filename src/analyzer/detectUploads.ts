@@ -190,6 +190,9 @@ const FILE_INTAKE = [
    * that way, through its own Request class, and was `not_applicable`.
    */
   /\$_FILES\b/,
+  // Filament's form component for a file: wave's admin takes avatars and post images
+  // through `FileUpload::make('avatar')`.
+  /\bFileUpload::make\s*\(/,
   // PSR-7's, which Slim, Mezzio and Laminas all hand a controller: Shaarli imports a
   // bookmarks file from `$request->getUploadedFiles()['filetoupload']`.
   /\bgetUploadedFiles\s*\(/,
