@@ -55,10 +55,13 @@ import { connectorPackageFiles } from './connectors';
  * What survives names Stripe explicitly or is snake_case out of Stripe's own API,
  * which nothing else has a reason to spell.
  */
+const ACCOUNT_EVENT = /['"`]account\.updated['"`]/;
+
 const CONNECTED_ACCOUNT = [
   /\bstripe\.accounts\.create\s*\(/i,
   /\baccounts\.create\s*\(\s*\{[^}]*\btype:\s*["'`](?:express|custom)["'`]/i,
-  /['"`]account\.updated['"`]|['"`]account\.application\./,
+  ACCOUNT_EVENT,
+  /['"`]account\.application\./,
   /\bdestination_account\b/,
   /**
    * An account named for Stripe Connect itself. Sharetribe's template onboards every
@@ -106,7 +109,6 @@ const STRIPE_PERMISSION = /["'`]\w+_(?:read|write)["'`]/;
 const APPLICATION_FEE = /(?<!->|\.)application_fee/i;
 
 const ACCOUNT_CREATION = /\baccounts(?:\.|->)create\s*\(/;
-const ACCOUNT_EVENT = /['"`]account\.updated['"`]/;
 
 /** A call's arguments from the line it opens on to the parenthesis that closes it. */
 function callArguments(text: string, line: number): string {
@@ -124,8 +126,16 @@ function callArguments(text: string, line: number): string {
   return taken.join('\n');
 }
 
-/** The ones that name Stripe or its API; the last pattern is only a word. */
-const STRIPE_CONNECT_CALLS = CONNECTED_ACCOUNT.slice(0, -1);
+/**
+ * The ones that name Stripe or its API; the last pattern is only a word.
+ *
+ * And not `account.updated`, which is Stripe's event name but also the obvious one for
+ * any product with accounts that sends its own webhooks. `MicroPyramid/Django-CRM` offers
+ * its subscribers `lead.updated`, `contact.updated` and `account.updated` — a CRM account
+ * is a customer company — and a CRM read as a marketplace at high confidence. The event is
+ * Stripe's only in a file that speaks Stripe.
+ */
+const STRIPE_CONNECT_CALLS = CONNECTED_ACCOUNT.slice(0, -1).filter((pattern) => pattern !== ACCOUNT_EVENT);
 
 /**
  * Nobody writes `seller` on its own.

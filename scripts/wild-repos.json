@@ -627,6 +627,11 @@
       "repo": "boxyhq/saas-starter-kit",
       "name": "boxyhq-saas-starter-kit",
       "is": "Next.js enterprise SaaS starter with SSO and SCIM; reports team changes to Retraced, a hosted audit log"
+    },
+    {
+      "repo": "MicroPyramid/Django-CRM",
+      "name": "Django-CRM",
+      "is": "Django and SvelteKit CRM with organisations and row-level security; offers its own webhook subscribers account.updated for a customer company, and signs in by magic link or Google"
     }
   ]
 }

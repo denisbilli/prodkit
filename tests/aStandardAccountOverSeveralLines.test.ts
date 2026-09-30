@@ -16,7 +16,7 @@ async function multiRole(files: Record<string, string>) {
   return found;
 }
 
-const webhooks = "export function handle(event) {\n  switch (event.type) {\n    case 'account.updated':\n      return sync(event.data.object);\n  }\n}\n";
+const webhooks = "import type Stripe from 'stripe';\n\nexport function handle(event: Stripe.Event) {\n  switch (event.type) {\n    case 'account.updated':\n      return sync(event.data.object);\n  }\n}\n";
 
 /**
  * bigcapital connects its customers' own Stripe accounts so they can take invoice
