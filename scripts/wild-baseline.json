@@ -754,7 +754,7 @@
       "auth.password-reset": "present",
       "auth.email-verification": "missing",
       "b2c.onboarding": "present",
-      "b2c.notifications": "missing",
+      "b2c.notifications": "partial",
       "authz.ownership": "present",
       "gdpr.consent": "missing",
       "gdpr.export": "missing",
@@ -4240,6 +4240,34 @@
       "audit.baseline": "present",
       "deployment.readiness": "present",
       "deployment.docker": "missing"
+    }
+  },
+  "mautic": {
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "missing",
+      "auth.password-reset": "present",
+      "auth.email-verification": "missing",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "present",
+      "authz.ownership": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "present",
+      "billing.model": "missing",
+      "billing.webhook-integrity": "not_applicable",
+      "security.headers": "present",
+      "security.cors": "partial",
+      "security.rate-limit": "missing",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "partial",
+      "audit.baseline": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
     }
   }
 }

@@ -100,7 +100,18 @@ async function laravelSendsMail(ctx: DetectContext): Promise<string[]> {
     [/^\s*use\s+CodeIgniter\\Email\\Email\s*;/],
     1,
   );
+  /**
+   * Symfony's Mailer, by the interface a service is handed: Mautic, which is email marketing,
+   * sends everything through `MailerInterface` and read as partial.
+   */
+  const symfonyMailer = await searchInFiles(
+    ctx.root,
+    ctx.files.source.filter((file) => file.endsWith('.php')),
+    [/^\s*use\s+Symfony\\Component\\Mailer\\MailerInterface\s*;/],
+    1,
+  );
   return [
+    ...(symfonyMailer.length > 0 ? ['symfony mailer'] : []),
     ...(hits.length > 0 ? ['laravel notifications'] : []),
     ...(phpMailer.length > 0 ? ['phpmailer'] : []),
     ...(codeIgniter.length > 0 ? ['codeigniter email'] : []),

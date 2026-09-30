@@ -605,6 +605,10 @@
     {
       "repo": "indico/indico",
       "is": "Flask event manager; rate-limits on the limits library"
+    },
+    {
+      "repo": "mautic/mautic",
+      "is": "Symfony marketing automation; sends through Symfony's MailerInterface"
     }
   ]
 }
