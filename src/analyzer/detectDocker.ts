@@ -79,7 +79,9 @@ export async function detectDocker(ctx: DetectContext): Promise<DetectorResult> 
   if (composeFile) {
     evidence.push({ type: 'file', value: composeFile });
     const text = (await readTextFileSafe(ctx.root, composeFile)) ?? '';
-    if (/healthcheck\s*:/i.test(text)) {
+    // Not in a comment: InvoiceShelf's SQLite compose offers `#   healthcheck: {...}` as
+    // something to switch on, and a line nobody uncommented checks nothing.
+    if (/^[^#]*healthcheck\s*:/m.test(text)) {
       hasHealthcheck = true;
       evidence.push({ type: 'snippet', value: 'healthcheck block in compose', file: composeFile });
     }

@@ -32,3 +32,16 @@ describe('A development directory', () => {
     expect(found?.present).toBe(true);
   });
 });
+
+/** InvoiceShelf's SQLite compose offers a healthcheck in a comment. */
+describe('A commented healthcheck', () => {
+  it('checks nothing', async () => {
+    const found = await docker({ 'docker-compose.yml': 'services:\n  scheduler:\n    image: invoiceshelf\n    command: ["healthcheck-schedule"]\n    #   healthcheck: {test: ["CMD", "healthcheck-schedule"]}\n' });
+    expect(found?.complete).toBe(false);
+  });
+
+  it('is still one when it is not commented', async () => {
+    const found = await docker({ 'docker-compose.yml': '# Production stack\nservices:\n  app:\n    image: invoiceshelf\n    healthcheck:\n      test: ["CMD", "curl", "-f", "http://localhost"]\n' });
+    expect(found?.complete).toBe(true);
+  });
+});
