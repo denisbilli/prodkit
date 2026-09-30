@@ -438,7 +438,9 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
     hasDep(ctx, 'rate-limiter-flexible') ||
     hasDep(ctx, 'next-rate-limit') ||
     hasDep(ctx, '@nestjs/throttler') ||
-    hasAnyPyDep(ctx, ['django-ratelimit', 'slowapi', 'flask-limiter']).length > 0 ||
+    // And `limits`, the library under flask-limiter and slowapi: indico builds its own
+    // limiter on its `MovingWindowRateLimiter` and read as limiting nothing.
+    hasAnyPyDep(ctx, ['django-ratelimit', 'slowapi', 'flask-limiter', 'limits']).length > 0 ||
     hasAnyRustDep(ctx, ['governor', 'tower_governor', 'tower-governor', 'actix-governor', 'actix-extensible-rate-limit', 'ratelimit']).length > 0 ||
     /**
      * Ruby's, which is one gem and nearly universal in Rails.

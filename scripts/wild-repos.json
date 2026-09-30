@@ -601,6 +601,10 @@
     {
       "repo": "pretalx/pretalx",
       "is": "Django conference CfP; serves path(\"healthcheck/\") without a leading slash"
+    },
+    {
+      "repo": "indico/indico",
+      "is": "Flask event manager; rate-limits on the limits library"
     }
   ]
 }
