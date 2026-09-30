@@ -644,6 +644,10 @@
     {
       "repo": "pocket-id/pocket-id",
       "is": "Go and SvelteKit OIDC provider signed into with passkeys through go-webauthn; holds no passwords, and bcrypt hashes only OIDC client secrets"
+    },
+    {
+      "repo": "unkeyed/unkey",
+      "is": "Go and Next.js API key platform with workspaces; runs deployments as Restate workflows, and searches logs through OpenAI"
     }
   ]
 }

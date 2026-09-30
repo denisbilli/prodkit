@@ -1,6 +1,6 @@
 import type { DetectorEvidence, DetectorResult } from './types';
 import type { DetectContext } from './detectContext';
-import { hasAnyDep, hasAnyPyDep } from './detectContext';
+import { hasAnyDep, hasAnyGoDep, hasAnyPyDep } from './detectContext';
 import { searchInFiles } from '../utils/textSearch';
 import { readTextFileSafe } from '../utils/readTextFileSafe';
 import { evidenceOrSearch } from './absenceEvidence';
@@ -48,6 +48,22 @@ const QUEUE_PY_DEPS = [
   'prefect',
   'apache-airflow',
   'django-q',
+];
+
+/**
+ * Go's queues and durable workflows, by module path.
+ *
+ * `unkeyed/unkey` runs deployments, certificates and teardowns as Restate workflows in
+ * `svc/ctrl/worker`, and was reported as doing no work outside a request: nothing here
+ * read go.mod. Cron libraries are left out on purpose — go.mod lists indirect
+ * dependencies too, and `robfig/cron` arrives inside many a package that schedules
+ * nothing of the product's.
+ */
+const QUEUE_GO_DEPS = [
+  'github.com/restatedev/sdk-go',
+  'github.com/hibiken/asynq',
+  'github.com/riverqueue/river',
+  'go.temporal.io/sdk',
 ];
 
 /**
@@ -112,7 +128,8 @@ export async function detectJobs(ctx: DetectContext): Promise<DetectorResult> {
 
   const nodeDeps = hasAnyDep(ctx, QUEUE_DEPS);
   const pyDeps = hasAnyPyDep(ctx, QUEUE_PY_DEPS);
-  for (const dep of [...nodeDeps, ...pyDeps]) evidence.push({ type: 'dependency', value: dep });
+  const goDeps = hasAnyGoDep(ctx, QUEUE_GO_DEPS);
+  for (const dep of [...nodeDeps, ...pyDeps, ...goDeps]) evidence.push({ type: 'dependency', value: dep });
 
   const workerFiles = ctx.files.all.filter((file) => WORKER_FILE.test(file)).slice(0, 20);
   for (const file of workerFiles) evidence.push({ type: 'file', value: file, file });
@@ -163,6 +180,7 @@ export async function detectJobs(ctx: DetectContext): Promise<DetectorResult> {
   const declared =
     nodeDeps.length > 0
     || pyDeps.length > 0
+    || goDeps.length > 0
     || declarations.length > 0
     || processScripts.length > 0
     || composeWorker;
