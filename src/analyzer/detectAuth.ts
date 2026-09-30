@@ -126,6 +126,37 @@ async function drizzleUserHoldsNoPassword(ctx: DetectContext): Promise<boolean> 
 }
 
 /**
+ * An address that is unique only within something else.
+ *
+ * `docmost/docmost` is a team wiki whose every table carries `workspace_id`, and it was
+ * inferred as a consumer app at high confidence: `workspaceId` is a weak word, and no
+ * membership table joins people to workspaces, because each person's row sits inside one.
+ * Its users table says so itself — `addUniqueConstraint('users_email_workspace_id_unique',
+ * ['email', 'workspace_id'])`. The same address may sign up again in another workspace,
+ * so the workspace is the boundary accounts live in, whatever it is called.
+ *
+ * Read where the schema is declared: Kysely's and knex's `createTable('users')` and
+ * Prisma's `model User`. The tenant's own column is then a weak word with a strong one
+ * beside it, and counts as the others do.
+ */
+async function emailScopedByTenant(ctx: DetectContext): Promise<TextMatch[]> {
+  for (const file of ctx.files.all.filter((f) => /\.(?:[cm]?[jt]s|prisma)$/.test(f))) {
+    const text = await readTextFileSafe(ctx.root, file);
+    if (!text) continue;
+    const users = file.endsWith('.prisma')
+      ? /^model User \{[\s\S]*?^\}/m.exec(text)?.[0]
+      : /\bcreateTable\(\s*['"`]users['"`]\s*[,)][\s\S]*?\.execute\(\)|\bcreateTable\(\s*['"`]users['"`]\s*,[\s\S]*?\n\s*\}\s*\)/.exec(text)?.[0];
+    if (!users) continue;
+    const scoped = /@@unique\(\s*\[\s*(?:email\s*,\s*\w+Id|\w+Id\s*,\s*email)\s*\]/.exec(users)
+      ?? /unique(?:Constraint)?\([^)]*?\[\s*(?:['"`]email['"`]\s*,\s*['"`]\w+_id['"`]|['"`]\w+_id['"`]\s*,\s*['"`]email['"`])\s*,?\s*\]/i.exec(users);
+    if (!scoped) continue;
+    const line = text.slice(0, text.indexOf(scoped[0])).split('\n').length;
+    return [{ file, line, snippet: scoped[0].replace(/\s+/g, ' ').slice(0, 200) }];
+  }
+  return [];
+}
+
+/**
  * A signature: Java's and C#'s access modifiers, and Go's `func`. fathom's session
  * middleware is `func (api *API) Authorize(next http.Handler) http.Handler`, a name for
  * a function that authenticates, and it stood as fathom's check on who owns a site.
@@ -1127,6 +1158,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     }
     if (!holdsPeople) userBelongsToAccount.length = 0;
   }
+  const scopedEmail = await emailScopedByTenant(ctx);
+
   const accountAsTenant = userBelongsToAccount.length > 0
     ? [...userBelongsToAccount, ...(await searchInFiles(ctx.root, sourceFiles, [/\baccount_id\b/], 25))]
     : [];
@@ -1163,6 +1196,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...teamAsTenant,
     ...companyAsTenant,
     ...accountAsTenant,
+    ...scopedEmail,
   ];
   const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25, (match) => !APPLE_DEVELOPER_TEAM.test(match.snippet));
 
@@ -1188,6 +1222,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...companyAsTenant,
     // The user belonging to the account is the membership itself.
     ...userBelongsToAccount,
+    // So is an address that belongs to one tenant at a time.
+    ...scopedEmail,
   ];
   const weakMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...WEAK_TENANCY], 25);
 

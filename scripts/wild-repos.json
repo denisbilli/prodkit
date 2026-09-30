@@ -632,6 +632,14 @@
       "repo": "MicroPyramid/Django-CRM",
       "name": "Django-CRM",
       "is": "Django and SvelteKit CRM with organisations and row-level security; offers its own webhook subscribers account.updated for a customer company, and signs in by magic link or Google"
+    },
+    {
+      "repo": "umami-software/umami",
+      "is": "Next.js privacy analytics with teams, API keys and TOTP through otplib; answers 429 on its own 2FA routes, and has no password reset"
+    },
+    {
+      "repo": "docmost/docmost",
+      "is": "NestJS and React team wiki on Kysely; every table carries workspace_id, and a user's address is unique only within a workspace"
     }
   ]
 }
