@@ -640,6 +640,10 @@
     {
       "repo": "docmost/docmost",
       "is": "NestJS and React team wiki on Kysely; every table carries workspace_id, and a user's address is unique only within a workspace"
+    },
+    {
+      "repo": "pocket-id/pocket-id",
+      "is": "Go and SvelteKit OIDC provider signed into with passkeys through go-webauthn; holds no passwords, and bcrypt hashes only OIDC client secrets"
     }
   ]
 }

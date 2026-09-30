@@ -353,7 +353,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
      * ones away — listmonk verifies with `github.com/pquerna/otp`, traccar with
      * `com.warrenstrange:googleauth` — so the packages are the anchor instead.
      */
-    ...hasAnyGoDep(ctx, ['github.com/pquerna/otp', 'github.com/xlzd/gotp']),
+    // And pocket-id's passkeys, which are how every one of its users signs in.
+    ...hasAnyGoDep(ctx, ['github.com/pquerna/otp', 'github.com/xlzd/gotp', 'github.com/go-webauthn/webauthn']),
     ...hasAnyGradleDep(ctx, ['com.warrenstrange:googleauth', 'dev.samstevens.totp:totp', 'com.eatthepath:java-otp']),
     ...hasAnyRubyDep(ctx, ['rotp', 'devise-two-factor']),
     // And passkeys, which Lychee signs people in with through `laragear/webauthn`.
