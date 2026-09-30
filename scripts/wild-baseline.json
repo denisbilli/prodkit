@@ -4297,5 +4297,38 @@
       "deployment.readiness": "present",
       "deployment.docker": "partial"
     }
+  },
+  "apptension-saas-boilerplate": {
+    "inferredProfile": "ai-saas",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
+      "auth.email-verification": "present",
+      "auth.api-keys": "missing",
+      "authz.roles": "present",
+      "authz.ownership": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "present",
+      "gdpr.erasure": "missing",
+      "gdpr.retention": "present",
+      "billing.model": "present",
+      "billing.webhook-integrity": "present",
+      "security.headers": "missing",
+      "security.cors": "present",
+      "security.rate-limit": "present",
+      "uploads.protection": "partial",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "partial",
+      "jobs.background": "present",
+      "ai.cost-control": "present",
+      "ai.prompt-safety": "present",
+      "deployment.readiness": "present",
+      "deployment.docker": "present"
+    }
   }
 }

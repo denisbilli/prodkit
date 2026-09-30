@@ -82,7 +82,8 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
   const PROCESSOR_PACKAGES = ['stripe', 'braintree', 'paddle', 'lemonsqueezy', 'mollie', 'razorpay', 'adyen'];
 
   const processorDeps = [
-    ...hasAnyPyDep(ctx, [...PROCESSOR_PACKAGES, 'paypalrestsdk', 'paypal-checkout-serversdk', 'mollie-api-python']),
+    // dj-stripe too, Stripe as Django models, which apptension's boilerplate declares alone.
+    ...hasAnyPyDep(ctx, [...PROCESSOR_PACKAGES, 'paypalrestsdk', 'paypal-checkout-serversdk', 'mollie-api-python', 'dj-stripe']),
     ...hasAnyRubyDep(ctx, [...PROCESSOR_PACKAGES, 'paypal-sdk-rest']),
     /**
      * Payum is PHP's payment framework: one API over PayPal, Stripe, Klarna,
@@ -241,6 +242,23 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
       25
     )
     : [];
+
+  /**
+   * dj-stripe's own webhook endpoint, mounted by including its URLs.
+   *
+   * The view behind `include("djstripe.urls")` reads the raw body, looks up the endpoint's
+   * secret and verifies Stripe's signature before any handler runs — the same way
+   * `include("django.contrib.auth.urls")` ships a password reset. apptension's SaaS
+   * boilerplate mounts it and only registers handlers, and its webhook integrity read as
+   * missing. Mounting it answers all three, and is the route they arrive on.
+   */
+  const djstripe = hasStrongStripeSignal
+    ? await searchInFiles(ctx.root, ctx.files.source.filter((file) => file.endsWith('.py')), [/\binclude\(\s*["']djstripe\.urls["']/], 1)
+    : [];
+  webhookRouteHits.push(...djstripe);
+  rawBodyHits.push(...djstripe);
+  secretHits.push(...djstripe);
+  signatureHits.push(...djstripe);
 
   for (const m of [...stripeContextHits, ...webhookRouteHits, ...rawBodyHits, ...secretHits, ...signatureHits]) {
     evidence.push({ type: 'snippet', value: m.snippet, file: m.file, line: m.line });

@@ -613,6 +613,11 @@
     {
       "repo": "Sylius/Sylius",
       "is": "Symfony e-commerce; pays through payum/payum-bundle, mails through symfony/mailer"
+    },
+    {
+      "repo": "apptension/saas-boilerplate",
+      "name": "apptension-saas-boilerplate",
+      "is": "Django and React SaaS starter; Stripe webhooks through dj-stripe's own verified endpoint"
     }
   ]
 }
