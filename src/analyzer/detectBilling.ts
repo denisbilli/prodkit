@@ -90,7 +90,7 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
      * SolidInvoice takes its clients' payments through it and was told it has no payment
      * integration.
      */
-    ...hasAnyPhpDep(ctx, ['stripe/stripe-php', 'paypal/rest-api-sdk-php', 'mollie/mollie-api-php', 'braintree/braintree_php', 'payum/core']),
+    ...hasAnyPhpDep(ctx, ['stripe/stripe-php', 'paypal/rest-api-sdk-php', 'mollie/mollie-api-php', 'braintree/braintree_php', 'payum/core', 'payum/payum-bundle']),
     ...hasAnyGradleDep(ctx, ['com.stripe:stripe-java', 'com.braintreepayments']),
     ...hasAnyDotnetDep(ctx, ['Stripe.net', 'Braintree', 'PayPalCheckoutSdk']),
     ...hasAnyRustDep(ctx, ['stripe-rust', 'async-stripe']),

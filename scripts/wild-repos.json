@@ -609,6 +609,10 @@
     {
       "repo": "mautic/mautic",
       "is": "Symfony marketing automation; sends through Symfony's MailerInterface"
+    },
+    {
+      "repo": "Sylius/Sylius",
+      "is": "Symfony e-commerce; pays through payum/payum-bundle, mails through symfony/mailer"
     }
   ]
 }

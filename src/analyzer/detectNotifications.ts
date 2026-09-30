@@ -197,7 +197,8 @@ async function detectNotifications(ctx: DetectContext): Promise<DetectorResult> 
   const emailDeps = [...hasAnyDep(ctx, EMAIL_DEPS), ...hasAnyPyDep(ctx, EMAIL_PY_DEPS), ...await sendsThroughSes(ctx), ...await djangoSendsMail(ctx), ...await railsSendsMail(ctx), ...await waspSendsMail(ctx), ...await laravelSendsMail(ctx), ...hasAnyGradleDep(ctx, EMAIL_JVM_DEPS), ...hasAnyGoDep(ctx, EMAIL_GO_DEPS),
     // PHPMailer declared in Composer: HortusFox sends its reminders and resets through its
     // framework's SMTPMailer, which wraps it, and never imports PHPMailer itself.
-    ...hasAnyPhpDep(ctx, ['phpmailer/phpmailer'])];
+    // And Symfony's Mailer, declared: Sylius sends its order and account mail through it.
+    ...hasAnyPhpDep(ctx, ['phpmailer/phpmailer', 'symfony/mailer'])];
   const pushDeps = [
     ...hasAnyDep(ctx, PUSH_DEPS), ...hasAnyGradleDep(ctx, PUSH_JVM_DEPS),
     // Python's notification library, one API over email, Discord, Telegram and a hundred
