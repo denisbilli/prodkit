@@ -18,7 +18,19 @@ import { readTextFileSafe } from '../utils/readTextFileSafe';
  * are log lines.
  */
 
-const AUDIT_DEPS = ['audit-log', '@casl/ability', 'express-winston'];
+/**
+ * An audit log kept by a service built to keep one.
+ *
+ * `boxyhq/saas-starter-kit` sends every team, member, SSO and webhook change to Retraced
+ * — `new Client(...)` from `@retracedhq/retraced`, then `client.reportEvent(event)` — and
+ * shows the log to team admins. Nothing is stored locally and nothing calls itself an
+ * audit write, so the trail read as half-built. The package is the store, and its
+ * `reportEvent` is the write, counted only in a file that imports the package.
+ */
+const RETRACED = '@retracedhq/retraced';
+const RETRACED_WRITE = /\.reportEvent\s*\(/;
+
+const AUDIT_DEPS = ['audit-log', '@casl/ability', 'express-winston', RETRACED];
 const AUDIT_PY_DEPS = ['django-auditlog', 'django-simple-history', 'sqlalchemy-continuum'];
 
 /** A table or model that exists to hold the record. */
@@ -239,6 +251,12 @@ async function auditShapedRecords(ctx: DetectContext, files: string[]): Promise<
   return { evidence, names: [...names] };
 }
 
+async function filterAsync<T>(items: T[], keep: (item: T) => Promise<boolean>): Promise<T[]> {
+  const kept: T[] = [];
+  for (const item of items) if (await keep(item)) kept.push(item);
+  return kept;
+}
+
 export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
   const evidence: DetectorEvidence[] = [];
 
@@ -258,6 +276,12 @@ export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
 
   const writeHits = await searchInFiles(ctx.root, ctx.files.source, AUDIT_WRITE, 15);
   for (const hit of writeHits) {
+    evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
+  }
+
+  const retracedWrites = await filterAsync(await searchInFiles(ctx.root, ctx.files.source, [RETRACED_WRITE], 5), async (hit) =>
+    (await readTextFileSafe(ctx.root, hit.file))?.includes(RETRACED) ?? false);
+  for (const hit of retracedWrites) {
     evidence.push({ type: 'snippet', value: hit.snippet, file: hit.file, line: hit.line });
   }
 
@@ -288,7 +312,7 @@ export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
   }
 
   const hasStore = storeHits.length > 0 || deps.length > 0 || shapedRecords.length > 0;
-  const hasWrites = writeHits.length > 0 || unnamedWrites.length > 0;
+  const hasWrites = writeHits.length > 0 || unnamedWrites.length > 0 || retracedWrites.length > 0;
 
   // `complete` is what lets the expectation say `present` rather than `partial`: a
   // store that is written to is a working audit trail, and either half alone is not.
@@ -297,6 +321,6 @@ export async function detectAudit(ctx: DetectContext): Promise<DetectorResult> {
     present: hasStore || hasWrites,
     complete: hasStore && hasWrites,
     evidence,
-    details: { store: hasStore, writes: hasWrites, writeSites: writeHits.length + unnamedWrites.length, unnamedStore: shapedRecords.length },
+    details: { store: hasStore, writes: hasWrites, writeSites: writeHits.length + unnamedWrites.length + retracedWrites.length, unnamedStore: shapedRecords.length },
   };
 }

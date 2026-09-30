@@ -622,6 +622,11 @@
     {
       "repo": "thedevdojo/wave",
       "is": "Laravel SaaS starter; takes images through Filament's FileUpload"
+    },
+    {
+      "repo": "boxyhq/saas-starter-kit",
+      "name": "boxyhq-saas-starter-kit",
+      "is": "Next.js enterprise SaaS starter with SSO and SCIM; reports team changes to Retraced, a hosted audit log"
     }
   ]
 }
