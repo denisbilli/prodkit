@@ -275,8 +275,9 @@ export async function detectUploads(ctx: DetectContext): Promise<DetectorResult>
   const evidence: DetectorEvidence[] = [];
   // `multiparty` too: grist parses every attachment upload with it and read as taking none.
   // And Fastify's own plugin: hedgedoc takes note images through `@fastify/multipart`.
+  // And next-s3-upload, whose route signs the browser's upload: spliit takes receipts with it.
   const uploadDeps = [
-    ...hasAnyDep(ctx, ['multer', 'formidable', 'multiparty', '@fastify/multipart', '@aws-sdk/client-s3', 'aws-sdk']),
+    ...hasAnyDep(ctx, ['multer', 'formidable', 'multiparty', '@fastify/multipart', '@aws-sdk/client-s3', 'aws-sdk', 'next-s3-upload']),
     // actix-web's multipart extractor: AppFlowy Cloud takes file and image uploads through it.
     ...hasAnyRustDep(ctx, ['actix-multipart']),
   ];

@@ -685,6 +685,10 @@
     {
       "repo": "jellyfin/jellyfin",
       "is": "ASP.NET media server with Serilog; documents Retry-After on a 503, reads MusicBrainz's 429 with a C# pattern match, and locks out by an attempts setting no package names"
+    },
+    {
+      "repo": "spliit-app/spliit",
+      "is": "Next.js expense splitter with no accounts; receipts through next-s3-upload and an optional OpenAI scan, so it is judged as an ai-saas it is not"
     }
   ]
 }
