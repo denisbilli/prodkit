@@ -494,6 +494,13 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     /t?otp[_-]?secret|t?otpSecret/i.test(line)
     && !/\b(?:verify|check|validate)[_-]?t?otp|\b(?:verify|check|validate)T?Otp|t?otp[_-]?(?:code|token|verified)|t?otp(?:Code|Token|Verified)|two[_-]?factor/i.test(line);
   const secondFactorSignals = twoFaSignals.every((m) => declaresASecretOnly(m.snippet)) ? [] : twoFaSignals;
+  /**
+   * django-allauth's second factor, switched on the way Django switches on anything: by
+   * listing its app. Tandoor installs `django-allauth[mfa,socialaccount]` and puts
+   * `'allauth.mfa'` in INSTALLED_APPS, and read as having no second factor — the package
+   * is allauth either way, and only the app list says the MFA half is running.
+   */
+  const installedMfaApps = await searchInFiles(ctx.root, sourceFiles, [/["']allauth\.mfa["']/], 5);
   const apiKeySignals = await searchInFiles(
     ctx.root,
     sourceFiles,
@@ -1161,6 +1168,22 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   }
   const scopedEmail = await emailScopedByTenant(ctx);
 
+  /**
+   * A Django model whose manager django-scopes binds to a tenant field.
+   *
+   * Tandoor keeps every recipe, food and shopping list in a Space, and each model says so:
+   * `objects = ScopedManager(space='space')`. django-scopes exists to make a query fail
+   * unless the tenant it names is active, which is tenancy enforced rather than merely
+   * stored. It read as a consumer app at high confidence, because `space` is no word this
+   * detector knows. The manager comes from the package, and only in a file that imports it;
+   * pretalx wraps it in its own `def ScopedManager(_manager_class=..., **scopes)`, and a
+   * definition is not a model using it. A model assigns one to a manager attribute.
+   */
+  const scopedManagers: TextMatch[] = [];
+  for (const hit of await searchInFiles(ctx.root, sourceFiles, [/=\s*ScopedManager\(\s*\w+\s*=/], 10)) {
+    if ((await readTextFileSafe(ctx.root, hit.file))?.includes('django_scopes')) scopedManagers.push(hit);
+  }
+
   const accountAsTenant = userBelongsToAccount.length > 0
     ? [...userBelongsToAccount, ...(await searchInFiles(ctx.root, sourceFiles, [/\baccount_id\b/], 25))]
     : [];
@@ -1198,6 +1221,7 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...companyAsTenant,
     ...accountAsTenant,
     ...scopedEmail,
+    ...scopedManagers,
   ];
   const weakOrganization = await searchInFiles(ctx.root, sourceFiles, WEAK_TENANCY, 25, (match) => !APPLE_DEVELOPER_TEAM.test(match.snippet));
 
@@ -1225,6 +1249,9 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     ...userBelongsToAccount,
     // So is an address that belongs to one tenant at a time.
     ...scopedEmail,
+    // And a manager that refuses a query unless a tenant is active is the isolation
+    // itself, which is what membership stands for downstream.
+    ...scopedManagers,
   ];
   const weakMembership = await searchInFiles(ctx.root, sourceFiles, [/memberId/i, ...WEAK_TENANCY], 25);
 
@@ -1375,8 +1402,8 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
     },
     {
       key: 'auth.2fa',
-      present: twoFaDeps.length > 0 || secondFactorSignals.length > 0,
-      evidence: evidenceOrSearch([...depEvidence(twoFaDeps), ...snippetEvidence(secondFactorSignals)], 'a second factor', ['otplib', 'speakeasy', 'notp', 'pyotp', 'django-otp', 'totp', 'authenticator app', 'webauthn', '@simplewebauthn']),
+      present: twoFaDeps.length > 0 || secondFactorSignals.length > 0 || installedMfaApps.length > 0,
+      evidence: evidenceOrSearch([...depEvidence(twoFaDeps), ...snippetEvidence(secondFactorSignals), ...snippetEvidence(installedMfaApps)], 'a second factor', ['otplib', 'speakeasy', 'notp', 'pyotp', 'django-otp', 'totp', 'authenticator app', 'webauthn', '@simplewebauthn']),
     },
     {
       key: 'auth.apiKeys',

@@ -664,6 +664,11 @@
     {
       "repo": "Chocobozzz/PeerTube",
       "is": "Express and Angular federated video platform; an audit log to a rotating file, and a Gitpod workspace image beside the production one"
+    },
+    {
+      "repo": "TandoorRecipes/recipes",
+      "name": "tandoor",
+      "is": "Django and Vue recipe manager scoped to Spaces by django-scopes, with allauth's MFA app, litellm, and a Stripe dependency nothing imports"
     }
   ]
 }
