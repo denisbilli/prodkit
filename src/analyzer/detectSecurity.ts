@@ -77,7 +77,8 @@ function namesACloudStorageRule(text: string, line: number): boolean {
  * fetcher retries on `http.StatusTooManyRequests,` alone on its line, between the timeout
  * and the 500. Writing the status always wraps it in a call.
  */
-const COMPARES_A_STATUS = /^\s*case\s+(?:[\w.]+\s*,\s*)*http\.StatusTooManyRequests\b|^\s*http\.StatusTooManyRequests\s*[,:]\s*$|[=!]==?\s*(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests|Status429TooManyRequests)|(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests)\s*[=!]==?/;
+// And C#'s pattern match: Jellyfin's MusicBrainz client tests `status is HttpStatusCode.TooManyRequests`.
+const COMPARES_A_STATUS = /\bis\s+HttpStatusCode\.TooManyRequests\b|^\s*case\s+(?:[\w.]+\s*,\s*)*http\.StatusTooManyRequests\b|^\s*http\.StatusTooManyRequests\s*[,:]\s*$|[=!]==?\s*(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests|Status429TooManyRequests)|(?:StatusCode::TOO_MANY_REQUESTS|http\.StatusTooManyRequests|HttpStatus\.TOO_MANY_REQUESTS|HttpStatusCode\.TooManyRequests)\s*[=!]==?/;
 
 const WILDCARD_ORIGIN = /(Access-Control-Allow-Origin["'\s:,]+\*)|(["']\*["'])/i;
 
@@ -585,6 +586,19 @@ export async function detectSecurity(ctx: DetectContext): Promise<DetectorResult
    */
   const issuedRateLimits: typeof rateLimitSignals = [];
   for (const match of rateLimitSignals) {
+    /**
+     * `Retry-After` is not only the throttle's header. HTTP sends it with a 503 too, for a
+     * server that is starting or down for maintenance, and Jellyfin documents exactly that
+     * — `"Retry-After", new OpenApiHeader` on its 503 response — with no limiter anywhere.
+     * The header is a rate limit only in a file that also says 429 — as a number, as a
+     * constant (gotosocial's throttle lists `http.StatusTooManyRequests,` on its own line),
+     * or as gRPC's `codes.ResourceExhausted`, which memos's limiter returns and gRPC maps to
+     * 429. fider's maintenance page and saleor's pending thumbnails send it with neither.
+     */
+    if (/Retry-After/i.test(match.snippet)) {
+      const text = (await readTextFileSafe(ctx.root, match.file)) ?? '';
+      if (!/429|TooManyRequests|ResourceExhausted/.test(text)) continue;
+    }
     if (/throw new \w*TooManyRequests/.test(match.snippet)) {
       const lines = ((await readTextFileSafe(ctx.root, match.file)) ?? '').split(/\r?\n/);
       const before = lines.slice(Math.max(0, match.line - 4), match.line - 1).join('\n');

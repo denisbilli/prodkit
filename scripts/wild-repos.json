@@ -669,6 +669,22 @@
       "repo": "TandoorRecipes/recipes",
       "name": "tandoor",
       "is": "Django and Vue recipe manager scoped to Spaces by django-scopes, with allauth's MFA app, litellm, and a Stripe dependency nothing imports"
+    },
+    {
+      "repo": "NodeBB/NodeBB",
+      "is": "Express forum on Redis or Mongo; its password reset (/reset/:code, reset:uid keys) and account deletion go through its own route helper, and neither is read"
+    },
+    {
+      "repo": "pixelfed/pixelfed",
+      "is": "Laravel federated photo sharing; 2FA, data export and account deletion, read correctly as a consumer app"
+    },
+    {
+      "repo": "langgenius/dify",
+      "is": "Flask and Next.js LLM app platform with tenants, Celery and API keys; cloud billing is an external service the repository only calls"
+    },
+    {
+      "repo": "jellyfin/jellyfin",
+      "is": "ASP.NET media server with Serilog; documents Retry-After on a 503, reads MusicBrainz's 429 with a C# pattern match, and locks out by an attempts setting no package names"
     }
   ]
 }
