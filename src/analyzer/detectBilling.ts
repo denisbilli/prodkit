@@ -56,14 +56,25 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
        * secret, a token or an id.
        */
       /STRIPE_(?:[A-Z0-9_]*_)?(?:KEY|SECRET|TOKEN|ID|WEBHOOK|PRICE|ACCOUNT|API)[A-Z0-9_]*/,
+      /**
+       * Stripe's own host, for a product that speaks its API without an SDK. firezone's
+       * Elixir billing builds form-encoded requests itself against
+       * `endpoint: "https://api.stripe.com"`, and read as having no payments at all.
+       */
+      /https:\/\/api\.stripe\.com/,
       /stripeCustomerId/i,
       /stripeSubscriptionId/i,
       /\/webhooks?\/stripe/i,
       /\/stripe\/webhooks?/i,
     ],
     30,
-    /** The budget counts real signals, not entries in Laravel's table of slots. */
-    (match) => !LARAVEL_SERVICE_SLOTS.test(match.file),
+    /**
+     * The budget counts real signals, not entries in Laravel's table of slots — nor a
+     * Content Security Policy letting the browser reach Stripe. hexpm lists
+     * `connect_src: ~w('self' ... https://api.stripe.com)` for the card form a separate
+     * billing service drives, and was then asked for a webhook it never receives.
+     */
+    (match) => !LARAVEL_SERVICE_SLOTS.test(match.file) && !/connect[-_]src/.test(match.snippet),
   ));
 
   /**
@@ -190,6 +201,8 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
         // `json_decode($request->getContent())`, and nothing signed survives that.
         /(?<!json_decode\(\s*)\$request->getContent\(\s*\)/,
         /file_get_contents\(\s*['"]php:\/\/input['"]\s*\)/,
+        // Plug's, before any parser: firezone verifies Stripe over `read_body(conn, ...)`.
+        /read_body\(conn/,
       ],
       20
     )
@@ -207,7 +220,7 @@ export async function detectBilling(ctx: DetectContext): Promise<DetectorResult[
   const namesAProcessor = new RegExp(PROCESSOR_PACKAGES.join('|'), 'i');
   const secretHits = hasStrongStripeSignal
     ? [
-      ...await searchInFiles(ctx.root, ctx.files.source, [/STRIPE_WEBHOOK_SECRET/i, /stripeWebhookSecret/i], 20),
+      ...await searchInFiles(ctx.root, ctx.files.source, [/STRIPE_WEBHOOK_(?:SIGNING_)?SECRET/i, /stripeWebhookSecret/i], 20),
       ...(await searchInFiles(ctx.root, ctx.files.source, [configuredSecret], 20))
         .filter((hit) => namesAProcessor.test(hit.file) || namesAProcessor.test(hit.snippet)),
     ]

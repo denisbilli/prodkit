@@ -713,6 +713,10 @@
     {
       "repo": "apache/answer",
       "is": "Go and React Q&A platform with no rate limiter and no container healthcheck, read as it is"
+    },
+    {
+      "repo": "firezone/firezone",
+      "is": "Elixir and Rust zero-trust access for organisations; speaks Stripe's API over plain HTTP and verifies its webhooks by hand over Plug's read_body"
     }
   ]
 }

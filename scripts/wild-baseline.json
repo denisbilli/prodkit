@@ -3163,24 +3163,22 @@
     }
   },
   "lnbits": {
-    "inferredProfile": "ai-saas",
-    "inferenceConfidence": "medium",
+    "inferredProfile": "b2c-app",
+    "inferenceConfidence": "high",
     "capabilities": {
       "auth.baseline": "present",
-      "auth.mfa": "missing",
-      "auth.password-reset": "missing",
+      "auth.mfa": "present",
+      "auth.password-reset": "present",
       "auth.email-verification": "present",
-      "auth.api-keys": "present",
-      "authz.roles": "present",
+      "b2c.onboarding": "present",
+      "b2c.notifications": "partial",
       "authz.ownership": "present",
-      "tenancy.organization": "missing",
-      "tenancy.isolation": "missing",
       "gdpr.consent": "missing",
       "gdpr.export": "missing",
       "gdpr.erasure": "missing",
       "gdpr.retention": "present",
-      "billing.model": "missing",
-      "billing.webhook-integrity": "not_applicable",
+      "billing.model": "present",
+      "billing.webhook-integrity": "present",
       "security.headers": "present",
       "security.cors": "partial",
       "security.rate-limit": "present",
@@ -3188,9 +3186,6 @@
       "observability.health": "present",
       "observability.logging": "present",
       "audit.baseline": "present",
-      "jobs.background": "missing",
-      "ai.cost-control": "present",
-      "ai.prompt-safety": "present",
       "deployment.readiness": "partial",
       "deployment.docker": "present"
     }
@@ -5017,6 +5012,36 @@
       "audit.baseline": "missing",
       "deployment.readiness": "partial",
       "deployment.docker": "partial"
+    }
+  },
+  "firezone": {
+    "inferredProfile": "b2b-saas",
+    "inferenceConfidence": "high",
+    "capabilities": {
+      "auth.baseline": "present",
+      "auth.mfa": "present",
+      "auth.password-reset": "missing",
+      "auth.email-verification": "present",
+      "auth.api-keys": "present",
+      "authz.roles": "missing",
+      "authz.ownership": "present",
+      "tenancy.organization": "present",
+      "tenancy.isolation": "present",
+      "gdpr.consent": "missing",
+      "gdpr.export": "missing",
+      "gdpr.erasure": "present",
+      "gdpr.retention": "missing",
+      "billing.model": "present",
+      "billing.webhook-integrity": "present",
+      "security.headers": "present",
+      "security.cors": "missing",
+      "security.rate-limit": "present",
+      "uploads.protection": "present",
+      "observability.health": "present",
+      "observability.logging": "present",
+      "audit.baseline": "partial",
+      "deployment.readiness": "partial",
+      "deployment.docker": "present"
     }
   }
 }
