@@ -697,6 +697,22 @@
     {
       "repo": "CapSoftware/Cap",
       "is": "Next.js and Rust screen recorder with organisations; signs in by a mailed code with no password, and processes video through Vercel's workflow package"
+    },
+    {
+      "repo": "actualbudget/actual",
+      "is": "Local-first budgeting with an Express sync server; takes encrypted budget files as express.raw bodies of its own MIME type, which nothing reads as an upload"
+    },
+    {
+      "repo": "pretix/pretix",
+      "is": "Django ticketing scoped by django-scopes, paying organisers through Stripe Connect with a fee; its rate limit is a cache counter of its own that answers with form errors, not a 429"
+    },
+    {
+      "repo": "LibreTranslate/LibreTranslate",
+      "is": "Flask translation API with API keys and Flask-Limiter; an API service, which no profile fits yet, so it reads as a client app"
+    },
+    {
+      "repo": "apache/answer",
+      "is": "Go and React Q&A platform with no rate limiter and no container healthcheck, read as it is"
     }
   ]
 }
