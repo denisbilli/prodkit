@@ -1354,6 +1354,12 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
   const ownershipUnasked =
     wentUnasked(structuralOwnership, sourceFiles) && (await anyFileImportsExpress(ctx.root, sourceFiles));
 
+  const externalIdentityOnly =
+    externalIdentityProviders.length > 0 &&
+    storesAPasswordItself.length === 0 &&
+    passwordResetSignals.length === 0 &&
+    passwordResetFiles.length === 0;
+
   const hasAuth = authDeps.length > 0
     || routeSignals.length > 0
     || platformIdentity.length > 0
@@ -1392,17 +1398,23 @@ export async function detectAuth(ctx: DetectContext): Promise<DetectorResult[]> 
        * itself — `django-allauth` sits on top of Django's own user model, and those
        * projects can almost always reset a password.
        */
-      present:
-        externalIdentityProviders.length > 0 &&
-        storesAPasswordItself.length === 0 &&
-        passwordResetSignals.length === 0 &&
-        passwordResetFiles.length === 0,
+      present: externalIdentityOnly,
       evidence: depEvidence(externalIdentityProviders),
       details: { managedProviders: externalIdentityProviders.length },
     },
     {
       key: 'auth.2fa',
-      present: twoFaDeps.length > 0 || secondFactorSignals.length > 0 || installedMfaApps.length > 0,
+      /**
+       * A code is a second factor only after a first one. Cap signs people in with a code
+       * mailed to them — `router.push("/verify-otp?...")` — and holds no password at all, and
+       * that sign-in was its second factor; papermark mails an `otpCode` to confirm freezing
+       * a data room. Where the product stores no password of its own, a one-time code is how
+       * somebody signs in or confirms something, and only TOTP or "two-factor" itself is a
+       * second step: polar and trigger.dev put TOTP on top of a mailed sign-in link.
+       */
+      present: twoFaDeps.length > 0
+        || (externalIdentityOnly ? secondFactorSignals.some((m) => /two[_-]?factor|\btotp/i.test(m.snippet)) : secondFactorSignals.length > 0)
+        || installedMfaApps.length > 0,
       evidence: evidenceOrSearch([...depEvidence(twoFaDeps), ...snippetEvidence(secondFactorSignals), ...snippetEvidence(installedMfaApps)], 'a second factor', ['otplib', 'speakeasy', 'notp', 'pyotp', 'django-otp', 'totp', 'authenticator app', 'webauthn', '@simplewebauthn']),
     },
     {

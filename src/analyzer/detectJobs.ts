@@ -36,6 +36,8 @@ const QUEUE_DEPS = [
   '@temporalio/worker',
   'quirrel',
   'croner',
+  // Vercel's Workflow DevKit: Cap runs video processing and AI generation as `workflow` steps.
+  'workflow',
 ];
 
 const QUEUE_PY_DEPS = [

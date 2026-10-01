@@ -689,6 +689,14 @@
     {
       "repo": "spliit-app/spliit",
       "is": "Next.js expense splitter with no accounts; receipts through next-s3-upload and an optional OpenAI scan, so it is judged as an ai-saas it is not"
+    },
+    {
+      "repo": "elie222/inbox-zero",
+      "is": "Next.js AI email assistant with organisations, Google and Microsoft sign-in, Stripe and LemonSqueezy, read as it is"
+    },
+    {
+      "repo": "CapSoftware/Cap",
+      "is": "Next.js and Rust screen recorder with organisations; signs in by a mailed code with no password, and processes video through Vercel's workflow package"
     }
   ]
 }
